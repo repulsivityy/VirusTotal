@@ -9,8 +9,8 @@ ipaddr = []
 bad_ipaddr = []
 good_ipaddr = []
 
-working_directory = "/Users/dominicchua/Google Drive/My Drive/Github/VirusTotal/Python Scripts/"
-api_key = "YOUR_VT_API_KEY_HERE"
+working_directory = <directory>
+api_key = <api-key>
 
 with open(working_directory+'GetIpAddr.csv', 'r', newline="\n") as ipaddr_input:
     for i in ipaddr_input:
