@@ -1,4 +1,5 @@
 # Takes inputs from a CSV file and gets results from VT if they are malicious or not
+# If malicious, to get last_final_url from these IPs and check if the URL is malicious
 # Code is provided as best effort. Use at your own risk
 # VirusTotal // dominicchua@google.com
 
@@ -15,14 +16,13 @@ ipaddr = []
 bad_ipaddr = []
 good_ipaddr = []
 
-
-working_directory = "<PATH TO DIRECTORY>"
-api_key = "API_KEY"
+working_directory = "path_to_working_directory"
+api_key = "api_key"
 
 with open(working_directory+'GetIpAddr.csv', 'r') as ipaddr_input:
     for i in ipaddr_input:
         #i = [item.replace('\n', '') for item in i]
-        ipaddr.append(i)
+        ipaddr.append(i.strip()) # strips leading & trailing whitespace 
 
 #Creates a loop to put objects into the list
 #for i in range(1):
@@ -66,7 +66,7 @@ for b in bad_ipaddr:
         "accept": "application/json",
         "x-apikey": api_key
     }
-#    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers)
     obj_data = response.json()
     #print(response.text)
-    print(obj_data["data"])
+    print(b, "has the last known final URL of ", obj_data["data"][0]["attributes"]["last_final_url"])
