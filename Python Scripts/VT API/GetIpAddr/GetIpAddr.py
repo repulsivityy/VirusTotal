@@ -4,8 +4,7 @@
 # VirusTotal // dominicchua@google.com
 
 ## To do / Fix ##
-# Issue 1: Clean up / Fix the "\n" for each line break in CSV file
-# Issue 2: Additional URL objects having issues
+
 
 import requests
 import csv
