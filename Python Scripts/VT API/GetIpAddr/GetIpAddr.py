@@ -18,8 +18,8 @@ bad_ipaddr = [] # for all indicators that meet min_detection threshold input by 
 good_ipaddr = [] # zero detections 
 unknown_ipaddr = [] # all indicators >1 detection but <min_detection
 
-working_directory = "/Users/dominicchua/Google Drive/My Drive/Github/VirusTotal/Python Scripts/VT API/GetIpAddr/"
-api_key = "a00dca87920c02ad7e7fcae8785d7fb848e97269b952180d2411ad66ec526316"
+working_directory = "<PATH TO DIRECTORY>"
+api_key = "<API KEY>"
 
 with open(working_directory+'GetIpAddr.csv', 'r') as ipaddr_input:
     for i in ipaddr_input:
