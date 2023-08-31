@@ -18,8 +18,8 @@ bad_ipaddr = [] # for all indicators that meet min_detection threshold input by 
 good_ipaddr = [] # zero detections 
 unknown_ipaddr = [] # all indicators >1 detection but <min_detection
 
-working_directory = "<PATH TO DIRECTORY>"
-api_key = "<API KEY>"
+working_directory = "<Path_to_Directory>"
+api_key = "<APIKEY>"
 
 with open(working_directory+'GetIpAddr.csv', 'r') as ipaddr_input:
     for i in ipaddr_input:
@@ -95,7 +95,7 @@ try:
         url = f"https://www.virustotal.com/api/v3/ip_addresses/{u}/referrer_files?limit=1" # Check for any files that refers to this IP - indication of possible malware
         headers = {
             "accept": "application/json",
-            "x-apikey": "a00dca87920c02ad7e7fcae8785d7fb848e97269b952180d2411ad66ec526316"
+            "x-apikey": api_key
         }
         response = requests.get(url, headers=headers)
         ref_files = response.json() # parse output into dictionary
