@@ -14,11 +14,10 @@ condition:
 }
 
 rule BunnyLoader_Compression {
-// potential FP due to how the endpoints behaviour is like. to investigate, but good start for now.
   condition:
     for any vt_behaviour_processes_created in vt.behaviour.processes_created: (
-      vt_behaviour_processes_created icontains "C:\\Windows\\system32\\cmd.exe /c powershell -Command Add-Type -A 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('C:\\Users\\<USER>\\AppData\\Local\\BunnyLogs', 'C:\\Users\\<USER>\\AppData\\Local\\BunnyLogs_AZURE-PC.zip');" or
-      vt_behaviour_processes_created icontains "powershell -Command Add-Type -A 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('C:\\Users\\<USER>\\AppData\\Local\\BunnyLogs', 'C:\\Users\\<USER>\\AppData\\Local\\BunnyLogs_AZURE-PC.zip');"
+      vt_behaviour_processes_created icontains "C:\\Windows\\system32\\cmd.exe /c powershell -Command Add-Type -A 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('C:\\Users\\<USER>\\AppData\\Local\\BunnyLogs'" or
+      vt_behaviour_processes_created icontains "powershell -Command Add-Type -A 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('C:\\Users\\<USER>\\AppData\\Local\\BunnyLogs'"
     )
 }
 
@@ -45,6 +44,7 @@ rule BunnyLoader_Contact_Known_Infra {
     for any vt_behaviour_http_conversations in vt.behaviour.http_conversations: (
       vt_behaviour_http_conversations.url icontains "Bunny/Heartbeat.php?" or 
       vt_behaviour_http_conversations.url icontains "Bunny/Add.php?" or
-      vt_behaviour_http_conversations.url icontains "Bunny/Echoer.php?" 
+      vt_behaviour_http_conversations.url icontains "Bunny/Echoer.php?" or
+      vt_behaviour_http_conversations.url icontains "Bunny/Uploader.php" 
     )
 }
