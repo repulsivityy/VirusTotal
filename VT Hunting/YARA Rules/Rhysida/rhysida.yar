@@ -47,7 +47,8 @@ condition:
     vt_behaviour_memory_pattern_urls == "http://rhysidafohrhyy2aszi7bm32tnjat5xri65fopcxkdfxhi4tidsg7cad.onion/"
   ) or
   for any vt_behaviour_memory_pattern_domains in vt.behaviour.memory_pattern_domains: (
-    vt_behaviour_memory_pattern_domains == "onionmail.org"
+    vt_behaviour_memory_pattern_domains == "onionmail.org" or 
+    vt_behaviour_memory_pattern_domains icontains "rhysidafohrhyy2aszi7bm32tnjat5xri65fopcxkdfxhi4tidsg7cad.onion"
   ) and
   // checks 2 - behaviour
   for any vt_behaviour_files_written in vt.behaviour.files_written: (  //checks for ransomnote or encryption extension
@@ -55,7 +56,16 @@ condition:
     vt_behaviour_files_written icontains "CriticalBreachDetected.pdf" 
   ) and
   // checks 3 - metadata
-//  vt.metadata.analysis_stats.malicious >= 1 and 
+  //  vt.metadata.analysis_stats.malicious >= 1 and 
   vt.metadata.file_type == vt.FileType.PE_EXE and 
   vt.metadata.first_submission_date > 2023-05-01 //not required for retrohunt
+}
+
+rule Rhysida_behaviour_onion_site {
+    meta:
+        description = "checks for content that has rhysidafohrhyy2aszi7bm32tnjat5xri65fopcxkdfxhi4tidsg7cad.onion"
+    strings:
+        $s1 = "rhysidafohrhyy2aszi7bm32tnjat5xri65fopcxkdfxhi4tidsg7cad.onion"
+    condition:
+        any of them
 }
