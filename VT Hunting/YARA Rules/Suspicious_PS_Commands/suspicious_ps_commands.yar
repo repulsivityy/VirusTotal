@@ -18,7 +18,7 @@ rule suspicious_ps_cmds {
         $s9 = "FromBase64String(" nocase wide ascii
         $10 = "[System.Convert]::" nocase wide ascii
     condition: 
-        3 of them
+        2 of them
 }
 
 rule suspicious_ps_cmds_yaranetloc {
