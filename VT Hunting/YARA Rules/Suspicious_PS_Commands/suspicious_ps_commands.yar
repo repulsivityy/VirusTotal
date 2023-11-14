@@ -6,12 +6,19 @@ Author: dominicchua@google.com
 
 rule suspicious_ps_cmds {
     strings: 
+       // $s0 = "powershell"
         $s1 = "powershell.exe Set-ExecutionPolicy Bypass -enc"
         $s2 = "powershell.exe -NoProfile -ExecutionPolicy unrestricted"
         $s3 = "powershell.exe -w hidden -nop"
         $s4 = "powershell.exe -enc"
+        $s5 = "IEX" nocase wide ascii
+        $s6 = "new-object" nocase wide ascii
+        $s7 = "invoke" nocase wide ascii
+        $s8 = "-NoP" nocase wide ascii
+        $s9 = "FromBase64String(" nocase wide ascii
+        $10 = "[System.Convert]::" nocase wide ascii
     condition: 
-        any of them
+        3 of them
 }
 
 rule suspicious_ps_cmds_yaranetloc {
@@ -20,7 +27,11 @@ rule suspicious_ps_cmds_yaranetloc {
             vt_behaviour_processes_created icontains "powershell.exe Set-ExecutionPolicy Bypass -enc" or
             vt_behaviour_processes_created icontains "powershell.exe -NoProfile -ExecutionPolicy unrestricted" or
             vt_behaviour_processes_created icontains "powershell.exe -w hidden -nop" or 
-            vt_behaviour_processes_created icontains "powershell.exe -enc"
+            vt_behaviour_processes_created icontains "powershell.exe -enc" or 
+            vt_behaviour_processes_created icontains "IEX" or
+            vt_behaviour_processes_created icontains "new-object" or
+            vt_behaviour_processes_created icontains "FromBase64String(" or 
+            vt_behaviour_processes_created icontains "[System.Convert]::" or  
         )
 }
 
