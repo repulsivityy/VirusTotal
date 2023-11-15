@@ -24,5 +24,6 @@ rule royal_ransomware_behaviour {
                 (1 of ($r*))        //matches any known behaviour
             ) 
         and
-        vt.metadata.file_type == vt.FileType.PE_EXE  
+        vt.metadata.file_type == vt.FileType.PE_EXE or 
+        vt.metadata.file_type == vt.FileType.ELF
 }
