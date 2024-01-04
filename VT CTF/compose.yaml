@@ -1,0 +1,5 @@
+services:
+  app:
+    image: repulsivity/virustotal-ctf:version4
+    ports:
+      - 8000:8000
