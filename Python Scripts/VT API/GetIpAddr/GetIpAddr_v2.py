@@ -7,6 +7,7 @@ import requests
 import datetime
 import os
 
+#variables
 API_KEY = os.environ['VT_APIKEY']
 VT_API_URL = "https://www.virustotal.com/api/v3/ip_addresses"
 DIRECTORY = "<directory>"
