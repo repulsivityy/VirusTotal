@@ -11,15 +11,16 @@
 import requests
 import csv
 import datetime
+import os
 
 #Create an empty list to hold indicators
 ipaddr = [] # for all IP addresses in CSV
 bad_ipaddr = [] # for all indicators that meet min_detection threshold input by user
 good_ipaddr = [] # zero detections 
-unknown_ipaddr = [] # all indicators >1 detection but <min_detection
+unknown_ipaddr = [] # all indicators >1 detection but < min_detection
 
-working_directory = "<Path_to_Directory>"
-api_key = "<APIKEY>"
+working_directory = "<directory>"
+api_key = os.environ['VT_APIKEY']
 
 with open(working_directory+'GetIpAddr.csv', 'r') as ipaddr_input:
     for i in ipaddr_input:
