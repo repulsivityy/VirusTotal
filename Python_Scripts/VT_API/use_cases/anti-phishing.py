@@ -3,7 +3,7 @@ from pprint import pprint
 import urllib
 import requests
 
-QUERY = 'entity:url '
+QUERY = 'entity:url (content:"google" or title:"google login") not parent_domain:google.com ls:30d+ response_code:200'
 LIMIT = '10' #Max is 300 results
 
 def advanced_search(query):
@@ -12,3 +12,6 @@ def advanced_search(query):
   res = requests.get(url, headers=headers)
   res.raise_for_status()
   return res.json()
+
+res = advanced_search(QUERY)
+pprint(res)
