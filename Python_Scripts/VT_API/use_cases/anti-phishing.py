@@ -4,7 +4,7 @@ import urllib
 import requests
 
 QUERY = 'entity:url (content:"google" or title:"google login") not parent_domain:google.com ls:30d+ response_code:200'
-LIMIT = '10' #Max is 300 results
+LIMIT = '1' #Max is 300 results
 
 def advanced_search(query):
   url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&limit={LIMIT}&descriptors_only=false'
