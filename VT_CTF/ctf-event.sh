@@ -16,4 +16,8 @@ echo \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt-get update
 
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin 
+
+# Run VT CTF
+wget https://raw.githubusercontent.com/repulsivityy/VirusTotal/main/VT_CTF/compose.yaml
+sudo docker compose up -d
