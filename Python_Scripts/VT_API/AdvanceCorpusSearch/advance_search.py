@@ -3,7 +3,7 @@ from pprint import pprint
 import urllib
 import requests
 
-QUERY = 'entity:file submitter:au fs:2023-11-22+ fs:2023-11-24-'
+QUERY = 'entity:file submitter:au fs:2024-04-22+ fs:2024-04-24-'
 LIMIT = '10' #Max is 300 results
 
 def advanced_search(query):
