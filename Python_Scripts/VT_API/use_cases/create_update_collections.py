@@ -20,7 +20,7 @@ lastseen = "2024-04-24-"
 #lastseen = input("Enter First Seen End Date (eg 2023-12-31-):")
 LIMIT = '10'
 FILE_DETECT = 'entity:file submitter:au fs:'+ firstseen +' fs:'+ lastseen +' p:1+'
-COLLECTION_NAME = 'dominictest' #name of collection to be used
+COLLECTION_NAME = 'Test Collection' #name of collection to be used
 
 def file(query): 
     url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&limit={LIMIT}&descriptors_only=false'
