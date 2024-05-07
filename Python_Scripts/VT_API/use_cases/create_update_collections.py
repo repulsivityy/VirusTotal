@@ -18,10 +18,11 @@ firstseen = "2024-04-22+"
 lastseen = "2024-04-24-"
 #firstseen = input("Enter First Seen Start Date (eg 2023-12-01+):")
 #lastseen = input("Enter First Seen End Date (eg 2023-12-31-):")
-LIMIT = '10'
+LIMIT = '5'
 FILE_DETECT = 'entity:file submitter:au fs:'+ firstseen +' fs:'+ lastseen +' p:1+'
-COLLECTION_NAME = 'Test Collection' #name of collection to be used
+COLLECTION_NAME = 'test collection via api' #name of collection to be used
 
+#advance search
 def file(query): 
     url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&limit={LIMIT}&descriptors_only=false'
     headers = {'Accept': 'application/json', 'x-apikey': os.environ['VT_APIKEY']}
@@ -29,10 +30,8 @@ def file(query):
     res.raise_for_status()
     return res.json()
 
-
 #create a collection
-"""
-def create_collection(collection):
+def create_collection(collection, hashes):
     url = f"https://www.virustotal.com/api/v3/collections"
     headers = {'Accept': 'application/json', "content-type": "application/json", 'x-apikey': os.environ['VT_APIKEY']}
     
@@ -47,8 +46,8 @@ def create_collection(collection):
 				    "data": [
 					    {
 						    "type": "file",
-						    "id": "ecc0f2aa29b102bf8d67b7d7173e8698c0341ddfdf9757be17595460fbf1791a"
-					    }
+						    "id": h
+					    } for h in hashes
 				    ]
 			    }
 		    },
@@ -57,8 +56,16 @@ def create_collection(collection):
     }
     response = requests.post(url, json=payload, headers=headers)
     print(response.text)
-"""
 
-#create_collection(COLLECTION_NAME)
 res = file(FILE_DETECT)
-pprint(res)
+
+hashes = []  # Initialize an empty list to store hashes
+
+if "data" in res:
+    for item in res["data"]:
+        if "attributes" in item and "sha256" in item["attributes"]:
+            hashes.append(item["attributes"]["sha256"])
+
+pprint("Extracted Hashes:")
+pprint(hashes)
+create_collection(COLLECTION_NAME, hashes)
