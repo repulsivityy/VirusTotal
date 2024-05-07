@@ -64,9 +64,9 @@ def create_collection(collection, hashes):
 		    "type": "collection"
 	    }
     }
-    response = requests.post(url, json=payload, headers=headers)
+    res = requests.post(url, json=payload, headers=headers)
     print("\nCollection Create Successfully\n")
-    return response.json()
+    return res.json()
 
 #######################
 #get collection details
@@ -74,8 +74,8 @@ def create_collection(collection, hashes):
 def get_collection(id):
     url = f"https://www.virustotal.com/api/v3/collections/{id}"
     headers = {'Accept': 'application/json', 'x-apikey': os.environ['VT_APIKEY']}
-    response = requests.get(url, headers=headers) 
-    print(response.text)
+    res = requests.get(url, headers=headers) 
+    print(res.text)
     #return res.json()
 
 #######################
