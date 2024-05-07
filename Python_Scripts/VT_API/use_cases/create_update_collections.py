@@ -1,4 +1,4 @@
-######
+################
 # Python Script to 
 # 1. create a collection (done)
 # 2. add in indicators from an advance search (partial)
@@ -6,7 +6,8 @@
 # 4. update results from #3 to a google sheets
 # author: dominicchua@google.com
 # currently WIP
-######
+# USE AT YOUR OWN RISK
+################
 
 import json
 import os
@@ -15,8 +16,9 @@ import urllib
 import requests
 import time
 
-
+################
 # variables
+################
 firstseen = "2024-04-15+"
 lastseen = "2024-04-30-"
 #firstseen = input("Enter First Seen Start Date (eg 2023-12-01+):")
