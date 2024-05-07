@@ -128,7 +128,7 @@ try:
         ref_files = response.json() # parse output into dictionary
         referral_files = ref_files["meta"]["count"] # var for # of referral_files seen
         files_last_analysis_stats_malicious = ref_files["data"][0]["attributes"]["last_analysis_stats"]["malicious"] # var for # of malicious verdicts for referral_files
-
+        
         shodan_info = shodan_api.host(u)
 
         if (referral_files > 1): #IF/ELSE to print VT graph link for reference - yes i got lazy here ;(
