@@ -65,6 +65,7 @@ def create_collection(collection, hashes):
 	    }
     }
     res = requests.post(url, json=payload, headers=headers)
+    res.raise_for_status()
     print("\nCollection Create Successfully\n")
     return res.json()
 
@@ -74,7 +75,8 @@ def create_collection(collection, hashes):
 def get_collection(id):
     url = f"https://www.virustotal.com/api/v3/collections/{id}"
     headers = {'Accept': 'application/json', 'x-apikey': os.environ['VT_APIKEY']}
-    res = requests.get(url, headers=headers) 
+    res = requests.get(url, headers=headers)
+    res.raise_for_status()
     print(res.text)
     #return res.json()
 
@@ -85,6 +87,7 @@ def delete_collection(id):
     url = f"https://www.virustotal.com/api/v3/collections/{id}"
     headers = {'Accept': 'application/json', "content-type": "application/json", 'x-apikey': os.environ['VT_APIKEY']}
     res = requests.delete(url, headers=headers)
+    res.raise_for_status()
     print(res.text)
 
 
@@ -114,9 +117,7 @@ try:
 ############
 #error handling
 ############
-except requests.exceptions.RequestException as e:
-    print(f"An error occurred: {e}")
-except requests.exceptions.HTTPError as e:
-    print(f"HTTP error occurred: {e}")
+except requests.RequestException as e:
+    print(f"Request error: {e}")
 except Exception as e:
     print(f"An error occurred: {e}")
