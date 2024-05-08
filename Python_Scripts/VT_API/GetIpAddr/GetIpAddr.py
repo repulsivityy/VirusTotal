@@ -129,11 +129,15 @@ try:
         referral_files = ref_files["meta"]["count"] # var for # of referral_files seen
         files_last_analysis_stats_malicious = ref_files["data"][0]["attributes"]["last_analysis_stats"]["malicious"] # var for # of malicious verdicts for referral_files
         
+    try: 
         shodan_info = shodan_api.host(u)
 
         if (referral_files > 1): #IF/ELSE to print VT graph link for reference - yes i got lazy here ;(
             print("\033[1m", u, "\033[0;0mhas the last known final URL of", last_final_url, "with", url_last_analysis_stats_malicious, "malicious detections, and", referral_files, "files that contain these IPs, with", files_last_analysis_stats_malicious, "malicious detections, with the following ports", shodan_info["ports"], "open. Link to VT graph: " + f"\033[92mhttps://www.virustotal.com/graph/{u}\033[0;0m")
         else:
             print(u, "has the last known final URL of", last_final_url, "with", url_last_analysis_stats_malicious, "malicious detections and have", referral_files, "files that contain these IPs")
+    except Exception as e:
+        print(f"Error occurred while fetching Shodan information for {u}: {e}")
+
 except Exception as error:
     print("Error occured:", error) # print reason for error
