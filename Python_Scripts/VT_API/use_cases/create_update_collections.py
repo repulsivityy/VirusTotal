@@ -2,9 +2,10 @@
 # Python Script to 
 # 1. create a collection (done)
 # 2. add in indicators from an advance search (partial)
-# 3. get the top 3 malware families, and top 3 threat categories
-# 4. update results from #3 to a google sheets
-# author: dominicchua@google.com
+# 3. get the top 3 malware families, and top 3 threat categories (todo)
+# 4. update results from #3 to a google sheets (todo)
+#
+# author: VirusTotal // dominicchua@google.com
 # currently WIP
 # USE AT YOUR OWN RISK
 ################

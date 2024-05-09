@@ -1,3 +1,12 @@
+#############
+# Usage: 
+# 1. Load VT API Key as an environment variable (VT_APIKEY) 
+# 2. Update the query based on VirusTotal's search terms
+# 3. Results returned in JSON format
+# Code is provided as best effort. Use at your own risk
+# VirusTotal // dominicchua@google.com
+#############
+
 import os
 from pprint import pprint
 import urllib
