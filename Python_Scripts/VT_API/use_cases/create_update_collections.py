@@ -1,7 +1,7 @@
 ################
 # Python Script to 
 # 1. create a collection (done)
-# 2. add in indicators from an advance search (partial - to settle pagnation next)
+# 2. add in indicators from an advance search (partial - to work on pagination next)
 # 3. get the top 3 malware families, and top 3 threat categories (done)
 # 4. update results from #3 to a google sheets (todo)
 #
@@ -42,7 +42,7 @@ def file(query):
     res.raise_for_status()
     data = res.json()
     """
-#    meant for pagination 
+#    meant for pagination - need to work on next. 
         if "links" in data and "next" in data["links"]:
             url = data["links"]["next"]
         else:
