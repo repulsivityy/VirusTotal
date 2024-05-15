@@ -180,13 +180,6 @@ try:
     print("Collection ID:", collection_id) # Print the Collection ID
     print("Link to Collection:", vt_col_link + collection_id) # Print link to collection
     
-    print("\nWaiting for collection to be computed...") #wait needed for commmonalities to be computed
-    print("\nWaiting for 30 seconds...")
-    time.sleep(30)
-    json_response = get_collection(collection_id) # Get collection details
-    print_top_trends(json_response) # Print top threats and IPs
-    
-    """
     # Check if hashes list is empty
     if not hashes:
         print("No hashes found, skipping collection creation.")
@@ -210,7 +203,7 @@ try:
 
         if retry_count == max_retries:
             print("Maximum retries reached. Collection may be empty or processing has not completed.")
-    """
+
     delete_collection(collection_id) # cleanup collection during testing 
 
 ############
