@@ -35,7 +35,7 @@ COLLECTION_DESCRIPTION = "test description"
 #advance search
 ################
 def file(query): 
-    url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&limit={LIMIT}&descriptors_only=true'
+    url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&limit={LIMIT}&descriptors_only=false'
     headers = {'Accept': 'application/json', 'x-apikey': os.environ['VT_APIKEY']}
 #   while True:  # trying out 
     res = requests.get(url, headers=headers)
