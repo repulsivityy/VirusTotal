@@ -24,7 +24,7 @@ firstseen = "2024-04-21+"
 lastseen = "2024-04-27-"
 #firstseen = input("Enter First Seen Start Date (eg 2023-12-01+):")
 #lastseen = input("Enter First Seen End Date (eg 2023-12-31-):")
-LIMIT = '300'
+LIMIT = '50'
 FILE_DETECT = 'entity:file submitter:au fs:'+ firstseen +' fs:'+ lastseen +' p:1+'
 #COLLECTION_NAME = input("Enter Collection Name (eg 'Test Collection'): ") #name of collection to be used
 #COLLECTION_DESCRIPTION = input("Enter Collection Description (eg 'For Trends in past 7 days'): ") #description of collection to be used
@@ -179,10 +179,38 @@ try:
     collection_id = collection_link["data"]["id"]  # Extract Collection ID from JSON response
     print("Collection ID:", collection_id) # Print the Collection ID
     print("Link to Collection:", vt_col_link + collection_id) # Print link to collection
-    print("\nWaiting for 10 seconds...") #wait needed for commmonalities to be computed
-    time.sleep(10)
+    
+    print("\nWaiting for collection to be computed...") #wait needed for commmonalities to be computed
+    print("\nWaiting for 30 seconds...")
+    time.sleep(30)
     json_response = get_collection(collection_id) # Get collection details
     print_top_trends(json_response) # Print top threats and IPs
+    
+    """
+    # Check if hashes list is empty
+    if not hashes:
+        print("No hashes found, skipping collection creation.")
+    else:
+        # ... (create collection) ...
+
+        # Retry mechanism (example)
+        max_retries = 3
+        retry_count = 0
+        while retry_count < max_retries:
+            json_response = get_collection(collection_id)
+            collection_details = json.loads(json_response)
+            if "files" in collection_details.get("data", {}).get("attributes", {}).get("aggregations", {}):
+                print_top_trends(collection_details)
+                break  # Exit loop if 'files' key is found
+            else:
+                print("Collection still processing. Retrying in 30 seconds...")
+                time.sleep(30)
+                retry_count += 1
+                print("Retry count:", retry_count)
+
+        if retry_count == max_retries:
+            print("Maximum retries reached. Collection may be empty or processing has not completed.")
+    """
     delete_collection(collection_id) # cleanup collection during testing 
 
 ############
