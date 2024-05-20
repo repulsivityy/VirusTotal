@@ -6,7 +6,9 @@ import requests
 import pprint
 
 api_key = os.environ['WEBRISK_APIKEY']
+# Change the URL to the URL you are checking
 VT_URL = "http://cashforcars-brisbane.com/cxbshell.php"
+
 
 def check_uri(url):
     url = f'https://webrisk.googleapis.com/v1/uris:search?threatTypes=MALWARE&threatTypes=SOCIAL_ENGINEERING&uri={urllib.parse.quote(url)}&key={api_key}'
