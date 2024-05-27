@@ -1,0 +1,968 @@
+## Sandbox Feeds ##
+{
+    "attributes": {
+        "analysis_date": 1710925199,
+        "behash": "f0da9c5b7d5dff08ce0d27b4d49f3a1a",
+        "has_evtx": false,
+        "has_html_report": false,
+        "has_memdump": false,
+        "has_pcap": false,
+        "last_modification_date": 1710925199,
+        "sandbox_name": "CAPA",
+        "signature_matches": [
+            {
+                "authors": [
+                    "william.ballenthin@mandiant.com"
+                ],
+                "description": "runtime/dotnet",
+                "format": "SIG_FORMAT_CAPA",
+                "name": "compiled to the .NET platform",
+                "rule_src": "rule:\n  meta:\n    name: compiled to the .NET platform\n    namespace: runtime/dotnet\n    authors:\n      - william.ballenthin@mandiant.com\n    scopes:\n      static: file\n      dynamic: file\n    examples:\n      - b9f5bd514485fb06da39beff051b9fdc\n  features:\n    - or:\n      - format: dotnet\n      - import: mscoree._CorExeMain\n      - import: mscoree._corexemain\n      - import: mscoree._CorDllMain\n      - import: mscoree._cordllmain\n"
+            }
+        ]
+    },
+    "context_attributes": {
+        "file_md5": "3416763ae4fdd94e120057370a87211c",
+        "file_sha1": "27165447784aa834b98900cdf628163f45b660a8",
+        "file_type_tag": "pedll"
+    },
+    "id": "542d6a8f044d553fc5f1ffbfa8b05c5e4b34b6d0fdf658f61a3fc0f0f30a2a63_CAPA",
+    "links": {
+        "self": "https://www.virustotal.com/api/v3/file_behaviours/542d6a8f044d553fc5f1ffbfa8b05c5e4b34b6d0fdf658f61a3fc0f0f30a2a63_CAPA"
+    },
+    "relationships": {
+        "file": {
+            "data": {
+                "id": "542d6a8f044d553fc5f1ffbfa8b05c5e4b34b6d0fdf658f61a3fc0f0f30a2a63",
+                "type": "file"
+            },
+            "links": {
+                "related": "https://www.virustotal.com/api/v3/file_behaviours/542d6a8f044d553fc5f1ffbfa8b05c5e4b34b6d0fdf658f61a3fc0f0f30a2a63_CAPA/file",
+                "self": "https://www.virustotal.com/api/v3/file_behaviours/542d6a8f044d553fc5f1ffbfa8b05c5e4b34b6d0fdf658f61a3fc0f0f30a2a63_CAPA/relationships/file"
+            },
+            "meta": {
+                "count": 1
+            }
+        }
+    },
+    "type": "file_behaviour"
+}
+{
+    "attributes": {
+        "analysis_date": 1710925187,
+        "behash": "7e570d61596886c48ff7c61918bd65d8",
+        "files_deleted": [
+            "C:\\Users\\user\\Desktop\\WinWord.exe"
+        ],
+        "files_dropped": [
+            {
+                "path": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "sha256": "9be3f9089e70c0550909e8a1c9fe2281267d4875f99a7b1156f7d124288c7426",
+                "type": "PE_EXE"
+            }
+        ],
+        "files_opened": [
+            "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+            "C:\\Users\\user\\Desktop\\WinWord.exe",
+            "C:\\Windows\\AppPatch\\sysmain.sdb",
+            "C:\\Windows\\SysWOW64\\ADVAPI32.dll",
+            "C:\\Windows\\SysWOW64\\AcGenral.dll",
+            "C:\\Windows\\SysWOW64\\AcSpecfc.DLL",
+            "C:\\Windows\\SysWOW64\\COMDLG32.dll",
+            "C:\\Windows\\SysWOW64\\CRYPTBASE.dll",
+            "C:\\Windows\\SysWOW64\\ColorAdapterClient.dll",
+            "C:\\Windows\\SysWOW64\\DCIMAN32.dll",
+            "C:\\Windows\\SysWOW64\\DDRAW.dll",
+            "C:\\Windows\\SysWOW64\\FLTLIB.DLL",
+            "C:\\Windows\\SysWOW64\\GDI32.dll",
+            "C:\\Windows\\SysWOW64\\IMM32.DLL",
+            "C:\\Windows\\SysWOW64\\IMM32.dll",
+            "C:\\Windows\\SysWOW64\\IPHLPAPI.DLL",
+            "C:\\Windows\\SysWOW64\\KERNEL32.DLL",
+            "C:\\Windows\\SysWOW64\\KERNELBASE.dll",
+            "C:\\Windows\\SysWOW64\\MPR.dll",
+            "C:\\Windows\\SysWOW64\\MSACM32.dll",
+            "C:\\Windows\\SysWOW64\\OLEAUT32.dll",
+            "C:\\Windows\\SysWOW64\\PROPSYS.dll",
+            "C:\\Windows\\SysWOW64\\RPCRT4.dll",
+            "C:\\Windows\\SysWOW64\\SHELL32.dll",
+            "C:\\Windows\\SysWOW64\\SHLWAPI.dll",
+            "C:\\Windows\\SysWOW64\\SspiCli.dll",
+            "C:\\Windows\\SysWOW64\\USER32.dll",
+            "C:\\Windows\\SysWOW64\\USERENV.dll",
+            "C:\\Windows\\SysWOW64\\UxTheme.dll",
+            "C:\\Windows\\SysWOW64\\VERSION.dll",
+            "C:\\Windows\\SysWOW64\\WINMM.dll",
+            "C:\\Windows\\SysWOW64\\WINMMBASE.dll",
+            "C:\\Windows\\SysWOW64\\WINSPOOL.DRV",
+            "C:\\Windows\\SysWOW64\\WS2_32.dll",
+            "C:\\Windows\\SysWOW64\\advapi32.dll",
+            "C:\\Windows\\SysWOW64\\apphelp.dll",
+            "C:\\Windows\\SysWOW64\\bcrypt.dll",
+            "C:\\Windows\\SysWOW64\\bcryptPrimitives.dll",
+            "C:\\Windows\\SysWOW64\\cfgmgr32.dll",
+            "C:\\Windows\\SysWOW64\\combase.dll",
+            "C:\\Windows\\SysWOW64\\dwmapi.dll",
+            "C:\\Windows\\SysWOW64\\dxgi.dll",
+            "C:\\Windows\\SysWOW64\\gdi32full.dll",
+            "C:\\Windows\\SysWOW64\\iertutil.dll",
+            "C:\\Windows\\SysWOW64\\kernel.appcore.dll",
+            "C:\\Windows\\SysWOW64\\mscms.dll",
+            "C:\\Windows\\SysWOW64\\msi.dll",
+            "C:\\Windows\\SysWOW64\\msvcp_win.dll",
+            "C:\\Windows\\SysWOW64\\msvcrt.dll",
+            "C:\\Windows\\SysWOW64\\ninput.dll",
+            "C:\\Windows\\SysWOW64\\ntdll.dll",
+            "C:\\Windows\\SysWOW64\\ole32.dll",
+            "C:\\Windows\\SysWOW64\\powrprof.dll",
+            "C:\\Windows\\SysWOW64\\profapi.dll",
+            "C:\\Windows\\SysWOW64\\samcli.dll",
+            "C:\\Windows\\SysWOW64\\sechost.dll",
+            "C:\\Windows\\SysWOW64\\shcore.dll",
+            "C:\\Windows\\SysWOW64\\shlwapi.dll",
+            "C:\\Windows\\SysWOW64\\ucrtbase.dll",
+            "C:\\Windows\\SysWOW64\\urlmon.dll",
+            "C:\\Windows\\SysWOW64\\win32u.dll",
+            "C:\\Windows\\SysWOW64\\windows.storage.dll",
+            "C:\\Windows\\WinSxS\\x86_microsoft.windows.common-controls_6595b64144ccf1df_5.82.17134.1304_none_9d23a7c03adb3d0b",
+            "C:\\Windows\\WinSxS\\x86_microsoft.windows.common-controls_6595b64144ccf1df_5.82.17134.1304_none_9d23a7c03adb3d0b\\COMCTL32.dll",
+            "\\Device\\KsecDD"
+        ],
+        "files_written": [
+            "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp"
+        ],
+        "has_evtx": true,
+        "has_html_report": true,
+        "has_memdump": true,
+        "has_pcap": true,
+        "last_modification_date": 1710925207,
+        "memory_dumps": [
+            {
+                "base_address": "12845056",
+                "file_name": "00000000.00000002.1003754449.0000000000C40000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "36864",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "16961536",
+                "file_name": "00000000.00000002.1003911953.000000000102D000.00000002.00000001.01000000.00000003.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "28672",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "16990208",
+                "file_name": "00000000.00000002.1003933917.0000000001034000.00000004.00000001.01000000.00000003.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "4096",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "18743296",
+                "file_name": "00000001.00000000.1003465927.00000000011E0000.00000002.00000001.01000000.00000004.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "4096",
+                "stage": "MEM_STAGE_NEW"
+            },
+            {
+                "base_address": "19484672",
+                "file_name": "00000001.00000000.1003524475.0000000001295000.00000002.00000001.01000000.00000004.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "180224",
+                "stage": "MEM_STAGE_NEW"
+            },
+            {
+                "base_address": "7929856",
+                "file_name": "00000000.00000002.1003712704.0000000000790000.00000004.00000020.00040000.00000000.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "4096",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "52953088",
+                "file_name": "00000001.00000002.1005132805.0000000003280000.00000040.00001000.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "4096",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "15908864",
+                "file_name": "00000001.00000002.1004787238.0000000000F2C000.00000004.00000010.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "16384",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "20766720",
+                "file_name": "00000001.00000002.1004994675.00000000013CE000.00000004.00000010.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "8192",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "11780096",
+                "file_name": "00000000.00000002.1003745930.0000000000B3C000.00000004.00000010.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "16384",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "14376960",
+                "file_name": "00000000.00000002.1003855509.0000000000DB6000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "4096",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "26075136",
+                "file_name": "00000001.00000002.1005060483.00000000018DE000.00000004.00000010.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "8192",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "16994304",
+                "file_name": "00000000.00000002.1003953557.0000000001035000.00000008.00000001.01000000.00000003.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "446464",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "16912384",
+                "file_name": "00000000.00000002.1003900413.0000000001021000.00000020.00000001.01000000.00000003.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "49152",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "17453056",
+                "file_name": "00000000.00000000.1002113484.00000000010A5000.00000002.00000001.01000000.00000003.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "184320",
+                "stage": "MEM_STAGE_NEW"
+            },
+            {
+                "base_address": "17649664",
+                "file_name": "00000000.00000000.1002113484.00000000010D5000.00000002.00000001.01000000.00000003.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "180224",
+                "stage": "MEM_STAGE_NEW"
+            },
+            {
+                "base_address": "41824256",
+                "file_name": "00000000.00000002.1004099084.00000000027E3000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "8192",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "19283968",
+                "file_name": "00000001.00000002.1004898832.0000000001264000.00000004.00000001.01000000.00000004.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "4096",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "19288064",
+                "file_name": "00000001.00000002.1004947290.0000000001265000.00000002.00000001.01000000.00000004.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "184320",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "19484672",
+                "file_name": "00000001.00000002.1004947290.0000000001295000.00000002.00000001.01000000.00000004.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "180224",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "16908288",
+                "file_name": "00000000.00000000.1002061118.0000000001020000.00000002.00000001.01000000.00000003.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "4096",
+                "stage": "MEM_STAGE_NEW"
+            },
+            {
+                "base_address": "24969216",
+                "file_name": "00000001.00000002.1005044500.00000000017D0000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "20480",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "18743296",
+                "file_name": "00000001.00000002.1004864551.00000000011E0000.00000002.00000001.01000000.00000004.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "4096",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "17453056",
+                "file_name": "00000000.00000002.1004062835.00000000010A5000.00000002.00000001.01000000.00000003.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "184320",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "41881600",
+                "file_name": "00000000.00000003.1003591148.00000000027F1000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "708608",
+                "stage": "MEM_STAGE_FREE"
+            },
+            {
+                "base_address": "14090240",
+                "file_name": "00000000.00000002.1003833274.0000000000D70000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "4096",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "13893632",
+                "file_name": "00000000.00000002.1003800186.0000000000D40000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "24576",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "18747392",
+                "file_name": "00000001.00000002.1004878508.00000000011E1000.00000020.00000001.01000000.00000004.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "49152",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "16961536",
+                "file_name": "00000000.00000000.1002077826.000000000102D000.00000002.00000001.01000000.00000003.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "28672",
+                "stage": "MEM_STAGE_NEW"
+            },
+            {
+                "base_address": "10731520",
+                "file_name": "00000000.00000002.1003738181.0000000000A3C000.00000004.00000010.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "16384",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "18796544",
+                "file_name": "00000001.00000000.1003488565.00000000011ED000.00000002.00000001.01000000.00000004.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "28672",
+                "stage": "MEM_STAGE_NEW"
+            },
+            {
+                "base_address": "7995392",
+                "file_name": "00000000.00000002.1003727820.00000000007A0000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "4096",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "15400960",
+                "file_name": "00000001.00000002.1004776024.0000000000EB0000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "4096",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "24109056",
+                "file_name": "00000001.00000002.1005005992.00000000016FE000.00000004.00000010.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "8192",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "24371200",
+                "file_name": "00000001.00000002.1005023469.000000000173E000.00000004.00000010.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "8192",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "19288064",
+                "file_name": "00000001.00000000.1003524475.0000000001265000.00000002.00000001.01000000.00000004.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "184320",
+                "stage": "MEM_STAGE_NEW"
+            },
+            {
+                "base_address": "18538496",
+                "file_name": "00000001.00000002.1004832055.00000000011AE000.00000004.00000010.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "8192",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "18825216",
+                "file_name": "00000001.00000002.1004898832.00000000011F4000.00000004.00000001.01000000.00000004.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "454656",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "41811968",
+                "file_name": "00000000.00000002.1004099084.00000000027E0000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "4096",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "18276352",
+                "file_name": "00000001.00000002.1004811623.000000000116E000.00000004.00000010.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "8192",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "42598400",
+                "file_name": "00000000.00000003.1003591148.00000000028A0000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "266240",
+                "stage": "MEM_STAGE_FREE"
+            },
+            {
+                "base_address": "14286848",
+                "file_name": "00000000.00000002.1003846174.0000000000DA0000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "8192",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "16990208",
+                "file_name": "00000000.00000000.1002089297.0000000001034000.00000008.00000001.01000000.00000003.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "454656",
+                "stage": "MEM_STAGE_NEW"
+            },
+            {
+                "base_address": "18825216",
+                "file_name": "00000001.00000000.1003500024.00000000011F4000.00000008.00000001.01000000.00000004.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "454656",
+                "stage": "MEM_STAGE_NEW"
+            },
+            {
+                "base_address": "26783744",
+                "file_name": "00000001.00000002.1005070225.000000000198B000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "102400",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "17448960",
+                "file_name": "00000000.00000002.1004039697.00000000010A4000.00000004.00000001.01000000.00000003.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "4096",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "26738688",
+                "file_name": "00000001.00000002.1005070225.0000000001980000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "36864",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "12890112",
+                "file_name": "00000000.00000002.1003754449.0000000000C4B000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "refs": [
+                    {
+                        "ref": "#signature_matches",
+                        "value": "311"
+                    }
+                ],
+                "size": "159744",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "14024704",
+                "file_name": "00000000.00000002.1003816900.0000000000D60000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "4096",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "16953344",
+                "file_name": "00000001.00000002.1004803087.000000000102B000.00000004.00000010.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "20480",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "18796544",
+                "file_name": "00000001.00000002.1004886131.00000000011ED000.00000002.00000001.01000000.00000004.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "28672",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "18747392",
+                "file_name": "00000001.00000000.1003475816.00000000011E1000.00000020.00000001.01000000.00000004.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "49152",
+                "stage": "MEM_STAGE_NEW"
+            },
+            {
+                "base_address": "14352384",
+                "file_name": "00000000.00000002.1003855509.0000000000DB0000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "12288",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "16912384",
+                "file_name": "00000000.00000000.1002067837.0000000001021000.00000020.00000001.01000000.00000003.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "49152",
+                "stage": "MEM_STAGE_NEW"
+            },
+            {
+                "base_address": "16908288",
+                "file_name": "00000000.00000002.1003887921.0000000001020000.00000002.00000001.01000000.00000003.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "4096",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "17440768",
+                "file_name": "00000000.00000002.1004039697.00000000010A2000.00000004.00000001.01000000.00000003.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "4096",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "15335424",
+                "file_name": "00000001.00000002.1004765291.0000000000EA0000.00000004.00000020.00040000.00000000.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "4096",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "29753344",
+                "file_name": "00000001.00000002.1005115723.0000000001C60000.00000004.00000020.00020000.00000000.sdmp",
+                "process": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                "size": "12288",
+                "stage": "MEM_STAGE_EXIT"
+            },
+            {
+                "base_address": "17649664",
+                "file_name": "00000000.00000002.1004062835.00000000010D5000.00000002.00000001.01000000.00000003.sdmp",
+                "process": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "size": "180224",
+                "stage": "MEM_STAGE_EXIT"
+            }
+        ],
+        "memory_pattern_domains": [
+            "metalink.oracle.com).",
+            "oracle.com",
+            "www.oracle.com"
+        ],
+        "memory_pattern_urls": [
+            "http://metalink.oracle.com).",
+            "http://oracle.com/contracts.",
+            "http://www.oracle.com/education/oln.",
+            "http://oracle.com/contracts"
+        ],
+        "mitre_attack_techniques": [
+            {
+                "id": "T1059",
+                "refs": [
+                    {
+                        "ref": "#signature_matches",
+                        "value": "908"
+                    }
+                ],
+                "severity": "IMPACT_SEVERITY_INFO",
+                "signature_description": "Sample may offer command line options, please run it with the command line option cookbook (it's possible that the command line switches require additional characters like)"
+            },
+            {
+                "id": "T1059",
+                "refs": [
+                    {
+                        "ref": "#signature_matches",
+                        "value": "1654"
+                    }
+                ],
+                "severity": "IMPACT_SEVERITY_INFO",
+                "signature_description": "Sample might require command line arguments, analyze it with the command line cookbook"
+            },
+            {
+                "id": "T1203",
+                "refs": [
+                    {
+                        "ref": "#signature_matches",
+                        "value": "184"
+                    }
+                ],
+                "severity": "IMPACT_SEVERITY_LOW",
+                "signature_description": "Document exploit detected (process start blacklist hit)"
+            },
+            {
+                "id": "T1027.002",
+                "refs": [
+                    {
+                        "ref": "#signature_matches",
+                        "value": "433"
+                    }
+                ],
+                "severity": "IMPACT_SEVERITY_INFO",
+                "signature_description": "PE file has section (not .text) which is very likely to contain packed code (zlib compression ratio < 0.011)"
+            },
+            {
+                "id": "T1070.004",
+                "refs": [
+                    {
+                        "ref": "#signature_matches",
+                        "value": "220"
+                    }
+                ],
+                "severity": "IMPACT_SEVERITY_LOW",
+                "signature_description": "Deletes itself after installation"
+            },
+            {
+                "id": "T1056",
+                "refs": [
+                    {
+                        "ref": "#signature_matches",
+                        "value": "311"
+                    }
+                ],
+                "severity": "IMPACT_SEVERITY_INFO",
+                "signature_description": "Creates a DirectInput object (often for capturing keystrokes)"
+            },
+            {
+                "id": "T1082",
+                "refs": [
+                    {
+                        "ref": "#signature_matches",
+                        "value": "509"
+                    }
+                ],
+                "severity": "IMPACT_SEVERITY_INFO",
+                "signature_description": "Reads software policies"
+            }
+        ],
+        "processes_created": [
+            "C:\\Users\\user\\Desktop\\WinWord.exe",
+            "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp"
+        ],
+        "processes_terminated": [
+            "C:\\Users\\user\\Desktop\\WinWord.exe",
+            "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp"
+        ],
+        "processes_tree": [
+            {
+                "children": [
+                    {
+                        "name": "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp",
+                        "process_id": "6248"
+                    }
+                ],
+                "name": "C:\\Users\\user\\Desktop\\WinWord.exe",
+                "process_id": "252"
+            }
+        ],
+        "registry_keys_opened": [
+            "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Wow64\\x86\\xtajit",
+            "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Control\\FileSystem\\",
+            "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Control\\MUI\\UILanguages",
+            "HKEY_LOCAL_MACHINE\\Software\\WOW6432Node\\Policies\\Microsoft\\Windows\\Display",
+            "HKEY_LOCAL_MACHINE\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\SideBySide",
+            "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Control\\SafeBoot\\Option",
+            "HKEY_LOCAL_MACHINE\\Software\\WOW6432Node\\Microsoft\\Windows NT\\CurrentVersion\\Windows",
+            "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\OLEAUT",
+            "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Segment Heap",
+            "HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\OLE",
+            "HKEY_LOCAL_MACHINE\\Software\\WOW6432Node\\Microsoft\\Windows NT\\CurrentVersion\\GRE_Initialize",
+            "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Control\\MUI\\Settings\\LanguageConfiguration",
+            "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Control\\Session Manager\\AppCertDlls",
+            "HKEY_LOCAL_MACHINE\\Software\\WOW6432Node\\Policies\\Microsoft\\MUI\\Settings",
+            "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Nls\\CustomLocale",
+            "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Ole",
+            "HKEY_LOCAL_MACHINE\\Software\\WOW6432Node\\Microsoft\\OLE\\Tracing",
+            "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\FileSystem",
+            "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Control\\Lsa",
+            "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Policies\\Microsoft\\Cryptography\\Configuration",
+            "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Control\\Lsa\\FipsAlgorithmPolicy",
+            "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\FB12.tmp",
+            "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Ole\\FeatureDevelopmentProperties",
+            "HKEY_LOCAL_MACHINE\\system\\CurrentControlSet\\control\\NetworkProvider\\HwOrder",
+            "HKEY_LOCAL_MACHINE\\SYSTEM\\ControlSet001\\Control\\MUI\\UILanguages\\en-US",
+            "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Control\\NLS\\Language",
+            "HKEY_LOCAL_MACHINE\\Software\\WOW6432Node\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags",
+            "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows NT\\CurrentVersion",
+            "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Control\\Srp\\GP\\DLL",
+            "HKEY_LOCAL_MACHINE\\Software\\WOW6432Node\\Policies\\Microsoft\\Windows\\Safer\\CodeIdentifiers",
+            "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Disable8And16BitMitigation",
+            "HKEY_LOCAL_MACHINE\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\SideBySide\\AssemblyStorageRoots",
+            "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\WinWord.exe",
+            "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Control\\Nls\\Sorting\\Versions",
+            "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Wow64\\x86",
+            "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Control\\MUI\\UILanguages\\PendingDelete",
+            "HKEY_LOCAL_MACHINE\\system\\CurrentControlSet\\control\\NetworkProvider\\ProviderOrder",
+            "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders",
+            "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\AppModel\\Lookaside\\Packages",
+            "HKEY_LOCAL_MACHINE\\Software\\WOW6432Node\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options",
+            "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers",
+            "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Control\\Session Manager",
+            "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Session Manager"
+        ],
+        "sandbox_name": "Zenbox",
+        "sigma_analysis_results": [
+            {
+                "match_context": [
+                    {
+                        "values": {
+                            "CommandLine": "\"C:\\Users\\george\\AppData\\Local\\Temp\\FB12.tmp\"",
+                            "Company": "Microsoft Corporation",
+                            "CurrentDirectory": "C:\\Users\\george\\Desktop\\",
+                            "Description": "Microsoft Word",
+                            "EventID": "1",
+                            "FileVersion": "14.0.6024.1000",
+                            "Hashes": "SHA1=992BA547D85115B8F0E53E292287BABB12B6EF3A,MD5=B5FEDE016365A92643A93DCADD2E361F,SHA256=9BE3F9089E70C0550909E8A1C9FE2281267D4875F99A7B1156F7D124288C7426,IMPHASH=9432125B6450844425AF8B99A8659A47",
+                            "Image": "C:\\Users\\george\\AppData\\Local\\Temp\\FB12.tmp",
+                            "IntegrityLevel": "High",
+                            "OriginalFileName": "WinWord.exe",
+                            "ParentCommandLine": "\"C:\\Users\\george\\Desktop\\WinWord.exe\"",
+                            "ParentImage": "C:\\Users\\george\\Desktop\\WinWord.exe",
+                            "Product": "Microsoft Office 2010"
+                        }
+                    }
+                ],
+                "rule_author": "Florian Roth (Nextron Systems), Markus Neis, FPT.EagleEye Team, Vadim Khrykov, Cyb3rEng, Michael Haag, Christopher Peacock @securepeacock, @scythe_io",
+                "rule_description": "Detects a suspicious process spawning from one of the Microsoft Office suite products (Word, Excel, PowerPoint, Publisher, Visio, etc.)",
+                "rule_id": "6a6edfdea6536f74ea66bf73682ed52f4b86435793ed76ff38e3ab0523f029f5",
+                "rule_level": "high",
+                "rule_source": "Sigma Integrated Rule Set (GitHub)",
+                "rule_title": "Suspicious Microsoft Office Child Process"
+            },
+            {
+                "match_context": [
+                    {
+                        "values": {
+                            "CommandLine": "\"C:\\Users\\george\\AppData\\Local\\Temp\\FB12.tmp\"",
+                            "Company": "Microsoft Corporation",
+                            "CurrentDirectory": "C:\\Users\\george\\Desktop\\",
+                            "Description": "Microsoft Word",
+                            "EventID": "1",
+                            "FileVersion": "14.0.6024.1000",
+                            "Hashes": "SHA1=992BA547D85115B8F0E53E292287BABB12B6EF3A,MD5=B5FEDE016365A92643A93DCADD2E361F,SHA256=9BE3F9089E70C0550909E8A1C9FE2281267D4875F99A7B1156F7D124288C7426,IMPHASH=9432125B6450844425AF8B99A8659A47",
+                            "Image": "C:\\Users\\george\\AppData\\Local\\Temp\\FB12.tmp",
+                            "IntegrityLevel": "High",
+                            "OriginalFileName": "WinWord.exe",
+                            "ParentCommandLine": "\"C:\\Users\\george\\Desktop\\WinWord.exe\"",
+                            "ParentImage": "C:\\Users\\george\\Desktop\\WinWord.exe",
+                            "Product": "Microsoft Office 2010"
+                        }
+                    }
+                ],
+                "rule_author": "Nasreddine Bencherchali (Nextron Systems)",
+                "rule_description": "Detects the execution of a renamed office binary",
+                "rule_id": "bb031bd9cea5bfc07d877d0deeef37ed046229fe8cb82202aefe3220d14c8626",
+                "rule_level": "high",
+                "rule_source": "Sigma Integrated Rule Set (GitHub)",
+                "rule_title": "Renamed Office Binary Execution"
+            }
+        ],
+        "signature_matches": [
+            {
+                "description": "Sample reads its own file content",
+                "id": "654",
+                "match_data": [
+                    "C:\\Users\\user\\Desktop\\WinWord.exe"
+                ],
+                "severity": "IMPACT_SEVERITY_INFO"
+            },
+            {
+                "description": "Creates a DirectInput object (often for capturing keystrokes)",
+                "id": "311",
+                "match_data": [
+                    "      <HOOK MODULE=\"DDRAW.DLL\" FUNCTION=\"DirectDrawCreateEx\"/>"
+                ],
+                "refs": [
+                    {
+                        "ref": "#memory_dumps",
+                        "value": "WinWord.exe, 00000000.00000002.1003754449.0000000000C4B000.00000004.00000020.00020000.00000000.sdmp"
+                    }
+                ],
+                "severity": "IMPACT_SEVERITY_INFO"
+            },
+            {
+                "description": "Uses 32bit PE files",
+                "id": "9028",
+                "match_data": [
+                    "EXECUTABLE_IMAGE, 32BIT_MACHINE"
+                ],
+                "severity": "IMPACT_SEVERITY_INFO"
+            },
+            {
+                "description": "Creates temporary files",
+                "id": "236",
+                "match_data": [
+                    "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp"
+                ],
+                "severity": "IMPACT_SEVERITY_INFO"
+            },
+            {
+                "description": "PE file has an executable .text section and no other executable section",
+                "id": "415",
+                "match_data": [
+                    "Section: .text IMAGE_SCN_CNT_CODE, IMAGE_SCN_MEM_EXECUTE, IMAGE_SCN_MEM_READ"
+                ],
+                "severity": "IMPACT_SEVERITY_INFO"
+            },
+            {
+                "description": "Reads software policies",
+                "id": "509",
+                "match_data": [
+                    "HKEY_CURRENT_USER\\Software\\Policies\\Microsoft\\Windows\\Safer\\CodeIdentifiers"
+                ],
+                "refs": [
+                    {
+                        "ref": "#registry_keys_opened",
+                        "value": "HKEY_CURRENT_USER\\Software\\Policies\\Microsoft\\Windows\\Safer\\CodeIdentifiers"
+                    }
+                ],
+                "severity": "IMPACT_SEVERITY_INFO"
+            },
+            {
+                "description": "Sample might require command line arguments",
+                "id": "1654",
+                "match_data": [
+                    "Partner Organization: is defined as an external third party business entity that provides value-added services in marketing",
+                    "All fees payable to Oracle are due within 30 days from the invoice date. You agree to pay any sales, value-added or other",
+                    "All fees payable to Oracle are due within 30 days from the invoice date. You agree to pay any sales, value-added or otherExcept for actions for nonpayment or breach of Oracle"
+                ],
+                "severity": "IMPACT_SEVERITY_INFO"
+            },
+            {
+                "description": "Office process drops PE file",
+                "id": "1338",
+                "match_data": [
+                    "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp"
+                ],
+                "severity": "IMPACT_SEVERITY_LOW"
+            },
+            {
+                "description": "Classification label",
+                "id": "715",
+                "match_data": [
+                    "mal52.expl.winEXE@3/1@0/0"
+                ],
+                "severity": "IMPACT_SEVERITY_INFO"
+            },
+            {
+                "description": "Spawns processes",
+                "id": "229",
+                "match_data": [
+                    "C:\\Users\\user\\Desktop\\WinWord.exe C:\\Users\\user\\Desktop\\WinWord.exe",
+                    "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp"
+                ],
+                "severity": "IMPACT_SEVERITY_INFO"
+            },
+            {
+                "description": "Document exploit detected (process start blacklist hit)",
+                "id": "184",
+                "match_data": [
+                    "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp"
+                ],
+                "severity": "IMPACT_SEVERITY_LOW"
+            },
+            {
+                "description": "Contains modern PE file flags such as dynamic base (ASLR) or NX",
+                "id": "406",
+                "match_data": [
+                    "DYNAMIC_BASE, NX_COMPAT, TERMINAL_SERVER_AWARE"
+                ],
+                "severity": "IMPACT_SEVERITY_INFO"
+            },
+            {
+                "description": "Sample may offer command line options, please run it with the 'Execute binary with arguments' cookbook (it's possible that the command line switches require additional characters like: \"-\", \"/\", \"--\")",
+                "id": "908",
+                "severity": "IMPACT_SEVERITY_INFO"
+            },
+            {
+                "description": "Drops PE files",
+                "id": "115",
+                "match_data": [
+                    "C:\\Users\\user\\AppData\\Local\\Temp\\FB12.tmp"
+                ],
+                "severity": "IMPACT_SEVERITY_INFO"
+            },
+            {
+                "description": "Deletes itself after installation",
+                "id": "220",
+                "match_data": [
+                    "c:\\users\\user\\desktop\\winword.exe"
+                ],
+                "severity": "IMPACT_SEVERITY_LOW"
+            },
+            {
+                "description": "PE file contains sections with non-standard names",
+                "id": "199",
+                "match_data": [
+                    "section name: .l2"
+                ],
+                "severity": "IMPACT_SEVERITY_INFO"
+            },
+            {
+                "description": "PE file has section (not .text) which is very likely to contain packed code (zlib compression ratio < 0.011)",
+                "id": "433",
+                "match_data": [
+                    "Section: .data ZLIB complexity 0.9935487017593644",
+                    "Section: .data ZLIB complexity 0.9935531356413166"
+                ],
+                "severity": "IMPACT_SEVERITY_INFO"
+            },
+            {
+                "description": "URLs found in memory or binary data",
+                "id": "238",
+                "match_data": [
+                    "http://metalink.oracle.com).",
+                    "http://oracle.com/contracts",
+                    "http://oracle.com/contracts.",
+                    "http://www.oracle.com/education/oln."
+                ],
+                "severity": "IMPACT_SEVERITY_INFO"
+            }
+        ],
+        "tags": [
+            "CHECKS_USER_INPUT",
+            "SELF_DELETE"
+        ]
+    },
+    "context_attributes": {
+        "evtx": "https://www.virustotal.com/api/v3/feeds/file-behaviours/N2I5OTY4ZGJjMTg5OGFkNzhiMjM1ZTBmZDM4NmVkYTA4YWM3NWMyMmMyZTU0NzY2M2EzMDZhOGU0MjIxOGQ2Ml9aZW5ib3h8fHYzfHwxNzEwOTI4ODAwfHw1Mjk1NmFhN2E4N2JmNjkyMmY2YmU4MDlkNDg0NjU2MmVkM2VkNjYzNmYyOTZhMmNiMTMzMjQ2ZjM1Y2VlZDVh/evtx",
+        "file_md5": "a20b7faa517b3d1ef4f6ccf4751dd19b",
+        "file_sha1": "01f744c04d144e263cc228536b35c88ab532b0cc",
+        "file_type_tag": "peexe",
+        "html_report": "https://www.virustotal.com/api/v3/feeds/file-behaviours/N2I5OTY4ZGJjMTg5OGFkNzhiMjM1ZTBmZDM4NmVkYTA4YWM3NWMyMmMyZTU0NzY2M2EzMDZhOGU0MjIxOGQ2Ml9aZW5ib3h8fHYzfHwxNzEwOTI4ODAwfHw1Mjk1NmFhN2E4N2JmNjkyMmY2YmU4MDlkNDg0NjU2MmVkM2VkNjYzNmYyOTZhMmNiMTMzMjQ2ZjM1Y2VlZDVh/html",
+        "memdump": "https://www.virustotal.com/api/v3/feeds/file-behaviours/N2I5OTY4ZGJjMTg5OGFkNzhiMjM1ZTBmZDM4NmVkYTA4YWM3NWMyMmMyZTU0NzY2M2EzMDZhOGU0MjIxOGQ2Ml9aZW5ib3h8fHYzfHwxNzEwOTI4ODAwfHw1Mjk1NmFhN2E4N2JmNjkyMmY2YmU4MDlkNDg0NjU2MmVkM2VkNjYzNmYyOTZhMmNiMTMzMjQ2ZjM1Y2VlZDVh/memdump",
+        "pcap": "https://www.virustotal.com/api/v3/feeds/file-behaviours/N2I5OTY4ZGJjMTg5OGFkNzhiMjM1ZTBmZDM4NmVkYTA4YWM3NWMyMmMyZTU0NzY2M2EzMDZhOGU0MjIxOGQ2Ml9aZW5ib3h8fHYzfHwxNzEwOTI4ODAwfHw1Mjk1NmFhN2E4N2JmNjkyMmY2YmU4MDlkNDg0NjU2MmVkM2VkNjYzNmYyOTZhMmNiMTMzMjQ2ZjM1Y2VlZDVh/pcap"
+    },
+    "id": "7b9968dbc1898ad78b235e0fd386eda08ac75c22c2e547663a306a8e42218d62_Zenbox",
+    "links": {
+        "self": "https://www.virustotal.com/api/v3/file_behaviours/7b9968dbc1898ad78b235e0fd386eda08ac75c22c2e547663a306a8e42218d62_Zenbox"
+    },
+    "relationships": {
+        "file": {
+            "data": {
+                "id": "7b9968dbc1898ad78b235e0fd386eda08ac75c22c2e547663a306a8e42218d62",
+                "type": "file"
+            },
+            "links": {
+                "related": "https://www.virustotal.com/api/v3/file_behaviours/7b9968dbc1898ad78b235e0fd386eda08ac75c22c2e547663a306a8e42218d62_Zenbox/file",
+                "self": "https://www.virustotal.com/api/v3/file_behaviours/7b9968dbc1898ad78b235e0fd386eda08ac75c22c2e547663a306a8e42218d62_Zenbox/relationships/file"
+            },
+            "meta": {
+                "count": 1
+            }
+        }
+    },
+    "type": "file_behaviour"
+}
