@@ -20,11 +20,11 @@ import time
 ################
 # variables
 ################
-firstseen = "2024-04-21+"
-lastseen = "2024-04-27-"
+firstseen = "2024-05-15+"
+lastseen = "2024-05-31-"
 #firstseen = input("Enter First Seen Start Date (eg 2023-12-01+):")
 #lastseen = input("Enter First Seen End Date (eg 2023-12-31-):")
-LIMIT = '50'
+LIMIT = '300'
 FILE_DETECT = 'entity:file submitter:au fs:'+ firstseen +' fs:'+ lastseen +' p:1+'
 #COLLECTION_NAME = input("Enter Collection Name (eg 'Test Collection'): ") #name of collection to be used
 #COLLECTION_DESCRIPTION = input("Enter Collection Description (eg 'For Trends in past 7 days'): ") #description of collection to be used
@@ -97,6 +97,7 @@ def get_collection(id):
 #######################
 #get top threats 
 # malware families, threat categories, c2 url, file types, collections
+# current giving output errors - to solve
 #######################
 def print_top_trends(json_response):
     # Parse JSON
@@ -109,7 +110,7 @@ def print_top_trends(json_response):
     threat_categories = data['data']['attributes']['aggregations']['files']['popular_threat_category'][:3]
 
     # Extract top 3 malware config C2 URLs
-    c2_urls = data['data']['attributes']['aggregations']['files']['malware_config_c2_url'][:3]
+    #c2_urls = data['data']['attributes']['aggregations']['files']['malware_config_c2_url'][:3]
 
     # Extract top 3 malware config C2 URLs
     file_types = data['data']['attributes']['aggregations']['files']['file_types'][:3]
@@ -125,11 +126,11 @@ def print_top_trends(json_response):
         print(f"{category['value']}: {category['count']}")
 
     # Print top 3 C2 URLs
-    print("\nTop 3 Malware Config C2 URLs:")
-    for c2 in c2_urls:
-        print(f"{c2['value']}: {c2['count']}")
+    #print("\nTop 3 Malware Config C2 URLs:")
+    #for c2 in c2_urls:
+    #    print(f"{c2['value']}: {c2['count']}")
 
-    # Print top 3 C2 URLs
+    # Print top 3 File Types
     print("\nTop 3 Malware File Types:")
     for file in file_types:
         print(f"{file['value']}: {file['count']}")
@@ -139,7 +140,9 @@ def print_top_trends(json_response):
 #######################
 def delete_collection(id):
     while True:
-        user_input = input("Do you want to delete the collection (Y/N):")
+        print("\n#########################")
+        print("#########################")
+        user_input = input("\nDo you want to delete the collection (Y/N):")
         if user_input.lower() == 'y':
             url = f"https://www.virustotal.com/api/v3/collections/{id}"
             headers = {'Accept': 'application/json', "content-type": "application/json", 'x-apikey': os.environ['VT_APIKEY']}
@@ -163,16 +166,16 @@ try:
     hashes = []  # Initialize an empty list to store hashes
     vt_col_link = "https://www.virustotal.com/gui/collection/" # Link to VT collection
 
-# Use only if descripters = true 
-#    if "data" in res:
-#        for item in res["data"]:
-#            if "attributes" in item and "sha256" in item["attributes"]:
-#                hashes.append(item["attributes"]["sha256"])
-
-# Use only when descriptors_only=false
+# Use only if descripters_only=false 
     if "data" in res:
         for item in res["data"]:
-                hashes.append(item["id"])
+            if "attributes" in item and "sha256" in item["attributes"]:
+                hashes.append(item["attributes"]["sha256"])
+
+# Use only when descriptors_only=true
+#    if "data" in res:
+#        for item in res["data"]:
+#                hashes.append(item["id"])
 
     pprint(f"Total Number of Hashes: {len(hashes)}") #Print number of hashes
     collection_link = create_collection(COLLECTION_NAME, hashes)  # Get JSON response
@@ -184,20 +187,19 @@ try:
     if not hashes:
         print("No hashes found, skipping collection creation.")
     else:
-        # ... (create collection) ...
-
-        # Retry mechanism (example)
+        # Retry mechanism
         max_retries = 3
         retry_count = 0
         while retry_count < max_retries:
             json_response = get_collection(collection_id)
             collection_details = json.loads(json_response)
             if "files" in collection_details.get("data", {}).get("attributes", {}).get("aggregations", {}):
-                print_top_trends(collection_details)
+                print("Collection processing complete.")
+                print_top_trends(json_response)
                 break  # Exit loop if 'files' key is found
             else:
                 print("Collection still processing. Retrying in 30 seconds...")
-                time.sleep(30)
+                time.sleep(15)
                 retry_count += 1
                 print("Retry count:", retry_count)
 
