@@ -1,7 +1,7 @@
 ################
 # Python Script to 
 # 1. create a collection (done)
-# 2. add in indicators from an advance search (partial - to work on pagination next)
+# 2. add in indicators from an advance search (done)
 # 3. get the top 3 malware families, and top 3 threat categories (done)
 # 4. update results from #3 to a google sheets (todo)
 #
