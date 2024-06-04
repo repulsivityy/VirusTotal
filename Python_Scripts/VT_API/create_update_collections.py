@@ -20,7 +20,7 @@ import time
 ################
 # variables
 ################
-firstseen = "2024-05-15+"
+firstseen = "2024-05-01+"
 lastseen = "2024-05-31-"
 #firstseen = input("Enter First Seen Start Date (eg 2023-12-01+):")
 #lastseen = input("Enter First Seen End Date (eg 2023-12-31-):")
@@ -37,20 +37,26 @@ COLLECTION_DESCRIPTION = "test description"
 def file(query): 
     url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&limit={LIMIT}&descriptors_only=false'
     headers = {'Accept': 'application/json', 'x-apikey': os.environ['VT_APIKEY']}
-#   while True:  # trying out 
-    res = requests.get(url, headers=headers)
-    res.raise_for_status()
-    data = res.json()
-    """
-#    meant for pagination - need to work on next. 
+    hashes = []  # Initialize an empty list to store hashes
+
+    while True:  # trying out 
+        res = requests.get(url, headers=headers)
+        res.raise_for_status()
+        data = res.json()
+
+        # Append current page's data to the list
+        if "data" in data:
+            for item in data["data"]:
+                if "attributes" in item and "sha256" in item["attributes"]:
+                    hashes.append(item["attributes"]["sha256"])
+
+        # Check for pagination
         if "links" in data and "next" in data["links"]:
             url = data["links"]["next"]
         else:
             break  # Exit loop if no next page
-    """
-    res = requests.get(url, headers=headers)
-    res.raise_for_status()
-    return res.json()
+
+    return hashes
 
 ################
 #create and update collection
@@ -115,8 +121,12 @@ def print_top_trends(json_response):
     # Extract top 3 malware config C2 URLs
     file_types = data['data']['attributes']['aggregations']['files']['file_types'][:3]
 
+    # Print out relevant matrics
+    print("\n#########################")
+    print("Printing top trends")
+    print("#########################")
     # Print top 3 popular malware families
-    print("Top 3 Malware Families:")
+    print("\nTop 3 Malware Families:")
     for mal in malware_families:
         print(f"{mal['value']}: {mal['count']}")
 
@@ -141,7 +151,6 @@ def print_top_trends(json_response):
 def delete_collection(id):
     while True:
         print("\n#########################")
-        print("#########################")
         user_input = input("\nDo you want to delete the collection (Y/N):")
         if user_input.lower() == 'y':
             url = f"https://www.virustotal.com/api/v3/collections/{id}"
@@ -162,21 +171,20 @@ def delete_collection(id):
 #main
 #######################
 try:
-    res = file(FILE_DETECT)
-    hashes = []  # Initialize an empty list to store hashes
+    hashes = file(FILE_DETECT)
     vt_col_link = "https://www.virustotal.com/gui/collection/" # Link to VT collection
 
 # Use only if descripters_only=false 
-    if "data" in res:
-        for item in res["data"]:
-            if "attributes" in item and "sha256" in item["attributes"]:
+    if "data" in hashes:
+        for item in hashes["data"]:
+           if "attributes" in item and "sha256" in item["attributes"]:
                 hashes.append(item["attributes"]["sha256"])
 
 # Use only when descriptors_only=true
 #    if "data" in res:
 #        for item in res["data"]:
 #                hashes.append(item["id"])
-
+    print("This is the VirusTotal search term: ", FILE_DETECT)
     pprint(f"Total Number of Hashes: {len(hashes)}") #Print number of hashes
     collection_link = create_collection(COLLECTION_NAME, hashes)  # Get JSON response
     collection_id = collection_link["data"]["id"]  # Extract Collection ID from JSON response
