@@ -30,13 +30,15 @@ FILE_DETECT = 'entity:file submitter:au fs:'+ firstseen +' fs:'+ lastseen +' p:1
 #COLLECTION_DESCRIPTION = input("Enter Collection Description (eg 'For Trends in past 7 days'): ") #description of collection to be used
 COLLECTION_NAME = "test collection"
 COLLECTION_DESCRIPTION = "test description"
+VT_APIKEY = os.environ['VT_APIKEY']
+
 
 ################
 #advance search
 ################
 def file(query): 
     url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&limit={LIMIT}&descriptors_only=false'
-    headers = {'Accept': 'application/json', 'x-apikey': os.environ['VT_APIKEY']}
+    headers = {'Accept': 'application/json', 'x-apikey': VT_APIKEY}
     hashes = []  # Initialize an empty list to store hashes
 
     while True:  # trying out 
@@ -63,7 +65,7 @@ def file(query):
 ################
 def create_collection(collection, hashes):
     url = f"https://www.virustotal.com/api/v3/collections"
-    headers = {'Accept': 'application/json', "content-type": "application/json", 'x-apikey': os.environ['VT_APIKEY']}
+    headers = {'Accept': 'application/json', "content-type": "application/json", 'x-apikey': VT_APIKEY}
     
     payload = {
 	    "data": {
@@ -94,7 +96,7 @@ def create_collection(collection, hashes):
 #######################
 def get_collection(id):
     url = f"https://www.virustotal.com/api/v3/collections/{id}"
-    headers = {'Accept': 'application/json', 'x-apikey': os.environ['VT_APIKEY']}
+    headers = {'Accept': 'application/json', 'x-apikey': VT_APIKEY}
     res = requests.get(url, headers=headers)
     res.raise_for_status()
     #print(res.text)
@@ -154,7 +156,7 @@ def delete_collection(id):
         user_input = input("\nDo you want to delete the collection (Y/N):")
         if user_input.lower() == 'y':
             url = f"https://www.virustotal.com/api/v3/collections/{id}"
-            headers = {'Accept': 'application/json', "content-type": "application/json", 'x-apikey': os.environ['VT_APIKEY']}
+            headers = {'Accept': 'application/json', "content-type": "application/json", 'x-apikey': VT_APIKEY}
             res = requests.delete(url, headers=headers)
             res.raise_for_status()
             print(res.text)
