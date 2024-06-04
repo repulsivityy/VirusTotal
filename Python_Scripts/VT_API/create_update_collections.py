@@ -20,16 +20,16 @@ import time
 ################
 # variables
 ################
-firstseen = "2024-05-01+"
-lastseen = "2024-05-31-"
-#firstseen = input("Enter First Seen Start Date (eg 2023-12-01+):")
-#lastseen = input("Enter First Seen End Date (eg 2023-12-31-):")
+#firstseen = "2024-05-25+"
+#lastseen = "2024-05-31-"
+firstseen = input("Enter First Seen Start Date (eg 2023-12-01+):")
+lastseen = input("Enter First Seen End Date (eg 2023-12-31-):")
 LIMIT = '300'
 FILE_DETECT = 'entity:file submitter:au fs:'+ firstseen +' fs:'+ lastseen +' p:1+'
-#COLLECTION_NAME = input("Enter Collection Name (eg 'Test Collection'): ") #name of collection to be used
-#COLLECTION_DESCRIPTION = input("Enter Collection Description (eg 'For Trends in past 7 days'): ") #description of collection to be used
-COLLECTION_NAME = "test collection"
-COLLECTION_DESCRIPTION = "test description"
+COLLECTION_NAME = input("Enter Collection Name (eg 'Test Collection'): ") #name of collection to be used
+COLLECTION_DESCRIPTION = input("Enter Collection Description (eg 'For Trends in past 7 days'): ") #description of collection to be used
+#COLLECTION_NAME = "test collection"
+#COLLECTION_DESCRIPTION = "test description"
 VT_APIKEY = os.environ['VT_APIKEY']
 
 
@@ -186,7 +186,10 @@ try:
 #    if "data" in res:
 #        for item in res["data"]:
 #                hashes.append(item["id"])
-    print("This is the VirusTotal search term: ", FILE_DETECT)
+    print("\n#########################")
+    print("Results:")
+    print("#########################")
+    print("This is the VirusTotal search term:\033[92m", FILE_DETECT, "\033[0;0m") 
     pprint(f"Total Number of Hashes: {len(hashes)}") #Print number of hashes
     collection_link = create_collection(COLLECTION_NAME, hashes)  # Get JSON response
     collection_id = collection_link["data"]["id"]  # Extract Collection ID from JSON response
