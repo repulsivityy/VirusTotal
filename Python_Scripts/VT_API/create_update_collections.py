@@ -20,17 +20,13 @@ import time
 ################
 # variables
 ################
-#firstseen = "2024-05-25+"
-#lastseen = "2024-05-31-"
 firstseen = input("Enter First Seen Start Date (eg 2023-12-01+):")
 lastseen = input("Enter First Seen End Date (eg 2023-12-31-):")
 LIMIT = '300'
-FILE_DETECT = 'entity:file submitter:au fs:'+ firstseen +' fs:'+ lastseen +' p:1+'
+FILE_DETECT = 'entity:file submitter:my fs:'+ firstseen +' fs:'+ lastseen +' p:1+'
 COLLECTION_NAME = input("Enter Collection Name (eg 'Test Collection'): ") #name of collection to be used
 COLLECTION_DESCRIPTION = input("Enter Collection Description (eg 'For Trends in past 7 days'): ") #description of collection to be used
-#COLLECTION_NAME = "test collection"
-#COLLECTION_DESCRIPTION = "test description"
-VT_APIKEY = os.environ['VT_APIKEY']
+VT_APIKEY = os.environ['GTI_APIKEY']
 
 
 ################
