@@ -64,7 +64,7 @@ def main():
     while True:
         csv_file = input("Enter the path to your CSV file: ")
         if os.path.exists(csv_file):
-            break
+        break
         else:
             print("File not found. Please try again.")
 
