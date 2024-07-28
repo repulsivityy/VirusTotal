@@ -1,9 +1,16 @@
 ################
 # Python Script to 
 # 1. create a collection (done)
-# 2. add in indicators from an advance search (done)
-# 3. get the top 3 malware families, and top 3 threat categories (done)
+# 2. add in indicators from an advance search on a per country basis (done)
+# 3. get specific trends - currently top 3 malware families, threat categories, file types
 # 4. update results from #3 to a google sheets (todo)
+#
+# Usage: 
+# - save Google Threat Intel API (or VT Enterprise API) as environment various (GTI_APIKEY)
+# - he default will search for files submitted within a specific first-seen timeframe in a specific country
+# - update the FILE_DETECT variable if there's a need to change the search, though note that the initial 
+# - python3 create_update_collectons.py
+# 3. 
 #
 # author: VirusTotal // dominicchua@google.com
 # currently WIP
@@ -20,17 +27,18 @@ import time
 ################
 # variables
 ################
-firstseen = input("Enter First Seen Start Date (eg 2023-12-01+):")
-lastseen = input("Enter First Seen End Date (eg 2023-12-31-):")
+FS_DATE = input("Enter First Seen Start Date (eg 2023-12-01+): ")
+LS_DATE = input("Enter First Seen End Date (eg 2023-12-31-): ")
+SUBMITTER = input("Enter ISO of Country (eg SG): ")
 LIMIT = '300'
-FILE_DETECT = 'entity:file submitter:my fs:'+ firstseen +' fs:'+ lastseen +' p:1+'
+FILE_DETECT = 'entity:file submitter:'+ SUBMITTER +' fs:'+ FS_DATE +' fs:'+ LS_DATE +' p:1+'
 COLLECTION_NAME = input("Enter Collection Name (eg 'Test Collection'): ") #name of collection to be used
 COLLECTION_DESCRIPTION = input("Enter Collection Description (eg 'For Trends in past 7 days'): ") #description of collection to be used
 VT_APIKEY = os.environ['GTI_APIKEY']
 
 
 ################
-#advance search
+# advance search
 ################
 def file(query): 
     url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&limit={LIMIT}&descriptors_only=false'
@@ -57,7 +65,7 @@ def file(query):
     return hashes
 
 ################
-#create and update collection
+# create and update collection
 ################
 def create_collection(collection, hashes):
     url = f"https://www.virustotal.com/api/v3/collections"
@@ -88,7 +96,7 @@ def create_collection(collection, hashes):
     return res.json()
 
 #######################
-#get collection details
+# get collection details
 #######################
 def get_collection(id):
     url = f"https://www.virustotal.com/api/v3/collections/{id}"
@@ -101,27 +109,32 @@ def get_collection(id):
 #######################
 #get top threats 
 # malware families, threat categories, c2 url, file types, collections
-# current giving output errors - to solve
 #######################
 def print_top_trends(json_response):
     # Parse JSON
     data = json.loads(json_response)
 
+# Detections
     # Extract top 3 malware families
     malware_families = data['data']['attributes']['aggregations']['files']['malware_config_family_name'][:3]
-
     # Extract top 3 threat categories
     threat_categories = data['data']['attributes']['aggregations']['files']['popular_threat_category'][:3]
-
-    # Extract top 3 malware config C2 URLs
-    #c2_urls = data['data']['attributes']['aggregations']['files']['malware_config_c2_url'][:3]
-
-    # Extract top 3 malware config C2 URLs
+    # Extract top 3 file types
     file_types = data['data']['attributes']['aggregations']['files']['file_types'][:3]
+    # Extract top 3 attributions
+    #attribution = data['data']['attributes']['aggregations']['files']['attributions'][:3]
+
+# Network Infra
+    # Extract top 3 malware config C2 URLs
+    #itw_urls = data['data']['attributes']['aggregations']['files']['itw_urls'][:3]
+    # Extract top 3 malware config C2 URLs
+    c2_urls = data['data']['attributes']['aggregations']['files']['malware_config_c2_url'][:3]
+
+
 
     # Print out relevant matrics
     print("\n#########################")
-    print("Printing top trends")
+    print("Printing top detection trends")
     print("#########################")
     # Print top 3 popular malware families
     print("\nTop 3 Malware Families:")
@@ -133,18 +146,32 @@ def print_top_trends(json_response):
     for category in threat_categories:
         print(f"{category['value']}: {category['count']}")
 
-    # Print top 3 C2 URLs
-    #print("\nTop 3 Malware Config C2 URLs:")
-    #for c2 in c2_urls:
-    #    print(f"{c2['value']}: {c2['count']}")
-
     # Print top 3 File Types
     print("\nTop 3 Malware File Types:")
     for file in file_types:
         print(f"{file['value']}: {file['count']}")
 
+    # Print top 3 attribution
+    #print("\nTop 3 Attributions:")
+    #for attrib in attribution:
+    #    print(f"{attrib['value']}: {attrib['count']}")
+
+    print("\n#########################")
+    print("Printing top network infra")
+    print("#########################")
+    # Print top 3 ITW URLs
+    #print("\nTop 3 Malware Config C2 URLs:")
+    #for itw in itw_urls:
+    #    print(f"{itw['value']}: {itw['count']}")
+
+    # Print top 3 C2 URLs
+    print("\nTop 3 Malware Config C2 URLs:")
+    for c2 in c2_urls:
+        print(f"{c2['value']}: {c2['count']}")
+
+
 #######################
-#delete collection
+# delete collection
 #######################
 def delete_collection(id):
     while True:
@@ -166,7 +193,7 @@ def delete_collection(id):
 
 
 #######################
-#main
+# main
 #######################
 try:
     hashes = file(FILE_DETECT)
@@ -197,7 +224,7 @@ try:
         print("No hashes found, skipping collection creation.")
     else:
         # Retry mechanism
-        max_retries = 3
+        max_retries = 6
         retry_count = 0
         while retry_count < max_retries:
             json_response = get_collection(collection_id)
@@ -207,10 +234,13 @@ try:
                 print_top_trends(json_response)
                 break  # Exit loop if 'files' key is found
             else:
-                print("Collection still processing. Retrying in 30 seconds...")
-                time.sleep(15)
+                print("Collection still processing. Retrying in 20 seconds...")
+                time.sleep(20)
                 retry_count += 1
-                print("Retry count:", retry_count)
+                if retry_count == 5:
+                    print("Retry count", retry_count, ". We will try once more.") 
+                else: 
+                    print("Retry count:", retry_count)
 
         if retry_count == max_retries:
             print("Maximum retries reached. Collection may be empty or processing has not completed.")
@@ -218,9 +248,11 @@ try:
     delete_collection(collection_id) # cleanup collection during testing 
 
 ############
-#error handling
+# error handling
 ############
 except requests.RequestException as e:
     print(f"Request error: {e}")
+except (KeyError, json.JSONDecodeError) as e:  # Catch more specific errors
+    print(f"Error processing json data: {e}")
 except Exception as e:
     print(f"An error occurred: {e}")
