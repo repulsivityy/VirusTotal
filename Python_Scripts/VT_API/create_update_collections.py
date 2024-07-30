@@ -2,15 +2,14 @@
 # Python Script to 
 # 1. create a collection (done)
 # 2. add in indicators from an advance search on a per country basis (done)
-# 3. get specific trends - currently top 3 malware families, threat categories, file types
+# 3. get specific trends - currently top 3 malware families, threat categories, file types (done)
 # 4. update results from #3 to a google sheets (todo)
 #
 # Usage: 
 # - save Google Threat Intel API (or VT Enterprise API) as environment various (GTI_APIKEY)
-# - he default will search for files submitted within a specific first-seen timeframe in a specific country
-# - update the FILE_DETECT variable if there's a need to change the search, though note that the initial 
+# - the default will search for files submitted within a specific first-seen timeframe in a specific country
+# -- update the FILE_DETECT variable if there's a need to change the search
 # - python3 create_update_collectons.py
-# 3. 
 #
 # author: VirusTotal // dominicchua@google.com
 # currently WIP
