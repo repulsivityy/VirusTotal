@@ -60,6 +60,7 @@ def file(query):
             url = data["links"]["next"]
         else:
             break  # Exit loop if no next page
+        print(f"Found {len(hashes)} hashes so far...")
 
     return hashes
 
