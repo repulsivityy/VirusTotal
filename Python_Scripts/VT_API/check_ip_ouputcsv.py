@@ -23,7 +23,7 @@ import time
 from tqdm import tqdm  # Import tqdm for progress bar
 
 # Get API key from environment variable
-GTI_APIKEY = os.getenv("VT_APIKEY")
+GTI_APIKEY = os.getenv("GTI_APIKEY")
 if not GTI_APIKEY:
     raise ValueError("GTI_APIKEY environment variable not set.")
 
@@ -64,7 +64,7 @@ def main():
     while True:
         csv_file = input("Enter the path to your CSV file: ")
         if os.path.exists(csv_file):
-        break
+            break
         else:
             print("File not found. Please try again.")
 
