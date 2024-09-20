@@ -70,6 +70,17 @@ def main():
 
     output_file = input("Enter the name for the output CSV file: ")
 
+    # Get threshold from user
+    while True:
+        try:
+            threshold = int(input("Enter the detection ratio threshold (e.g., 5): "))
+            if threshold >= 0:
+                break
+            else:
+                print("Please enter a non-negative integer.")
+        except ValueError:
+            print("Invalid input. Please enter an integer.")
+
     try:
         with open(csv_file, "r", newline="") as csvfile, open(output_file, "w", newline="") as outfile:
             reader = csv.reader(csvfile)
@@ -91,7 +102,8 @@ def main():
                     ip_address = ip_address.replace("[", "").replace("]", "")
                 detection_ratio, country, malware_family = check_ip_virustotal(ip_address)
                 if detection_ratio is not None:
-                    writer.writerow([ip_address, detection_ratio, country, malware_family])
+                    malicious_status = "Malicious" if detection_ratio > threshold else ""
+                    writer.writerow([ip_address, detection_ratio, country, malware_family, malicious_status])
                 pbar.update(1)  # Update progress bar
 
                 # Process the remaining lines
@@ -101,7 +113,8 @@ def main():
                         ip_address = ip_address.replace("[", "").replace("]", "")
                     detection_ratio, country, malware_family = check_ip_virustotal(ip_address)
                     if detection_ratio is not None:
-                        writer.writerow([ip_address, detection_ratio, country, malware_family])
+                        malicious_status = "Malicious" if detection_ratio > threshold else ""
+                        writer.writerow([ip_address, detection_ratio, country, malware_family, malicious_status])
                     pbar.update(1)  # Update progress bar
 
                     # Update progress percentage every 5 seconds
