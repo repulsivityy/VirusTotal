@@ -1,5 +1,6 @@
 services:
   app:
-    image: repulsivity/virustotal-ctf:version9
+    #image: repulsivity/virustotal-ctf:version9
+    image: repulsivityy/gti-ctf:version1
     ports:
       - 8000:8000
