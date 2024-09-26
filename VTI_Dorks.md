@@ -27,7 +27,6 @@ entity:file p:10+ engines:ransom
 ```
 
 Searching for any files starting with the string mimi <br>
-> [!TIP]
 > _(the "entity:file" modifer is not required as the modifier "name" implies searching through the File corpus, but included for clarity and consistency sake)_
 
 ```
