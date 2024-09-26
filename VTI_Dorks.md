@@ -26,8 +26,8 @@ Searching for files with at least 10 detections that have been detected as ranso
 entity:file p:10+ engines:ransom
 ```
 
-Searching for any files starting with the string mimi
-(the modifer "entity:file" is not required as the modifier "name" implies searching through the File corpus, but included for clarity and consistency sake)
+Searching for any files starting with the string mimi <br>
+_(the modifer "entity:file" is not required as the modifier "name" implies searching through the File corpus, but included for clarity and consistency sake)_
 
 ```
 entity:file name:mimi* 
