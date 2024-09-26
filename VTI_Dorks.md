@@ -1,8 +1,13 @@
-#VirusTotal Dorks!
+# VirusTotal Dorks!
 
-## Purpose
+## General
 
-## Generic
+VirusTotal has multiple data corpus - Files, Domains, IP Address, URLs
+
 ```
 entity:file
+entity:domain
+entity:ip
+entity:url
 ```
+
