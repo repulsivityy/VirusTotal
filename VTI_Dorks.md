@@ -27,8 +27,26 @@ entity:file p:10+ engines:ransom
 ```
 
 Searching for any files starting with the string mimi <br>
-> _(the "entity:file" modifer is not required as the modifier "name" implies searching through the File corpus, but included for clarity and consistency sake)_
+(the "entity:file" modifer is not required as the modifier "name" implies searching through the File corpus, but is included for clarity and consistency sake)_
 
 ```
 entity:file name:mimi* 
+```
+
+Searching for pe files submitted to VT with 20 detections, submitted in Singapore
+```
+entity:file type:pe p:20+ submitter:sg
+```
+
+
+## Brand / Domain Monitoring
+
+Searching for any URLs that have been categorised or detected as phishing
+```
+entity:url (engines:phishing or category:phishing)
+```
+
+Searching for typo-squatting domains (leverging fuzzy searches) that looks like Googles but not from the legitimate Google domain
+```
+entity:domain fuzzy_domain:google.com NOT parent_domain:google.com
 ```
