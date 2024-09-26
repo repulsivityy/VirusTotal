@@ -38,6 +38,25 @@ Searching for pe files submitted to VT with 20 detections, submitted in Singapor
 entity:file type:pe p:20+ submitter:sg
 ```
 
+Searching for excel files between 1-5 detections that have macros
+```
+entity:file type:excel p:1+ p:5- tag:macros
+```
+
+Searching for files weaponised that exploits any vulnerability in 2024 last seen in the past 14 days
+```
+tag:cve-2024-* ls:14d+ 
+```
+
+## Hunting for files with network indicators
+
+Files hosted on a .gov with at least 5 detections
+```
+itw:"*.gov" p:5+
+```
+
+Files communicating with w
+
 
 ## Brand / Domain Monitoring
 
