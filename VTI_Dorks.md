@@ -26,8 +26,8 @@ Searching for files with at least 10 detections that have been detected as ranso
 entity:file p:10+ engines:ransom
 ```
 
-Searching for any files starting with the string mimi <br>
-(the "entity:file" modifer is not required as the modifier "name" implies searching through the File corpus, but is included for clarity and consistency sake)_
+Searching for any filenames starting the string mimi <br>
+_(the "entity:file" modifer is not required as the modifier "name" implies searching through the File corpus, but is included for clarity and consistency sake)_
 
 ```
 entity:file name:mimi* 
@@ -55,7 +55,15 @@ Files hosted on a .gov with at least 5 detections
 itw:"*.gov" p:5+
 ```
 
-Files communicating with w
+Files communicating with time.microsoft.com
+```
+behaviour_network:"time.microsoft.com"
+```
+
+Files communicating with time.microsoft.com (alternative method)
+```
+behaviour:"time.microsoft.com"
+```
 
 
 ## Brand / Domain Monitoring
