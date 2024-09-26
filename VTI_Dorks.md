@@ -23,7 +23,7 @@ entity:file p:10+
 ```
 
 Searching for files with at least 10 detections that have been detected as ransomware
-_modifier engines is use for malware family names, types of malwares (eg, info-stealers, trojans, etc), or categories of malwares_
+_modifier engines is use for malware family names, types of malwares (eg, info-stealers, trojans, etc), or malware categories_
 ```
 entity:file p:10+ engines:ransom
 ```
