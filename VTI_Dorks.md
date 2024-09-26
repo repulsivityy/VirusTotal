@@ -57,14 +57,25 @@ itw:"*.gov" p:5+
 
 Files communicating with time.microsoft.com
 ```
-behaviour_network:"time.microsoft.com"
-```
-
-Files communicating with time.microsoft.com (alternative method)
-```
 behaviour:"time.microsoft.com"
 ```
 
+Files communicating with time.microsoft.com (alternative method that's more precise)
+```
+behaviour_network:"time.microsoft.com"
+```
+
+## Hunting with Content Searches 
+
+Files with specific strings: 
+```
+content:"UploadSmallFileWithStopWatch"
+```
+
+Content / Binary Seaches
+```
+content:"{ 46 69 6C 65 43 6F 6E 74 61 69 6E 65 72 2E 46 69 6C 65 41 72 63 68 69 76 65 }"
+```
 
 ## Brand / Domain Monitoring
 
