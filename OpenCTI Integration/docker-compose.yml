@@ -219,31 +219,31 @@ services:
     depends_on:
       opencti:
         condition: service_healthy
-  connector-mandiant:
-    image: opencti/connector-mandiant:6.3.6
-    environment:
-      - OPENCTI_URL=http://opencti:8080
-      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-      - CONNECTOR_ID=a1b040c9-fa4a-4b53-8a53-33299d3f1743
-      - CONNECTOR_NAME=Mandiant
-      - CONNECTOR_SCOPE=mandiant
-      - CONNECTOR_LOG_LEVEL=error
-      - CONNECTOR_DURATION_PERIOD=PT72H # In ISO8601 Format starting with "P" for Period ex: "PT5M" = Period time of 5 minutes
-      - MANDIANT_API_V4_KEY_ID=gti-user
-      - MANDIANT_API_V4_KEY_SECRET=${GTI_API_KEY}
-      - MANDIANT_INDICATOR_MINIMUM_SCORE=80
-      - MANDIANT_IMPORT_START_DATE=2024-04-01
-      - MANDIANT_INDICATOR_IMPORT_START_DATE=2024-04-01
-      - MANDIANT_IMPORT_ACTORS_INTERVAL=48
-      - MANDIANT_IMPORT_REPORTS_INTERVAL=8
-      - MANDIANT_IMPORT_MALWARES_INTERVAL=24
-      - MANDIANT_IMPORT_CAMPAIGNS_INTERVAL=8
-      - MANDIANT_IMPORT_INDICATORS_INTERVAL=8
-      - MANDIANT_WEEKLY_VULNERABILITY_EXPLOITATION_REPORT_TYPE=false
-    restart: always
-    depends_on:
-      opencti:
-        condition: service_healthy
+#  connector-mandiant:
+#    image: opencti/connector-mandiant:6.3.6
+#    environment:
+#      - OPENCTI_URL=http://opencti:8080
+#      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+#      - CONNECTOR_ID=a1b040c9-fa4a-4b53-8a53-33299d3f1743
+#      - CONNECTOR_NAME=Mandiant
+#      - CONNECTOR_SCOPE=mandiant
+#      - CONNECTOR_LOG_LEVEL=error
+#      - CONNECTOR_DURATION_PERIOD=PT72H # In ISO8601 Format starting with "P" for Period ex: "PT5M" = Period time of 5 minutes
+#      - MANDIANT_API_V4_KEY_ID=gti-user
+#      - MANDIANT_API_V4_KEY_SECRET=${GTI_API_KEY}
+#      - MANDIANT_INDICATOR_MINIMUM_SCORE=80
+#      - MANDIANT_IMPORT_START_DATE=2024-04-01
+#      - MANDIANT_INDICATOR_IMPORT_START_DATE=2024-04-01
+#      - MANDIANT_IMPORT_ACTORS_INTERVAL=48
+#      - MANDIANT_IMPORT_REPORTS_INTERVAL=8
+#      - MANDIANT_IMPORT_MALWARES_INTERVAL=24
+#      - MANDIANT_IMPORT_CAMPAIGNS_INTERVAL=8
+#      - MANDIANT_IMPORT_INDICATORS_INTERVAL=8
+#      - MANDIANT_WEEKLY_VULNERABILITY_EXPLOITATION_REPORT_TYPE=false
+#    restart: always
+#    depends_on:
+#      opencti:
+#        condition: service_healthy
   connector-virustotal:
     image: opencti/connector-virustotal:6.3.6
     environment:
