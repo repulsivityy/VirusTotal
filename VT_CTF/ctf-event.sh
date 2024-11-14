@@ -23,10 +23,10 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin 
 
 # Chose which CTF to run: 
 echo "####################"
-echo "Please choose which CTF to run"
+echo "Please choose which CTF to run. Enter only the number."
 echo "####################"
-echo "Tarah's CTF"
-echo "Dom's CTF"
+echo "1 - Tarah's CTF"
+echo "2 - Dom's CTF"
 #echo "VT CTF"
 read choice
 
@@ -42,9 +42,9 @@ echo " Getting the GTI CTF env ready"
 echo "####################"
 wget https://raw.githubusercontent.com/repulsivityy/VirusTotal/main/VT_CTF/compose.yaml
 if [ "$choice" == "1" ]; then
-  sudo docker compose up -p tarah -d
+  sudo docker compose --profile tarah up -d
 else
-  sudo docker compose up -p dom -d
+  sudo docker compose --profile dom up -d
 fi
 
 echo "####################"
