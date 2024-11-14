@@ -94,6 +94,7 @@ services:
       - SMTP__PORT=25
       - PROVIDERS__LOCAL__STRATEGY=LocalStrategy
       - APP__HEALTH_ACCESS_KEY=${OPENCTI_HEALTHCHECK_ACCESS_KEY}
+      - APP__SESSION_TIMEOUT=14400000
     ports:
       - "8080:8080"
     depends_on:
