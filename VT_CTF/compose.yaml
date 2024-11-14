@@ -1,6 +1,13 @@
 services:
-  app:
+  domctf:
     #image: repulsivity/virustotal-ctf:version9
     image: repulsivityy/gti-ctf:version2
     ports:
       - 8000:8000
+    profiles: ["dom"]
+  tarahctf:
+    image: tklew/gti:v2
+    ports:
+      - 8000:8000
+    profiles: ["tarah"]
+    
