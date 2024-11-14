@@ -25,7 +25,7 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin 
 echo "####################"
 echo "Please choose which CTF to run. Enter only the number."
 echo "####################"
-echo "1 - Tarah's CTF"
+echo "1 - Golden CTF"
 echo "2 - Dom's CTF"
 #echo "VT CTF"
 read choice
