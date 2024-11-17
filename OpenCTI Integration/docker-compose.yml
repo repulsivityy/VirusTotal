@@ -335,6 +335,9 @@ services:
       - MITRE_REMOVE_STATEMENT_MARKING=true
       - MITRE_INTERVAL=7 # In days
     restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
   connector-urlscan-enrichment:
     image: opencti/connector-urlscan-enrichment:6.3.6
     environment:
@@ -356,7 +359,7 @@ services:
       - URLSCAN_ENRICHMENT_MAX_TLP=TLP:AMBER # Required, Available values: TLP:CLEAR, TLP:WHITE, TLP:GREEN, TLP:AMBER, TLP:AMBER+STRICT, TLP:RED
     restart: always
     depends_on:
-      open_cti:
+      opencti:
         condition: service_healthy
 volumes:
   esdata:
