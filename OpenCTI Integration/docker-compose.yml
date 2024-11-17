@@ -323,18 +323,17 @@ services:
       opencti:
         condition: service_healthy
   connector-mitre:
-    image: opencti/connector-mitre:6.3.6
+    image: opencti/connector-mitre:6.3.13
     environment:
-      - OPENCTI_URL=http://opencti:8080
-      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-      - CONNECTOR_ID=94c280db-a8d5-47a3-ae75-818d4d56d176
+      - OPENCTI_URL=http://localhost
+      - OPENCTI_TOKEN=ChangeMe
+      - CONNECTOR_ID=ChangeMe
       - "CONNECTOR_NAME=MITRE Datasets"
       - CONNECTOR_SCOPE=x-mitre-data-source,x-mitre-data-component,x-mitre-matrix,x-mitre-tactic,x-mitre-collection
-      - CONNECTOR_RUN_AND_TERMINATE=true
+      - CONNECTOR_RUN_AND_TERMINATE=false
       - CONNECTOR_LOG_LEVEL=error
       - MITRE_REMOVE_STATEMENT_MARKING=true
-      - MITRE_INTERVAL=14 # In days
-      - MITRE_CAPEC_FILE_URL=false
+      - MITRE_INTERVAL=7 # In days
     restart: always
     depends_on:
       open_cti:
