@@ -323,7 +323,7 @@ services:
       opencti:
         condition: service_healthy
   connector-mitre:
-    image: opencti/connector-mitre:6.3.13
+    image: opencti/connector-mitre:6.3.6
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -340,7 +340,7 @@ services:
       open_cti:
         condition: service_healthy
   connector-urlscan-enrichment:
-    image: opencti/connector-urlscan-enrichment:6.3.13
+    image: opencti/connector-urlscan-enrichment:6.3.6
     environment:
       # OpenCTI's generic execution parameters:
       - OPENCTI_URL=http://opencti:8080
