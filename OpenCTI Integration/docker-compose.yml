@@ -329,7 +329,7 @@ services:
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
       - CONNECTOR_ID=ad36fd8b-3748-4433-8d66-0d1026d75773
       - "CONNECTOR_NAME=MITRE Datasets"
-      - CONNECTOR_SCOPE=attack-pattern,x-mitre-matrix,x-mitre-tactic
+      - CONNECTOR_SCOPE=attack-pattern,x-mitre-data-source,x-mitre-data-component,x-mitre-matrix,x-mitre-tactic,x-mitre-collection
       - CONNECTOR_RUN_AND_TERMINATE=false
       - CONNECTOR_LOG_LEVEL=error
       - MITRE_REMOVE_STATEMENT_MARKING=true
