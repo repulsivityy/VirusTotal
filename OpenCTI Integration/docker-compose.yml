@@ -335,9 +335,6 @@ services:
       - MITRE_REMOVE_STATEMENT_MARKING=true
       - MITRE_INTERVAL=7 # In days
     restart: always
-    depends_on:
-      open_cti:
-        condition: service_healthy
   connector-urlscan-enrichment:
     image: opencti/connector-urlscan-enrichment:6.3.6
     environment:
