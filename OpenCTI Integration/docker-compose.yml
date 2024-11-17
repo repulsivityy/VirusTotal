@@ -325,9 +325,9 @@ services:
   connector-mitre:
     image: opencti/connector-mitre:6.3.13
     environment:
-      - OPENCTI_URL=http://localhost
-      - OPENCTI_TOKEN=ChangeMe
-      - CONNECTOR_ID=ChangeMe
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=ad36fd8b-3748-4433-8d66-0d1026d75773
       - "CONNECTOR_NAME=MITRE Datasets"
       - CONNECTOR_SCOPE=x-mitre-data-source,x-mitre-data-component,x-mitre-matrix,x-mitre-tactic,x-mitre-collection
       - CONNECTOR_RUN_AND_TERMINATE=false
