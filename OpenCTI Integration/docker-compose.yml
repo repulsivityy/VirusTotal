@@ -220,31 +220,31 @@ services:
     depends_on:
       opencti:
         condition: service_healthy
-#  connector-mandiant:
-#    image: opencti/connector-mandiant:6.3.6
-#    environment:
-#      - OPENCTI_URL=http://opencti:8080
-#      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-#      - CONNECTOR_ID=a1b040c9-fa4a-4b53-8a53-33299d3f1743
-#      - CONNECTOR_NAME=Mandiant
-#      - CONNECTOR_SCOPE=mandiant
-#      - CONNECTOR_LOG_LEVEL=error
-#      - CONNECTOR_DURATION_PERIOD=PT72H # In ISO8601 Format starting with "P" for Period ex: "PT5M" = Period time of 5 minutes
-#      - MANDIANT_API_V4_KEY_ID=gti-user
-#      - MANDIANT_API_V4_KEY_SECRET=${GTI_API_KEY}
-#      - MANDIANT_INDICATOR_MINIMUM_SCORE=80
-#      - MANDIANT_IMPORT_START_DATE=2024-04-01
-#      - MANDIANT_INDICATOR_IMPORT_START_DATE=2024-04-01
-#      - MANDIANT_IMPORT_ACTORS_INTERVAL=48
-#      - MANDIANT_IMPORT_REPORTS_INTERVAL=8
-#      - MANDIANT_IMPORT_MALWARES_INTERVAL=24
-#      - MANDIANT_IMPORT_CAMPAIGNS_INTERVAL=8
-#      - MANDIANT_IMPORT_INDICATORS_INTERVAL=8
-#      - MANDIANT_WEEKLY_VULNERABILITY_EXPLOITATION_REPORT_TYPE=false
-#    restart: always
-#    depends_on:
-#      opencti:
-#        condition: service_healthy
+  connector-mandiant:
+    image: opencti/connector-mandiant:6.3.6
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=a1b040c9-fa4a-4b53-8a53-33299d3f1743
+      - CONNECTOR_NAME=Mandiant
+      - CONNECTOR_SCOPE=mandiant
+      - CONNECTOR_LOG_LEVEL=error
+      - CONNECTOR_DURATION_PERIOD=PT72H # In ISO8601 Format starting with "P" for Period ex: "PT5M" = Period time of 5 minutes
+      - MANDIANT_API_V4_KEY_ID=gti-user
+      - MANDIANT_API_V4_KEY_SECRET=${GTI_API_KEY}
+      - MANDIANT_INDICATOR_MINIMUM_SCORE=85
+      - MANDIANT_IMPORT_START_DATE=2024-04-01
+      - MANDIANT_INDICATOR_IMPORT_START_DATE=2024-04-01
+      - MANDIANT_IMPORT_ACTORS_INTERVAL=48
+      - MANDIANT_IMPORT_REPORTS_INTERVAL=8
+      - MANDIANT_IMPORT_MALWARES_INTERVAL=24
+      - MANDIANT_IMPORT_CAMPAIGNS_INTERVAL=8
+      - MANDIANT_IMPORT_INDICATORS_INTERVAL=8
+      - MANDIANT_WEEKLY_VULNERABILITY_EXPLOITATION_REPORT_TYPE=false
+    restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
   connector-virustotal:
     image: opencti/connector-virustotal:6.3.6
     environment:
@@ -288,6 +288,29 @@ services:
     depends_on:
       opencti:
         condition: service_healthy
+  connector-virustotal-livehunt-notifications:
+    image: opencti/connector-virustotal-livehunt-notifications:6.4.0
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=Virustotal_Livehunt_Notifications
+      - "CONNECTOR_NAME=VirusTotal Livehunt Notifications"
+      - CONNECTOR_SCOPE=StixFile,Indicator,Incident
+      - CONNECTOR_LOG_LEVEL=error
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_API_KEY=${GTI_API_KEY} # Private API Key
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_INTERVAL_SEC=300 # Time to wait in seconds between subsequent requests
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_CREATE_ALERT=True # Set to true to create alerts
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_EXTENSIONS='exe,dll' # (Optional) Comma separated filter to only download files matching these extensions
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_MIN_FILE_SIZE=1000 # (Optional) Don't download files smaller than this many bytes
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_MAX_FILE_SIZE=52428800 # (Optional) Don't download files larger than this many bytes
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_MAX_AGE_DAYS=3 # Only create the alert if the first submission of the file is not older than `max_age_days`
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_MIN_POSITIVES=5 # (Optional) Don't download files with less than this many vendors marking malicious
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_CREATE_FILE=False # Set to true to create file object linked to the alerts
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_UPLOAD_ARTIFACT=False # Set to true to upload the file to opencti
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_CREATE_YARA_RULE=False # Set to true to create yara rule linked to the alert and the file
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_DELETE_NOTIFICATION=False # Set to true to remove livehunt notifications
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_FILTER_WITH_TAG="lummac_chrome" # Filter livehunt notifications with this tag
+    restart: always
   connector-shodan-internetdb:
     image: opencti/connector-shodan-internetdb:6.3.6
     environment:
@@ -357,6 +380,27 @@ services:
       - URLSCAN_ENRICHMENT_VISIBILITY=unlisted # Available values : public, unlisted, private
       - URLSCAN_ENRICHMENT_SEARCH_FILTERED_BY_DATE=>now-90d # Available : ">now-1h", ">now-1d", ">now-1y", "[2022 TO 2023]", "[2022/01/01 TO 2023/12/01]"
       - URLSCAN_ENRICHMENT_MAX_TLP=TLP:AMBER # Required, Available values: TLP:CLEAR, TLP:WHITE, TLP:GREEN, TLP:AMBER, TLP:AMBER+STRICT, TLP:RED
+    restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
+  connector-opencti:
+    image: opencti/connector-opencti:6.4.0
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=a02900a5-5964-4ae3-9ebc-76d9d16f30ac
+      - "CONNECTOR_NAME=OpenCTI Datasets"
+      - CONNECTOR_SCOPE=marking-definition,identity,location
+      - CONNECTOR_CONFIDENCE_LEVEL=100
+      - CONNECTOR_UPDATE_EXISTING_DATA=true
+      - CONNECTOR_RUN_AND_TERMINATE=false
+      - CONNECTOR_LOG_LEVEL=error
+      - CONFIG_SECTORS_FILE_URL=https://raw.githubusercontent.com/OpenCTI-Platform/datasets/master/data/sectors.json
+      - CONFIG_GEOGRAPHY_FILE_URL=https://raw.githubusercontent.com/OpenCTI-Platform/datasets/master/data/geography.json
+      - CONFIG_COMPANIES_FILE_URL=https://raw.githubusercontent.com/OpenCTI-Platform/datasets/master/data/companies.json
+      - CONFIG_REMOVE_CREATOR=false
+      - CONFIG_INTERVAL=7 # In days
     restart: always
     depends_on:
       opencti:
