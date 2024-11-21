@@ -450,7 +450,6 @@ services:
     depends_on:
       opencti:
         condition: service_healthy
-    services:
   connector-greynoise-vuln:
     image: opencti/connector-greynoise-vuln:6.4.0
     environment:
