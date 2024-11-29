@@ -20,7 +20,7 @@ services:
     container_name: open-appsec-agent
     environment:
       - registered_server=${NGINX_HOST}
-      - autoPolicyLoad=false
+      - autoPolicyLoad=true
       - AGENT_TOKEN=${OPEN_APPSEC_TOKEN}
     volumes:
       - ${APPSEC_CONF}:/etc/cp/conf
