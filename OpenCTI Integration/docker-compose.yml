@@ -1,8 +1,8 @@
 ##############
-# NGNIX
+# NGINX
 ##############
 services:
-  ngnix:
+  nginx:
     image: nginx:stable-alpine
     restart: always
     container_name: ${NGINX_HOST}
@@ -10,7 +10,7 @@ services:
       - 80:80
       - 433:433
     volumes:
-      - ${NGINX_DEAULT}:/etc/nginx/conf.d/default.conf
+      - ${NGINX_DEFAULT}:/etc/nginx/conf.d/default.conf
     ipc: host
 ##############
 # Open-Appsec
