@@ -4,12 +4,12 @@
 
 variable "access_key" {
   type    = string
-  default = "AKIA25VHUDYUG7Y6CV4W"
+  default = "<enter key name here>"
 }
 
 variable "secret_key" {
   type    = string
-  default = "HakUYBCmrjS81xgWxUOZaaxVq8AGivHEnFBjNEOJ"
+  default = "<enter key name here>"
 }
 
 variable "key_name" {
