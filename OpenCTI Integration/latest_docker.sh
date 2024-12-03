@@ -17,6 +17,8 @@ if [ "$choice" == "Y" ]; then
   sudo docker compose down
   echo "Downloading latest YML file"
   wget -O docker-compose.yml "https://raw.githubusercontent.com/repulsivityy/VirusTotal/refs/heads/main/OpenCTI%20Integration/docker-compose.yml"
+  echo "Downloading the latest NGINX config file"
+  wget -O default.conf "https://raw.githubusercontent.com/repulsivityy/VirusTotal/refs/heads/main/OpenCTI%20Integration/default.conf"
   sudo docker compose up -d  
 elif [ "$choice" == "Del" ]; then
   cd ~/opencti
@@ -26,6 +28,8 @@ elif [ "$choice" == "Del" ]; then
   sudo docker system prune -a --volumes -f
   echo "Downloading latest YML file"
   wget -O docker-compose.yml "https://raw.githubusercontent.com/repulsivityy/VirusTotal/refs/heads/main/OpenCTI%20Integration/docker-compose.yml"
+  echo "Downloading the latest NGINX config file"
+  wget -O default.conf "https://raw.githubusercontent.com/repulsivityy/VirusTotal/refs/heads/main/OpenCTI%20Integration/default.conf"
   sudo docker compose up -d 
 else
   echo "You selected 'N'. Exiting the application"
