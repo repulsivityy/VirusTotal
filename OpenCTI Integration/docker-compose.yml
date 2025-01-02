@@ -11,7 +11,13 @@ services:
       - 433:433
     volumes:
       - ${NGINX_DEFAULT}:/etc/nginx/conf.d/default.conf
+  #    - ${CERTBOT_WWW}:/var/www/certbot/:ro
     ipc: host
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ${CERTBOT_WWW}:/var/www/certbot/:rw
+  #    - ${CERTBOT_CONF}:/etc/letsencrypt/:rw
 ##############
 # Open-Appsec
 ##############
@@ -31,7 +37,7 @@ services:
 # Main Services
 ##############
   redis:
-    image: redis:7.4.0
+    image: redis:7.4.1
     restart: always
     volumes:
       - redisdata:/data
@@ -41,7 +47,7 @@ services:
       timeout: 5s
       retries: 3
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.2
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
     volumes:
       - esdata:/usr/share/elasticsearch/data
     environment:
@@ -84,7 +90,7 @@ services:
       timeout: 5s
       retries: 3
   rabbitmq:
-    image: rabbitmq:3.13-management
+    image: rabbitmq:4.0-management
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
@@ -98,7 +104,7 @@ services:
       timeout: 30s
       retries: 3
   opencti:
-    image: opencti/platform:6.4.0
+    image: opencti/platform:6.4.5
     environment:
       - NODE_OPTIONS=--max-old-space-size=8096
       - APP__PORT=8080
@@ -149,7 +155,7 @@ services:
 ############################
 
   worker:
-    image: opencti/worker:6.4.0
+    image: opencti/worker:6.4.5
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -167,7 +173,7 @@ services:
 ############################
 
   connector-export-file-stix:
-    image: opencti/connector-export-file-stix:6.4.0
+    image: opencti/connector-export-file-stix:6.4.5
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -181,7 +187,7 @@ services:
       opencti:
         condition: service_healthy
   connector-export-file-csv:
-    image: opencti/connector-export-file-csv:6.4.0
+    image: opencti/connector-export-file-csv:6.4.5
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -195,7 +201,7 @@ services:
       opencti:
         condition: service_healthy
   connector-export-file-txt:
-    image: opencti/connector-export-file-txt:6.4.0
+    image: opencti/connector-export-file-txt:6.4.5
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -209,7 +215,7 @@ services:
       opencti:
         condition: service_healthy
   connector-import-file-stix:
-    image: opencti/connector-import-file-stix:6.4.0
+    image: opencti/connector-import-file-stix:6.4.5
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -225,7 +231,7 @@ services:
       opencti:
         condition: service_healthy
   connector-import-document:
-    image: opencti/connector-import-document:6.4.0
+    image: opencti/connector-import-document:6.4.5
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -249,7 +255,7 @@ services:
 ############################
 
   connector-mandiant:
-    image: opencti/connector-mandiant:6.4.0
+    image: opencti/connector-mandiant:6.4.5
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -276,7 +282,7 @@ services:
       opencti:
         condition: service_healthy
   connector-virustotal-livehunt-notifications:
-    image: opencti/connector-virustotal-livehunt-notifications:6.4.0
+    image: opencti/connector-virustotal-livehunt-notifications:6.4.5
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -302,7 +308,7 @@ services:
       opencti:
         condition: service_healthy
   connector-alienvault:
-    image: opencti/connector-alienvault:6.4.0
+    image: opencti/connector-alienvault:6.4.5
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -336,7 +342,7 @@ services:
       - ALIENVAULT_X_OPENCTI_SCORE_CRYPTOCURRENCY_WALLET=80
     restart: always
   connector-cisa-known-exploited-vulnerabilities:
-    image: opencti/connector-cisa-known-exploited-vulnerabilities:6.4.0
+    image: opencti/connector-cisa-known-exploited-vulnerabilities:6.4.5
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -353,13 +359,34 @@ services:
     depends_on:
       opencti:
         condition: service_healthy
+  connector-threatfox:
+    image: opencti/connector-threatfox:6.4.5
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=b9dd9381-5fd7-499b-a01b-0d4dc4900b2c
+      - "CONNECTOR_NAME=Abuse.ch | ThreatFox"
+      - CONNECTOR_SCOPE=ThreatFox
+      - CONNECTOR_CONFIDENCE_LEVEL=40 # From 0 (Unknown) to 100 (Fully trusted)
+      - CONNECTOR_LOG_LEVEL=error
+      - THREATFOX_CSV_URL=https://threatfox.abuse.ch/export/csv/recent/
+      - THREATFOX_IMPORT_OFFLINE=true
+      - THREATFOX_CREATE_INDICATORS=true
+      - THREATFOX_DEFAULT_X_OPENCTI_SCORE=50
+      - THREATFOX_X_OPENCTI_SCORE_IP=60
+      - THREATFOX_X_OPENCTI_SCORE_DOMAIN=70
+      - THREATFOX_X_OPENCTI_SCORE_URL=75
+      - THREATFOX_X_OPENCTI_SCORE_HASH=80
+      - THREATFOX_INTERVAL=3 # In days, must be strictly greater than 1
+      - THREATFOX_IOC_TO_IMPORT=ip:port,domain,url # List of IOC types to import
+    restart: always
 
 ############################
 # Enrichments
 ############################
 
   connector-virustotal:
-    image: opencti/connector-virustotal:6.4.0
+    image: opencti/connector-virustotal:6.4.5
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -375,7 +402,7 @@ services:
       # File/Artifact specific config settings
       - VIRUSTOTAL_FILE_CREATE_NOTE_FULL_REPORT=true # Whether or not to include the full report as a Note
       - VIRUSTOTAL_FILE_UPLOAD_UNSEEN_ARTIFACTS=true # Whether to upload artifacts (smaller than 32MB) that VirusTotal has no record of
-      - VIRUSTOTAL_FILE_INDICATOR_CREATE_POSITIVES=10 # Create an indicator for File/Artifact based observables once this positive theshold is reached. Note: specify 0 to disable indicator creation
+      - VIRUSTOTAL_FILE_INDICATOR_CREATE_POSITIVES=8 # Create an indicator for File/Artifact based observables once this positive theshold is reached. Note: specify 0 to disable indicator creation
       - VIRUSTOTAL_FILE_INDICATOR_VALID_MINUTES=5760 # How long the indicator is valid for in minutes
       - VIRUSTOTAL_FILE_INDICATOR_DETECT=true # Whether or not to set detection for the indicator to true
       - VIRUSTOTAL_FILE_IMPORT_YARA=false # Whether or not import Crowdsourced YARA rules
@@ -402,7 +429,7 @@ services:
       opencti:
         condition: service_healthy
   connector-shodan-internetdb:
-    image: opencti/connector-shodan-internetdb:6.4.0
+    image: opencti/connector-shodan-internetdb:6.4.5
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -419,7 +446,7 @@ services:
         condition: service_healthy
 
   connector-mitre:
-    image: opencti/connector-mitre:6.4.0
+    image: opencti/connector-mitre:6.4.5
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -435,7 +462,7 @@ services:
       opencti:
         condition: service_healthy
   connector-urlscan-enrichment:
-    image: opencti/connector-urlscan-enrichment:6.4.0
+    image: opencti/connector-urlscan-enrichment:6.4.5
     environment:
       # OpenCTI's generic execution parameters:
       - OPENCTI_URL=http://opencti:8080
@@ -458,7 +485,7 @@ services:
       opencti:
         condition: service_healthy
   connector-opencti:
-    image: opencti/connector-opencti:6.4.0
+    image: opencti/connector-opencti:6.4.5
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -479,7 +506,7 @@ services:
       opencti:
         condition: service_healthy
   connector-greynoise-vuln:
-    image: opencti/connector-greynoise-vuln:6.4.0
+    image: opencti/connector-greynoise-vuln:6.4.5
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
