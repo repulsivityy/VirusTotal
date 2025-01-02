@@ -13,10 +13,10 @@ services:
       - ${NGINX_DEFAULT}:/etc/nginx/conf.d/default.conf
   #    - ${CERTBOT_WWW}:/var/www/certbot/:ro
     ipc: host
-  certbot:
-    image: certbot/certbot:latest
-    volumes:
-      - ${CERTBOT_WWW}:/var/www/certbot/:rw
+  #certbot:
+  #  image: certbot/certbot:latest
+  #  volumes:
+  #    - ${CERTBOT_WWW}:/var/www/certbot/:rw
   #    - ${CERTBOT_CONF}:/etc/letsencrypt/:rw
 ##############
 # Open-Appsec
