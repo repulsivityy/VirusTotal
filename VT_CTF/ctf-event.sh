@@ -21,16 +21,34 @@ sudo apt-get update
 
 sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
 
-# Run VT CTF
+# Chose which CTF to run: 
 echo "####################"
-echo " Getting the VT CTF env ready"
+echo "Please choose which CTF to run. Enter only the number."
+echo "####################"
+echo "1 - Golden CTF"
+echo "2 - Dom's CTF"
+#echo "VT CTF"
+read choice
+
+# Validate the input
+while [[ "$choice" != "1" && "$choice" != "2" ]]; do
+  echo "Invalid choice. Please enter 1 or 2."
+  read choice
+done
+
+# Run CTF
+echo "####################"
+echo " Getting the GTI CTF env ready"
 echo "####################"
 wget https://raw.githubusercontent.com/repulsivityy/VirusTotal/main/VT_CTF/compose.yaml
-sudo docker compose up -d
-
+if [ "$choice" == "1" ]; then
+  sudo docker compose --profile tarah up -d
+else
+  sudo docker compose --profile dom up -d
+fi
 
 echo "####################"
-echo " Connecting to the VT CTF"
+echo " Connecting to the GTI CTF"
 echo "####################"
 myip="$(curl -s ipinfo.io/ip)"
 echo "Connect to http://$myip:8000"

@@ -1,6 +1,12 @@
 echo "####################"
-# Uninstall 
+echo "Uninstalling Docker"
+echo "####################"
 for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove $pkg; done
+
+echo "####################"
+echo "Updating OS"
+echo "####################"
+sudo apt-get update && sudo apt-get upgrade -y
 
 # Add Docker's official GPG key:
 sudo apt-get install ca-certificates curl
@@ -17,6 +23,26 @@ sudo apt-get update
 
 sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
 
-sudo usermod -aG docker $USER        
+sudo usermod -aG docker $USER
 
 echo "####################"
+echo "Getting Environment Ready"
+echo "####################"
+
+mkdir ~/opencti
+mkdir ~/opencti/open-appsec
+mkdir ~/opencti/open-appsec/conf
+mkdir ~/opencti/open-appsec/data
+mkdir ~/opencti/open-appsec/logs
+
+cd ~/opencti
+
+wget -O default.conf "https://raw.githubusercontent.com/repulsivityy/VirusTotal/refs/heads/main/OpenCTI%20Integration/default.conf"
+wget -O docker-compose.yml "https://raw.githubusercontent.com/repulsivityy/VirusTotal/refs/heads/main/OpenCTI%20Integration/docker-compose.yml"
+wget -O latest_docker.sh "https://raw.githubusercontent.com/repulsivityy/VirusTotal/refs/heads/main/OpenCTI%20Integration/latest_docker.sh"
+chmod 755 latest_docker.sh
+
+echo "####################"
+echo "Bringing OpenCTI up"
+echo "####################"
+sudo docker compose up -d
