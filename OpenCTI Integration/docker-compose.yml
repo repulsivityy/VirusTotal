@@ -1,6 +1,43 @@
+##############
+# NGINX
+##############
 services:
+  nginx:
+    image: nginx:stable-alpine
+    restart: always
+    container_name: ${NGINX_HOST}
+    ports:
+      - 80:80
+      - 433:433
+    volumes:
+      - ${NGINX_DEFAULT}:/etc/nginx/conf.d/default.conf
+  #    - ${CERTBOT_WWW}:/var/www/certbot/:ro
+    ipc: host
+  #certbot:
+  #  image: certbot/certbot:latest
+  #  volumes:
+  #    - ${CERTBOT_WWW}:/var/www/certbot/:rw
+  #    - ${CERTBOT_CONF}:/etc/letsencrypt/:rw
+##############
+# Open-Appsec
+##############
+  openappsec-agent:
+    image: ghcr.io/openappsec/agent:latest
+    container_name: open-appsec-agent
+    environment:
+      - registered_server=${NGINX_HOST}
+      - autoPolicyLoad=true
+      - AGENT_TOKEN=${OPEN_APPSEC_TOKEN}
+    volumes:
+      - ${APPSEC_CONF}:/etc/cp/conf
+      - ${APPSEC_DATA}:/etc/cp/data
+      - ${APPSEC_LOGS}:/var/log/nano_agent
+    ipc: host
+##############
+# Main Services
+##############
   redis:
-    image: redis:7.4.0
+    image: redis:7.4.1
     restart: always
     volumes:
       - redisdata:/data
@@ -10,7 +47,7 @@ services:
       timeout: 5s
       retries: 3
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.2
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
     volumes:
       - esdata:/usr/share/elasticsearch/data
     environment:
@@ -53,7 +90,7 @@ services:
       timeout: 5s
       retries: 3
   rabbitmq:
-    image: rabbitmq:3.13-management
+    image: rabbitmq:4.0-management
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
@@ -67,7 +104,7 @@ services:
       timeout: 30s
       retries: 3
   opencti:
-    image: opencti/platform:6.3.6
+    image: opencti/platform:6.4.8
     environment:
       - NODE_OPTIONS=--max-old-space-size=8096
       - APP__PORT=8080
@@ -94,6 +131,7 @@ services:
       - SMTP__PORT=25
       - PROVIDERS__LOCAL__STRATEGY=LocalStrategy
       - APP__HEALTH_ACCESS_KEY=${OPENCTI_HEALTHCHECK_ACCESS_KEY}
+      - APP__SESSION_TIMEOUT=14400000
     ports:
       - "8080:8080"
     depends_on:
@@ -111,8 +149,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+
+############################
+# Workers
+############################
+
   worker:
-    image: opencti/worker:6.3.6
+    image: opencti/worker:6.4.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -124,8 +167,13 @@ services:
       mode: replicated
       replicas: 3
     restart: always
+
+############################
+# Export / Import Documents
+############################
+
   connector-export-file-stix:
-    image: opencti/connector-export-file-stix:6.3.6
+    image: opencti/connector-export-file-stix:6.4.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -139,7 +187,7 @@ services:
       opencti:
         condition: service_healthy
   connector-export-file-csv:
-    image: opencti/connector-export-file-csv:6.3.6
+    image: opencti/connector-export-file-csv:6.4.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -153,7 +201,7 @@ services:
       opencti:
         condition: service_healthy
   connector-export-file-txt:
-    image: opencti/connector-export-file-txt:6.3.6
+    image: opencti/connector-export-file-txt:6.4.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -167,7 +215,7 @@ services:
       opencti:
         condition: service_healthy
   connector-import-file-stix:
-    image: opencti/connector-import-file-stix:6.3.6
+    image: opencti/connector-import-file-stix:6.4.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -183,7 +231,7 @@ services:
       opencti:
         condition: service_healthy
   connector-import-document:
-    image: opencti/connector-import-document:6.3.6
+    image: opencti/connector-import-document:6.4.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -201,26 +249,13 @@ services:
     depends_on:
       opencti:
         condition: service_healthy
-  connector-analysis:
-    image: opencti/connector-import-document:6.3.6
-    environment:
-      - OPENCTI_URL=http://opencti:8080
-      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-      - CONNECTOR_ID=${CONNECTOR_ANALYSIS_ID} # Valid UUIDv4
-      - CONNECTOR_TYPE=INTERNAL_ANALYSIS
-      - CONNECTOR_NAME=ImportDocumentAnalysis
-      - CONNECTOR_VALIDATE_BEFORE_IMPORT=false # Validate any bundle before import
-      - CONNECTOR_SCOPE=application/pdf,text/plain,text/html
-      - CONNECTOR_AUTO=true # Enable/disable auto-import of file
-      - CONNECTOR_ONLY_CONTEXTUAL=false # Only extract data related to an entity (a report, a threat actor, etc.)
-      - CONNECTOR_CONFIDENCE_LEVEL=15 # From 0 (Unknown) to 100 (Fully trusted)
-      - CONNECTOR_LOG_LEVEL=info
-    restart: always
-    depends_on:
-      opencti:
-        condition: service_healthy
+
+############################
+# External imports
+############################
+
   connector-mandiant:
-    image: opencti/connector-mandiant:6.3.6
+    image: opencti/connector-mandiant:6.4.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -231,21 +266,127 @@ services:
       - CONNECTOR_DURATION_PERIOD=PT72H # In ISO8601 Format starting with "P" for Period ex: "PT5M" = Period time of 5 minutes
       - MANDIANT_API_V4_KEY_ID=gti-user
       - MANDIANT_API_V4_KEY_SECRET=${GTI_API_KEY}
-      - MANDIANT_INDICATOR_MINIMUM_SCORE=80
+      - MANDIANT_INDICATOR_MINIMUM_SCORE=70
       - MANDIANT_IMPORT_START_DATE=2024-04-01
       - MANDIANT_INDICATOR_IMPORT_START_DATE=2024-04-01
       - MANDIANT_IMPORT_ACTORS_INTERVAL=48
+      - MANDIANT_IMPORT_ACTORS_ALIASES=True
       - MANDIANT_IMPORT_REPORTS_INTERVAL=8
       - MANDIANT_IMPORT_MALWARES_INTERVAL=24
       - MANDIANT_IMPORT_CAMPAIGNS_INTERVAL=8
       - MANDIANT_IMPORT_INDICATORS_INTERVAL=8
-      - MANDIANT_WEEKLY_VULNERABILITY_EXPLOITATION_REPORT_TYPE=false
+      - MANDIANT_ACTOR_PROFILE_REPORT_TYPE=True
+      - MANDIANT_MALWARE_PROFILE_REPORT_TYPE=True
     restart: always
     depends_on:
       opencti:
         condition: service_healthy
+  connector-virustotal-livehunt-notifications:
+    image: opencti/connector-virustotal-livehunt-notifications:6.4.8
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=Virustotal_Livehunt_Notifications
+      - "CONNECTOR_NAME=VirusTotal Livehunt Notifications"
+      - CONNECTOR_SCOPE=StixFile,Indicator,Incident
+      - CONNECTOR_LOG_LEVEL=error
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_API_KEY=${GTI_API_KEY} # Private API Key
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_INTERVAL_SEC=300 # Time to wait in seconds between subsequent requests
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_CREATE_ALERT=True # Set to true to create alerts
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_EXTENSIONS='exe,dll' # (Optional) Comma separated filter to only download files matching these extensions
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_MIN_FILE_SIZE=1000 # (Optional) Don't download files smaller than this many bytes
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_MAX_FILE_SIZE=52428800 # (Optional) Don't download files larger than this many bytes
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_MAX_AGE_DAYS=3 # Only create the alert if the first submission of the file is not older than `max_age_days`
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_MIN_POSITIVES=5 # (Optional) Don't download files with less than this many vendors marking malicious
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_CREATE_FILE=False # Set to true to create file object linked to the alerts
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_UPLOAD_ARTIFACT=False # Set to true to upload the file to opencti
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_CREATE_YARA_RULE=False # Set to true to create yara rule linked to the alert and the file
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_DELETE_NOTIFICATION=False # Set to true to remove livehunt notifications
+      - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_FILTER_WITH_TAG="lummac_chrome" # Filter livehunt notifications with this tag
+    restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
+  connector-alienvault:
+    image: opencti/connector-alienvault:6.4.8
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=009da4af-5259-4202-9771-13ec1d4ed85f
+      - CONNECTOR_NAME=AlienVault
+      - CONNECTOR_SCOPE=alienvault
+      - CONNECTOR_LOG_LEVEL=error
+      - CONNECTOR_DURATION_PERIOD=PT1H # In ISO8601 Format starting with "P" for Period ex: "PT30M" = Period time of 30 minutes
+      - ALIENVAULT_BASE_URL=https://otx.alienvault.com
+      - ALIENVAULT_API_KEY=${ALIENVAULT_API_KEY}
+      - ALIENVAULT_TLP=White
+      - ALIENVAULT_CREATE_OBSERVABLES=true
+      - ALIENVAULT_CREATE_INDICATORS=true
+      - ALIENVAULT_PULSE_START_TIMESTAMP=2024-09-01T00:00:00                  # BEWARE! Could be a lot of pulses!
+      - ALIENVAULT_REPORT_TYPE=threat-report
+      - ALIENVAULT_REPORT_STATUS=New
+      - ALIENVAULT_GUESS_MALWARE=false                                        # Use tags to guess malware.
+      - ALIENVAULT_GUESS_CVE=false                                            # Use tags to guess CVE.
+      - ALIENVAULT_EXCLUDED_PULSE_INDICATOR_TYPES=FileHash-MD5,FileHash-SHA1  # Excluded Pulse indicator types.
+      - ALIENVAULT_ENABLE_RELATIONSHIPS=true                                  # Enable/Disable relationship creation between SDOs.
+      - ALIENVAULT_ENABLE_ATTACK_PATTERNS_INDICATES=false                     # Enable/Disable "indicates" relationships between indicators and attack patterns
+      - ALIENVAULT_INTERVAL_SEC=1800
+      - ALIENVAULT_DEFAULT_X_OPENCTI_SCORE=50
+      - ALIENVAULT_X_OPENCTI_SCORE_IP=50
+      - ALIENVAULT_X_OPENCTI_SCORE_DOMAIN=50
+      - ALIENVAULT_X_OPENCTI_SCORE_HOSTNAME=75
+      - ALIENVAULT_X_OPENCTI_SCORE_EMAIL=70
+      - ALIENVAULT_X_OPENCTI_SCORE_FILE=85
+      - ALIENVAULT_X_OPENCTI_SCORE_URL=80
+      - ALIENVAULT_X_OPENCTI_SCORE_MUTEX=60
+      - ALIENVAULT_X_OPENCTI_SCORE_CRYPTOCURRENCY_WALLET=80
+    restart: always
+  connector-cisa-known-exploited-vulnerabilities:
+    image: opencti/connector-cisa-known-exploited-vulnerabilities:6.4.8
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=d8bccd25-d1ce-40d6-8549-78ddc41a3787
+      - "CONNECTOR_NAME=CISA Known Exploited Vulnerabilities"
+      - CONNECTOR_SCOPE=cisa
+      - CONNECTOR_RUN_AND_TERMINATE=false
+      - CONNECTOR_LOG_LEVEL=error
+      - CONNECTOR_DURATION_PERIOD=P7D
+      - CISA_CATALOG_URL=https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+      - CISA_CREATE_INFRASTRUCTURES=false
+      - CISA_TLP=TLP:CLEAR
+    restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
+  connector-threatfox:
+    image: opencti/connector-threatfox:6.4.8
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=b9dd9381-5fd7-499b-a01b-0d4dc4900b2c
+      - "CONNECTOR_NAME=Abuse.ch | ThreatFox"
+      - CONNECTOR_SCOPE=ThreatFox
+      - CONNECTOR_CONFIDENCE_LEVEL=40 # From 0 (Unknown) to 100 (Fully trusted)
+      - CONNECTOR_LOG_LEVEL=error
+      - THREATFOX_CSV_URL=https://threatfox.abuse.ch/export/csv/recent/
+      - THREATFOX_IMPORT_OFFLINE=true
+      - THREATFOX_CREATE_INDICATORS=true
+      - THREATFOX_DEFAULT_X_OPENCTI_SCORE=50
+      - THREATFOX_X_OPENCTI_SCORE_IP=60
+      - THREATFOX_X_OPENCTI_SCORE_DOMAIN=70
+      - THREATFOX_X_OPENCTI_SCORE_URL=75
+      - THREATFOX_X_OPENCTI_SCORE_HASH=80
+      - THREATFOX_INTERVAL=3 # In days, must be strictly greater than 1
+      - THREATFOX_IOC_TO_IMPORT=ip:port,domain,url # List of IOC types to import
+    restart: always
+
+############################
+# Enrichments
+############################
+
   connector-virustotal:
-    image: opencti/connector-virustotal:6.3.6
+    image: opencti/connector-virustotal:6.4.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -261,8 +402,8 @@ services:
       # File/Artifact specific config settings
       - VIRUSTOTAL_FILE_CREATE_NOTE_FULL_REPORT=true # Whether or not to include the full report as a Note
       - VIRUSTOTAL_FILE_UPLOAD_UNSEEN_ARTIFACTS=true # Whether to upload artifacts (smaller than 32MB) that VirusTotal has no record of
-      - VIRUSTOTAL_FILE_INDICATOR_CREATE_POSITIVES=10 # Create an indicator for File/Artifact based observables once this positive theshold is reached. Note: specify 0 to disable indicator creation
-      - VIRUSTOTAL_FILE_INDICATOR_VALID_MINUTES=2880 # How long the indicator is valid for in minutes
+      - VIRUSTOTAL_FILE_INDICATOR_CREATE_POSITIVES=8 # Create an indicator for File/Artifact based observables once this positive theshold is reached. Note: specify 0 to disable indicator creation
+      - VIRUSTOTAL_FILE_INDICATOR_VALID_MINUTES=5760 # How long the indicator is valid for in minutes
       - VIRUSTOTAL_FILE_INDICATOR_DETECT=true # Whether or not to set detection for the indicator to true
       - VIRUSTOTAL_FILE_IMPORT_YARA=false # Whether or not import Crowdsourced YARA rules
       # IP specific config settings
@@ -288,7 +429,7 @@ services:
       opencti:
         condition: service_healthy
   connector-shodan-internetdb:
-    image: opencti/connector-shodan-internetdb:6.3.6
+    image: opencti/connector-shodan-internetdb:6.4.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -303,20 +444,81 @@ services:
     depends_on:
       opencti:
         condition: service_healthy
-  connector-cisa-known-exploited-vulnerabilities:
-    image: opencti/connector-cisa-known-exploited-vulnerabilities:6.3.6
+
+  connector-mitre:
+    image: opencti/connector-mitre:6.4.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-      - CONNECTOR_ID=d8bccd25-d1ce-40d6-8549-78ddc41a3787
-      - "CONNECTOR_NAME=CISA Known Exploited Vulnerabilities"
-      - CONNECTOR_SCOPE=cisa
+      - CONNECTOR_ID=ad36fd8b-3748-4433-8d66-0d1026d75773
+      - "CONNECTOR_NAME=MITRE Datasets"
+      - CONNECTOR_SCOPE=tool,report,malware,identity,campaign,intrusion-set,attack-pattern,course-of-action,x-mitre-data-source,x-mitre-data-component,x-mitre-matrix,x-mitre-tactic,x-mitre-collection
       - CONNECTOR_RUN_AND_TERMINATE=false
       - CONNECTOR_LOG_LEVEL=error
-      - CONNECTOR_DURATION_PERIOD=P7D
-      - CISA_CATALOG_URL=https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
-      - CISA_CREATE_INFRASTRUCTURES=false
-      - CISA_TLP=TLP:CLEAR
+      - MITRE_REMOVE_STATEMENT_MARKING=true
+      - MITRE_INTERVAL=7 # In days
+    restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
+  connector-urlscan-enrichment:
+    image: opencti/connector-urlscan-enrichment:6.4.8
+    environment:
+      # OpenCTI's generic execution parameters:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      # Connector's generic execution parameters:
+      - CONNECTOR_ID=d40f7ae3-8b7d-43e1-975c-88e916c015f3
+      - CONNECTOR_NAME=Urlscan
+      - CONNECTOR_SCOPE=url,ipv4-addr,ipv6-addr
+      - CONNECTOR_AUTO=false
+      - CONNECTOR_LOG_LEVEL=error
+      # Connector's custom execution parameters:
+      - URLSCAN_ENRICHMENT_API_KEY=${URLSCAN_API_KEY}
+      - URLSCAN_ENRICHMENT_API_BASE_URL=https://urlscan.io/api/v1/
+      - URLSCAN_ENRICHMENT_IMPORT_SCREENSHOT=true
+      - URLSCAN_ENRICHMENT_VISIBILITY=unlisted # Available values : public, unlisted, private
+      - URLSCAN_ENRICHMENT_SEARCH_FILTERED_BY_DATE=>now-90d # Available : ">now-1h", ">now-1d", ">now-1y", "[2022 TO 2023]", "[2022/01/01 TO 2023/12/01]"
+      - URLSCAN_ENRICHMENT_MAX_TLP=TLP:AMBER # Required, Available values: TLP:CLEAR, TLP:WHITE, TLP:GREEN, TLP:AMBER, TLP:AMBER+STRICT, TLP:RED
+    restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
+  connector-opencti:
+    image: opencti/connector-opencti:6.4.8
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=a02900a5-5964-4ae3-9ebc-76d9d16f30ac
+      - "CONNECTOR_NAME=OpenCTI Datasets"
+      - CONNECTOR_SCOPE=marking-definition,identity,location
+      - CONNECTOR_CONFIDENCE_LEVEL=100
+      - CONNECTOR_UPDATE_EXISTING_DATA=true
+      - CONNECTOR_RUN_AND_TERMINATE=false
+      - CONNECTOR_LOG_LEVEL=error
+      - CONFIG_SECTORS_FILE_URL=https://raw.githubusercontent.com/OpenCTI-Platform/datasets/master/data/sectors.json
+      - CONFIG_GEOGRAPHY_FILE_URL=https://raw.githubusercontent.com/OpenCTI-Platform/datasets/master/data/geography.json
+      - CONFIG_COMPANIES_FILE_URL=https://raw.githubusercontent.com/OpenCTI-Platform/datasets/master/data/companies.json
+      - CONFIG_REMOVE_CREATOR=false
+      - CONFIG_INTERVAL=7 # In days
+    restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
+  connector-greynoise-vuln:
+    image: opencti/connector-greynoise-vuln:6.4.8
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=085cd220-13fe-49b9-be1e-38dfc21cf822
+      - CONNECTOR_NAME=GreyNoise
+      - CONNECTOR_SCOPE=vulnerability
+      - CONNECTOR_AUTO=true
+      - CONNECTOR_LOG_LEVEL=error
+      - GREYNOISE_KEY=${GREYNOISE_API_KEY}
+      - GREYNOISE_MAX_TLP=TLP:AMBER
+      - "GREYNOISE_NAME=GreyNoise Internet Scanner"
+      - "GREYNOISE_DESCRIPTION=GreyNoise collects and analyzes opportunistic scan and attack activity for devices connected directly to the Internet."
     restart: always
     depends_on:
       opencti:
