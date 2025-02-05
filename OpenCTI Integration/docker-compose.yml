@@ -272,11 +272,16 @@ services:
       - MANDIANT_IMPORT_ACTORS_INTERVAL=48
       - MANDIANT_IMPORT_ACTORS_ALIASES=True
       - MANDIANT_IMPORT_REPORTS_INTERVAL=8
+      - MANDIANT_IMPORT_MALWARES=True
       - MANDIANT_IMPORT_MALWARES_INTERVAL=24
+      - MANDIANT_IMPORT_CAMPAIGNS=True
+      - MANDIANT_IMPORT_FULL_CAMPAIGNS=True
       - MANDIANT_IMPORT_CAMPAIGNS_INTERVAL=8
+      - MANDIANT_IMPORT_INDICATORS=True
       - MANDIANT_IMPORT_INDICATORS_INTERVAL=8
       - MANDIANT_ACTOR_PROFILE_REPORT_TYPE=True
       - MANDIANT_MALWARE_PROFILE_REPORT_TYPE=True
+      - MANDIANT_TTP_DEEP_DIVE_REPORT=True
     restart: always
     depends_on:
       opencti:
@@ -287,7 +292,7 @@ services:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
       - CONNECTOR_ID=Virustotal_Livehunt_Notifications
-      - "CONNECTOR_NAME=VirusTotal Livehunt Notifications"
+      - CONNECTOR_NAME=VirusTotal Livehunt Notifications
       - CONNECTOR_SCOPE=StixFile,Indicator,Incident
       - CONNECTOR_LOG_LEVEL=error
       - VIRUSTOTAL_LIVEHUNT_NOTIFICATIONS_API_KEY=${GTI_API_KEY} # Private API Key
@@ -337,10 +342,11 @@ services:
       - ALIENVAULT_X_OPENCTI_SCORE_HOSTNAME=75
       - ALIENVAULT_X_OPENCTI_SCORE_EMAIL=70
       - ALIENVAULT_X_OPENCTI_SCORE_FILE=85
-      - ALIENVAULT_X_OPENCTI_SCORE_URL=80
+      - ALIENVAULT_X_OPENCTI_SCORE_URL=60
       - ALIENVAULT_X_OPENCTI_SCORE_MUTEX=60
       - ALIENVAULT_X_OPENCTI_SCORE_CRYPTOCURRENCY_WALLET=80
     restart: always
+    
   connector-cisa-known-exploited-vulnerabilities:
     image: opencti/connector-cisa-known-exploited-vulnerabilities:6.4.8
     environment:
@@ -365,7 +371,7 @@ services:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
       - CONNECTOR_ID=b9dd9381-5fd7-499b-a01b-0d4dc4900b2c
-      - "CONNECTOR_NAME=Abuse.ch | ThreatFox"
+      - CONNECTOR_NAME=Abuse.ch | ThreatFox
       - CONNECTOR_SCOPE=ThreatFox
       - CONNECTOR_CONFIDENCE_LEVEL=40 # From 0 (Unknown) to 100 (Fully trusted)
       - CONNECTOR_LOG_LEVEL=error
@@ -380,6 +386,32 @@ services:
       - THREATFOX_INTERVAL=3 # In days, must be strictly greater than 1
       - THREATFOX_IOC_TO_IMPORT=ip:port,domain,url # List of IOC types to import
     restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
+  connector-ransomware:
+    image: opencti/connector-ransomwarelive:6.5.0
+    container_name: ransomware-connector
+    environment:
+      # Connector's definition parameters:
+      - CONNECTOR_NAME=Ransomware Connector
+      - CONNECTOR_SCOPE=identity,attack-pattern,course-of-action,intrusion-set,malware,tool,report
+      # Connector's generic execution parameters:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=694281b3-6723-4533-88f0-3a618c87cd5d
+      - CONNECTOR_CONFIDENCE_LEVEL=80 # From 0 (Unknown) to 100 (Fully trusted).
+      - CONNECTOR_LOG_LEVEL=info # Log level: debug, info, warn, error
+      - CONNECTOR_UPDATE_EXISTING_DATA=True
+      - CONNECTOR_PULL_HISTORY=false # If true, the connector will pull the history of the data. But it is not recommended to set it to true as there will a large influx of data.
+      - CONNECTOR_HISTORY_START_YEAR=2024 # Data only goes back till 2020
+      - CONNECTOR_RUN_EVERY=120m # 10 minutes will be the ideal time
+      # Connector's custom execution parameters:
+    restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
+  
 
 ############################
 # Enrichments
