@@ -19,14 +19,16 @@ import time
 #SUBMITTER = input("Enter ISO of Country (eg SG): ")
 #LIMIT = '300'
 #FILE_DETECT = 'entity:file submitter:'+ SUBMITTER +' fs:'+ FS_DATE +' fs:'+ LS_DATE +' p:1+'
-COLLECTION_ID = input("Enter Collection ID: ")
+#COLLECTION_ID = input("Enter Collection ID: ")
+COLLECTION_ID = 'bc2804474cfd92eb4c599112df0ff0f8ebe8b32dd1f9027bd5c0f6855ece8f36'
 VT_APIKEY = os.environ['GTI_APIKEY']
-firstseen = "2024-05-7+"
-lastseen = "2024-05-14-"
+firstseen = "2025-02-7+"
+lastseen = "2025-02-14-"
 #firstseen = input("Enter First Seen Start Date (eg 2023-12-01+):")
 #lastseen = input("Enter First Seen End Date (eg 2023-12-31-):")
 LIMIT = '300'
-FILE_DETECT = 'entity:file submitter:au fs:'+ firstseen +' fs:'+ lastseen +' p:1+'
+#FILE_DETECT = 'entity:file submitter:au fs:'+ firstseen +' fs:'+ lastseen +' p:1+'
+FILE_DETECT = 'entity:file malware_config:lumma fs:7d+'
 
 ################
 # advance search
