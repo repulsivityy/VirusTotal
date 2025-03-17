@@ -48,7 +48,9 @@ class URLExtractor:
         
         # URL regex pattern (with protocol)
         # More comprehensive pattern to catch most URLs
-        url_pattern = r'(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})'
+        #### Original Regex - ####
+        #url_pattern = r'(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})'
+        url_pattern = r'(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}[^\s]*|(?:www\.)?[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}[^\s]*)'
         urls = re.findall(url_pattern, text)
         
         for url in urls:
@@ -326,7 +328,7 @@ class TelegramBot:
             await update.message.reply_text("No URLs or domains found in your message.")
             return
         
-        await update.message.reply_text(f"Found {len(items)} URL(s)/domain(s). Checking against VirusTotal...")
+        await update.message.reply_text(f"Found {len(items)} URL(s)/Domain(s). Checking against VirusTotal...")
         
         for item in items:
             if item['type'] == 'url':
