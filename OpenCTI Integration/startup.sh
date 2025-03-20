@@ -29,6 +29,9 @@ echo "####################"
 echo "Getting Environment Ready"
 echo "####################"
 
+sudo echo "vm.max_map_count=1048575" >> /etc/sysctl.conf
+
+
 mkdir ~/opencti
 mkdir ~/opencti/open-appsec
 mkdir ~/opencti/open-appsec/conf
