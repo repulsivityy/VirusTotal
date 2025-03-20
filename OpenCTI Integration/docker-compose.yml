@@ -95,6 +95,8 @@ services:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
       - RABBITMQ_NODENAME=rabbit01@localhost
+      - max_message_size = 536870912
+      - consumer_timeout = 86400000
     volumes:
       - amqpdata:/var/lib/rabbitmq
     restart: always
