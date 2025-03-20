@@ -37,7 +37,7 @@ services:
 # Main Services
 ##############
   redis:
-    image: redis:7.4.1
+    image: redis:7.4.2
     restart: always
     volumes:
       - redisdata:/data
@@ -47,7 +47,7 @@ services:
       timeout: 5s
       retries: 3
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.0
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.3
     volumes:
       - esdata:/usr/share/elasticsearch/data
     environment:
@@ -104,7 +104,7 @@ services:
       timeout: 30s
       retries: 3
   opencti:
-    image: opencti/platform:6.5.1
+    image: opencti/platform:6.5.8
     environment:
       - NODE_OPTIONS=--max-old-space-size=8096
       - APP__PORT=8080
@@ -155,7 +155,7 @@ services:
 ############################
 
   worker:
-    image: opencti/worker:6.5.1
+    image: opencti/worker:6.5.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -165,7 +165,7 @@ services:
         condition: service_healthy
     deploy:
       mode: replicated
-      replicas: 3
+      replicas: 4
     restart: always
 
 ############################
@@ -173,7 +173,7 @@ services:
 ############################
 
   connector-export-file-stix:
-    image: opencti/connector-export-file-stix:6.5.1
+    image: opencti/connector-export-file-stix:6.5.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -187,7 +187,7 @@ services:
       opencti:
         condition: service_healthy
   connector-export-file-csv:
-    image: opencti/connector-export-file-csv:6.5.1
+    image: opencti/connector-export-file-csv:6.5.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -201,7 +201,7 @@ services:
       opencti:
         condition: service_healthy
   connector-export-file-txt:
-    image: opencti/connector-export-file-txt:6.5.1
+    image: opencti/connector-export-file-txt:6.5.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -215,7 +215,7 @@ services:
       opencti:
         condition: service_healthy
   connector-import-file-stix:
-    image: opencti/connector-import-file-stix:6.5.1
+    image: opencti/connector-import-file-stix:6.5.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -231,7 +231,7 @@ services:
       opencti:
         condition: service_healthy
   connector-import-document:
-    image: opencti/connector-import-document:6.5.1
+    image: opencti/connector-import-document:6.5.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -255,7 +255,7 @@ services:
 ############################
 
   connector-mandiant:
-    image: opencti/connector-mandiant:6.5.1
+    image: opencti/connector-mandiant:6.5.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -287,7 +287,7 @@ services:
       opencti:
         condition: service_healthy
   connector-virustotal-livehunt-notifications:
-    image: opencti/connector-virustotal-livehunt-notifications:6.5.1
+    image: opencti/connector-virustotal-livehunt-notifications:6.5.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -313,7 +313,7 @@ services:
       opencti:
         condition: service_healthy
   connector-alienvault:
-    image: opencti/connector-alienvault:6.5.1
+    image: opencti/connector-alienvault:6.5.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -348,7 +348,7 @@ services:
     restart: always
     
   connector-cisa-known-exploited-vulnerabilities:
-    image: opencti/connector-cisa-known-exploited-vulnerabilities:6.5.1
+    image: opencti/connector-cisa-known-exploited-vulnerabilities:6.5.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -366,7 +366,7 @@ services:
       opencti:
         condition: service_healthy
   connector-threatfox:
-    image: opencti/connector-threatfox:6.5.1
+    image: opencti/connector-threatfox:6.5.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -390,7 +390,7 @@ services:
       opencti:
         condition: service_healthy
   connector-ransomware:
-    image: opencti/connector-ransomwarelive:6.5.1
+    image: opencti/connector-ransomwarelive:6.5.8
     container_name: ransomware-connector
     environment:
       # Connector's definition parameters:
@@ -411,14 +411,33 @@ services:
     depends_on:
       opencti:
         condition: service_healthy
-  
+  connector-phishunt:
+    image: opencti/connector-phishunt:6.5.8
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=6c15b44b-a388-4b4d-8743-cb959670c438
+      - CONNECTOR_NAME=Phishunt
+      - CONNECTOR_SCOPE=phishunt
+      - CONNECTOR_LOG_LEVEL=error
+      #- PHISHUNT_API_KEY= # Optional, if not provided, consume only https://phishunt.io/feed.txt
+      - PHISHUNT_CREATE_INDICATORS=true
+      - PHISHUNT_DEFAULT_X_OPENCTI_SCORE=40 # Optional: default is 40
+      - PHISHUNT_X_OPENCTI_SCORE_DOMAIN=40 # Optional
+      - PHISHUNT_X_OPENCTI_SCORE_IP=40 # Optional
+      - PHISHUNT_X_OPENCTI_SCORE_URL=60 # Optional
+      - PHISHUNT_INTERVAL=3 # In days, must be strictly greater than 1
+    restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
 
 ############################
 # Enrichments
 ############################
 
   connector-virustotal:
-    image: opencti/connector-virustotal:6.5.1
+    image: opencti/connector-virustotal:6.5.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -461,7 +480,7 @@ services:
       opencti:
         condition: service_healthy
   connector-shodan-internetdb:
-    image: opencti/connector-shodan-internetdb:6.5.1
+    image: opencti/connector-shodan-internetdb:6.5.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -478,7 +497,7 @@ services:
         condition: service_healthy
 
   connector-mitre:
-    image: opencti/connector-mitre:6.5.1
+    image: opencti/connector-mitre:6.5.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -494,7 +513,7 @@ services:
       opencti:
         condition: service_healthy
   connector-urlscan-enrichment:
-    image: opencti/connector-urlscan-enrichment:6.5.1
+    image: opencti/connector-urlscan-enrichment:6.5.8
     environment:
       # OpenCTI's generic execution parameters:
       - OPENCTI_URL=http://opencti:8080
@@ -517,7 +536,7 @@ services:
       opencti:
         condition: service_healthy
   connector-opencti:
-    image: opencti/connector-opencti:6.5.1
+    image: opencti/connector-opencti:6.5.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
@@ -538,7 +557,7 @@ services:
       opencti:
         condition: service_healthy
   connector-greynoise-vuln:
-    image: opencti/connector-greynoise-vuln:6.5.1
+    image: opencti/connector-greynoise-vuln:6.5.8
     environment:
       - OPENCTI_URL=http://opencti:8080
       - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
