@@ -38,6 +38,10 @@ mkdir ~/opencti/open-appsec/conf
 mkdir ~/opencti/open-appsec/data
 mkdir ~/opencti/open-appsec/logs
 
+mkdir ~/opencti/certbot
+mkdir ~/opencti/certbot/www
+mkdir ~/opencti/certbot/conf
+
 cd ~/opencti
 
 wget -O default.conf "https://raw.githubusercontent.com/repulsivityy/VirusTotal/refs/heads/main/OpenCTI%20Integration/default.conf"
