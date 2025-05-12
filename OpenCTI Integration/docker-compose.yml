@@ -578,7 +578,6 @@ services:
     depends_on:
       opencti:
         condition: service_healthy
-  services:
   connector-greynoise:
     image: opencti/connector-greynoise:6.6.10
     environment:
