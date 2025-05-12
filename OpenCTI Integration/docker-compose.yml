@@ -323,13 +323,13 @@ services:
       - CONNECTOR_NAME=AlienVault
       - CONNECTOR_SCOPE=alienvault
       - CONNECTOR_LOG_LEVEL=error
-      - CONNECTOR_DURATION_PERIOD=PT1H # In ISO8601 Format starting with "P" for Period ex: "PT30M" = Period time of 30 minutes
+      - CONNECTOR_DURATION_PERIOD=PT6H # In ISO8601 Format starting with "P" for Period ex: "PT30M" = Period time of 30 minutes
       - ALIENVAULT_BASE_URL=https://otx.alienvault.com
       - ALIENVAULT_API_KEY=${ALIENVAULT_API_KEY}
       - ALIENVAULT_TLP=White
       - ALIENVAULT_CREATE_OBSERVABLES=true
       - ALIENVAULT_CREATE_INDICATORS=true
-      - ALIENVAULT_PULSE_START_TIMESTAMP=2024-09-01T00:00:00                  # BEWARE! Could be a lot of pulses!
+      - ALIENVAULT_PULSE_START_TIMESTAMP=2025-01-01T00:00:00                  # BEWARE! Could be a lot of pulses!
       - ALIENVAULT_REPORT_TYPE=threat-report
       - ALIENVAULT_REPORT_STATUS=New
       - ALIENVAULT_GUESS_MALWARE=false                                        # Use tags to guess malware.
@@ -348,6 +348,9 @@ services:
       - ALIENVAULT_X_OPENCTI_SCORE_MUTEX=60
       - ALIENVAULT_X_OPENCTI_SCORE_CRYPTOCURRENCY_WALLET=80
     restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
   connector-cisa-known-exploited-vulnerabilities:
     image: opencti/connector-cisa-known-exploited-vulnerabilities:6.6.10
     environment:
@@ -453,7 +456,7 @@ services:
       - VIRUSTOTAL_REPLACE_WITH_LOWER_SCORE=true # Whether to keep the higher of the VT or existing score (false) or force the score to be updated with the VT score even if its lower than existing score (true).
       # File/Artifact specific config settings
       - VIRUSTOTAL_FILE_CREATE_NOTE_FULL_REPORT=true # Whether or not to include the full report as a Note
-      - VIRUSTOTAL_FILE_UPLOAD_UNSEEN_ARTIFACTS=true # Whether to upload artifacts (smaller than 32MB) that VirusTotal has no record of
+      - VIRUSTOTAL_FILE_UPLOAD_UNSEEN_ARTIFACTS=false # Whether to upload artifacts (smaller than 32MB) that VirusTotal has no record of
       - VIRUSTOTAL_FILE_INDICATOR_CREATE_POSITIVES=8 # Create an indicator for File/Artifact based observables once this positive theshold is reached. Note: specify 0 to disable indicator creation
       - VIRUSTOTAL_FILE_INDICATOR_VALID_MINUTES=5760 # How long the indicator is valid for in minutes
       - VIRUSTOTAL_FILE_INDICATOR_DETECT=true # Whether or not to set detection for the indicator to true
@@ -575,6 +578,23 @@ services:
     depends_on:
       opencti:
         condition: service_healthy
+  services:
+  connector-greynoise:
+    image: opencti/connector-greynoise:6.6.10
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=4be6ea25-9023-40c3-b48a-55eec7f42439
+      - CONNECTOR_NAME=GreyNoise
+      - CONNECTOR_SCOPE=IPv4-Addr
+      - CONNECTOR_AUTO=true
+      - CONNECTOR_LOG_LEVEL=error
+      - GREYNOISE_KEY=${GREYNOISE_API_KEY}
+      - GREYNOISE_MAX_TLP=TLP:AMBER
+      - "GREYNOISE_NAME=GreyNoise Internet Scanner"
+      - "GREYNOISE_DESCRIPTION=GreyNoise collects and analyzes opportunistic scan and attack activity for devices connected directly to the Internet."
+      - GREYNOISE_SIGHTING_NOT_SEEN=false
+      - GREYNOISE_DEFAULT_SCORE=50
 volumes:
   esdata:
   s3data:
