@@ -27,11 +27,13 @@ services:
       - ./appsec-config:/etc/cp/conf
       - ./appsec-data:/etc/cp/data
       - ./appsec-logs:/var/log/nano_agent
+      - ./open-appsec-advance-model/open-appsec-advanced-model.tgz:/advanced-model/open-appsec-advanced-model.tgz:rw
     command: "/cp-nano-agent --token ${OPEN_APPSEC_TOKEN}"
 ##############
 # Main Services
 ##############
   redis:
+    container_name: redis
     image: redis:7.4.3
     restart: always
     volumes: 
@@ -42,6 +44,7 @@ services:
       timeout: 5s
       retries: 3
   elasticsearch:
+    container_name: elastic
     image: docker.elastic.co/elasticsearch/elasticsearch:8.18.0
     volumes:
       - esdata:/usr/share/elasticsearch/data
@@ -69,6 +72,7 @@ services:
       timeout: 10s
       retries: 50
   minio:
+    container_name: minio
     image: minio/minio:RELEASE.2024-05-28T17-19-04Z # Use "minio/minio:RELEASE.2024-05-28T17-19-04Z-cpuv1" to troubleshoot compatibility issues with CPU
     volumes:
       - s3data:/data
@@ -85,6 +89,7 @@ services:
       timeout: 5s
       retries: 3
   rabbitmq:
+    container_name: rabbitmq
     image: rabbitmq:4.1-management
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
@@ -101,6 +106,7 @@ services:
       timeout: 30s
       retries: 3
   opencti:
+    container_name: opencti_platform
     image: opencti/platform:6.6.10
     environment:
       - NODE_OPTIONS=--max-old-space-size=8096
@@ -152,6 +158,7 @@ services:
 ############################
 
   worker:
+    container_name: opencti_workers
     image: opencti/worker:6.6.10
     environment:
       - OPENCTI_URL=http://opencti:8080
@@ -252,6 +259,7 @@ services:
 ############################
 
   connector-mandiant:
+    container_name: mandiant_connector
     image: opencti/connector-mandiant:6.6.10
     environment:
       - OPENCTI_URL=http://opencti:8080
@@ -284,6 +292,7 @@ services:
       opencti:
         condition: service_healthy
   connector-virustotal-livehunt-notifications:
+    container_name: vt_livehuntconnector
     image: opencti/connector-virustotal-livehunt-notifications:6.6.10
     environment:
       - OPENCTI_URL=http://opencti:8080
@@ -310,6 +319,7 @@ services:
       opencti:
         condition: service_healthy
   connector-alienvault:
+    container_name: alienvault_connector
     image: opencti/connector-alienvault:6.6.10
     environment:
       - OPENCTI_URL=http://opencti:8080
@@ -347,6 +357,7 @@ services:
       opencti:
         condition: service_healthy
   connector-cisa-known-exploited-vulnerabilities:
+    container_name: cisa_kev_connector
     image: opencti/connector-cisa-known-exploited-vulnerabilities:6.6.10
     environment:
       - OPENCTI_URL=http://opencti:8080
@@ -365,6 +376,7 @@ services:
       opencti:
         condition: service_healthy
   connector-threatfox:
+    container_name: threatfox_connector
     image: opencti/connector-threatfox:6.6.10
     environment:
       - OPENCTI_URL=http://opencti:8080
@@ -389,6 +401,7 @@ services:
       opencti:
         condition: service_healthy
   connector-ransomware:
+    container_name: ransomwarelive_connector
     image: opencti/connector-ransomwarelive:6.6.10
     container_name: ransomware-connector
     environment:
@@ -411,6 +424,7 @@ services:
       opencti:
         condition: service_healthy
   connector-phishunt:
+    container_name: phishhunt_connector
     image: opencti/connector-phishunt:6.6.10
     environment:
       - OPENCTI_URL=http://opencti:8080
@@ -436,6 +450,7 @@ services:
 ############################
 
   connector-virustotal:
+    container_name: vt_connector
     image: opencti/connector-virustotal:6.6.10
     environment:
       - OPENCTI_URL=http://opencti:8080
@@ -479,6 +494,7 @@ services:
       opencti:
         condition: service_healthy
   connector-shodan-internetdb:
+    container_name: shodan_internetdb_connector
     image: opencti/connector-shodan-internetdb:6.6.10
     environment:
       - OPENCTI_URL=http://opencti:8080
@@ -495,6 +511,7 @@ services:
       opencti:
         condition: service_healthy
   connector-mitre:
+    container_name: mitre_connector
     image: opencti/connector-mitre:6.6.10
     environment:
       - OPENCTI_URL=http://opencti:8080
@@ -511,6 +528,7 @@ services:
       opencti:
         condition: service_healthy
   connector-urlscan-enrichment:
+    container_name: urlscan_connector
     image: opencti/connector-urlscan-enrichment:6.6.10
     environment:
       # OpenCTI's generic execution parameters:
@@ -534,6 +552,7 @@ services:
       opencti:
         condition: service_healthy
   connector-opencti:
+    container_name: opencti_connector
     image: opencti/connector-opencti:6.6.10
     environment:
       - OPENCTI_URL=http://opencti:8080
@@ -555,6 +574,7 @@ services:
       opencti:
         condition: service_healthy
   connector-greynoise:
+    container_name: greynoise_connector
     image: opencti/connector-greynoise:6.6.10
     environment:
       - OPENCTI_URL=http://opencti:8080
