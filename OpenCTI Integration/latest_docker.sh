@@ -15,6 +15,8 @@ if [ "$choice" == "Y" ]; then
   cd ~/opencti
   echo "Bringing Docker Image Down"
   sudo docker compose down
+  echo "Deleting current YML file"
+  rm docker-compose.yml
   echo "Downloading latest YML file"
   wget -O docker-compose.yml "https://raw.githubusercontent.com/repulsivityy/VirusTotal/refs/heads/main/OpenCTI%20Integration/docker-compose.yml"
   #echo "Downloading the latest NGINX config file"
@@ -26,6 +28,8 @@ elif [ "$choice" == "Del" ]; then
   sudo docker compose down -v
   echo "Pruning all unused docker image + volumes"
   sudo docker system prune -a --volumes -f
+  echo "Deleting current YML file"
+  rm docker-compose.yml
   echo "Downloading latest YML file"
   wget -O docker-compose.yml "https://raw.githubusercontent.com/repulsivityy/VirusTotal/refs/heads/main/OpenCTI%20Integration/docker-compose.yml"
   #echo "Downloading the latest NGINX config file"
