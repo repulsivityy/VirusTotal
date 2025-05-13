@@ -537,24 +537,6 @@ services:
     depends_on:
       opencti:
         condition: service_healthy
-  connector-greynoise-vuln:
-    image: opencti/connector-greynoise-vuln:6.6.10
-    environment:
-      - OPENCTI_URL=http://opencti:8080
-      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-      - CONNECTOR_ID=085cd220-13fe-49b9-be1e-38dfc21cf822
-      - CONNECTOR_NAME=GreyNoise
-      - CONNECTOR_SCOPE=vulnerability
-      - CONNECTOR_AUTO=true
-      - CONNECTOR_LOG_LEVEL=error
-      - GREYNOISE_KEY=${GREYNOISE_API_KEY}
-      - GREYNOISE_MAX_TLP=TLP:AMBER
-      - "GREYNOISE_NAME=GreyNoise Internet Scanner"
-      - "GREYNOISE_DESCRIPTION=GreyNoise collects and analyzes opportunistic scan and attack activity for devices connected directly to the Internet."
-    restart: always
-    depends_on:
-      opencti:
-        condition: service_healthy
   connector-greynoise:
     image: opencti/connector-greynoise:6.6.10
     environment:
