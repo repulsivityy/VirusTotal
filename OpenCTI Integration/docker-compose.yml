@@ -494,7 +494,6 @@ services:
     depends_on:
       opencti:
         condition: service_healthy
-
   connector-mitre:
     image: opencti/connector-mitre:6.6.10
     environment:
