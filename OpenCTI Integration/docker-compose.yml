@@ -346,6 +346,24 @@ services:
     depends_on:
       opencti:
         condition: service_healthy
+  connector-cisa-known-exploited-vulnerabilities:
+    image: opencti/connector-cisa-known-exploited-vulnerabilities:6.6.10
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=d8bccd25-d1ce-40d6-8549-78ddc41a3787
+      - "CONNECTOR_NAME=CISA Known Exploited Vulnerabilities"
+      - CONNECTOR_SCOPE=cisa
+      - CONNECTOR_RUN_AND_TERMINATE=false
+      - CONNECTOR_LOG_LEVEL=error
+      - CONNECTOR_DURATION_PERIOD=P7D
+      - CISA_CATALOG_URL=https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+      - CISA_CREATE_INFRASTRUCTURES=false
+      - CISA_TLP=TLP:CLEAR
+    restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
   connector-threatfox:
     image: opencti/connector-threatfox:6.6.10
     environment:
