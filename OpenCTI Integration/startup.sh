@@ -29,22 +29,21 @@ echo "####################"
 echo "Getting Environment Ready"
 echo "####################"
 
-sudo echo "vm.max_map_count=1048575" >> /etc/sysctl.conf
+#sudo echo "vm.max_map_count=1048575" >> /etc/sysctl.conf
 
+#mkdir ~/opencti
+#mkdir ~/opencti/open-appsec
+#mkdir ~/opencti/open-appsec/conf
+#mkdir ~/opencti/open-appsec/data
+#mkdir ~/opencti/open-appsec/logs
 
-mkdir ~/opencti
-mkdir ~/opencti/open-appsec
-mkdir ~/opencti/open-appsec/conf
-mkdir ~/opencti/open-appsec/data
-mkdir ~/opencti/open-appsec/logs
+#mkdir ~/opencti/certbot
+#mkdir ~/opencti/certbot/www
+#mkdir ~/opencti/certbot/conf
 
-mkdir ~/opencti/certbot
-mkdir ~/opencti/certbot/www
-mkdir ~/opencti/certbot/conf
+#cd ~/opencti
 
-cd ~/opencti
-
-wget -O default.conf "https://raw.githubusercontent.com/repulsivityy/VirusTotal/refs/heads/main/OpenCTI%20Integration/default.conf"
+#wget -O default.conf "https://raw.githubusercontent.com/repulsivityy/VirusTotal/refs/heads/main/OpenCTI%20Integration/default.conf"
 wget -O docker-compose.yml "https://raw.githubusercontent.com/repulsivityy/VirusTotal/refs/heads/main/OpenCTI%20Integration/docker-compose.yml"
 wget -O latest_docker.sh "https://raw.githubusercontent.com/repulsivityy/VirusTotal/refs/heads/main/OpenCTI%20Integration/latest_docker.sh"
 chmod 755 latest_docker.sh
