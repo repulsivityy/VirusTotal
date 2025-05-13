@@ -1,7 +1,6 @@
 ##############
 # NGINX Porxy Manager + Open-AppSec
 ##############
-
 services:
   appsec-npm:
     container_name: npm-attachment
