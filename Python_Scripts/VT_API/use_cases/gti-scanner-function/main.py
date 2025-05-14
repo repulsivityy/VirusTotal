@@ -1,3 +1,22 @@
+#####################################
+# Purpose: Leverage Private Scanning to scan files uploaded to cloud bucket
+# Architecture is similar to https://cloud.google.com/architecture/automate-malware-scanning-for-documents-uploaded-to-cloud-storage, with the difference of using private scanning instead of ClamAV
+# Code is provided as best effort. Use at your own risk
+# VirusTotal/GTI // dominicchua@google.com
+#
+# requirements:
+# - VirusTotal / Google Threat Intelligence API Key 
+# - Google Cloud Platform 
+# -- Cloud Bucket
+# -- Cloud Function
+# -- EventArc
+#
+#
+# gcloud commands found on README.MD to spin up infrastructure
+# 
+# Next Action: Convert to terraform, include ClamAV as first layer of scanning
+#####################################
+ 
 import functions_framework
 import base64
 import json
@@ -61,7 +80,7 @@ def move_blob(source_bucket_name, blob_name, destination_bucket_name):
 
         # Check source existence just before operating
         print(f"  Checking source blob gs://{source_bucket_name}/{blob_name}...")
-        source_blob.reload() # Can raise exceptions.NotFound
+        source_blob.reload() 
         print(f"  Source blob found. Attempting copy to gs://{destination_bucket_name}/{blob_name}...")
 
         # === Step 1: Copy ===
@@ -73,9 +92,9 @@ def move_blob(source_bucket_name, blob_name, destination_bucket_name):
         # === Step 2: Verify Copy ===
         destination_blob = destination_bucket.blob(blob_name)
         try:
-            destination_blob.reload() # Can raise exceptions.NotFound
+            destination_blob.reload() 
             print(f"  Verification successful: Blob exists in {destination_bucket_name}.")
-        except exceptions.NotFound: # <--- CORRECTED
+        except exceptions.NotFound: 
             print(f"  ERROR: Verification failed! Copied blob not found in {destination_bucket_name}.")
             # Do NOT delete source if copy verification failed
             return False
@@ -88,7 +107,7 @@ def move_blob(source_bucket_name, blob_name, destination_bucket_name):
             print(f"Successfully moved {blob_name} from {source_bucket_name} to {destination_bucket_name}")
             return True # Indicate successful move (copy + delete)
 
-        except exceptions.NotFound: # <--- CORRECTED
+        except exceptions.NotFound: 
              print(f"  WARNING: Source blob gs://{source_bucket_name}/{blob_name} was not found during delete phase (maybe deleted concurrently?).")
              # If destination exists, consider the move successful overall.
              return True
@@ -98,20 +117,20 @@ def move_blob(source_bucket_name, blob_name, destination_bucket_name):
              # Return False to indicate the full "move" operation wasn't clean.
              return False
 
-    except exceptions.NotFound: # <--- CORRECTED
+    except exceptions.NotFound:
          print(f"ERROR:[move_blob] Source blob gs://{source_bucket_name}/{blob_name} not found at the start.")
          # Check if it's already in destination (idempotency check)
          try:
              dest_blob_check = storage_client.bucket(destination_bucket_name).blob(blob_name)
-             dest_blob_check.reload() # Can raise exceptions.NotFound
+             dest_blob_check.reload() 
              print(f"  Note: Blob {blob_name} already exists in destination {destination_bucket_name}. Considering 'move' successful.")
              return True
-         except exceptions.NotFound: # <--- CORRECTED
+         except exceptions.NotFound:
               print(f"  Error: Blob {blob_name} not found in source or destination during initial check.")
               return False
     except Exception as e:
         print(f"ERROR:[move_blob] Unexpected error during move operation for {blob_name}: {e}")
-        traceback.print_exc() # Uncomment for detailed debugging
+        #traceback.print_exc() # Uncomment for detailed debugging
         return False # Indicate move failed
 
 @functions_framework.cloud_event
@@ -149,9 +168,9 @@ def scan_file_gti(cloud_event):
 
         source_bucket_name = event_data["bucket"]
         blob_name = event_data["name"]
-        # Handle potential nested folders in blob name if necessary
+        # Handle potential nested folders in bucket name if necessary
         if not source_bucket_name or not blob_name:
-             raise ValueError("Bucket name or blob name missing in event data.")
+             raise ValueError("Bucket name missing in event data.")
 
         print(f"Processing file: gs://{source_bucket_name}/{blob_name}")
         final_outcome_state = "event_data_parsed"
@@ -218,7 +237,7 @@ def scan_file_gti(cloud_event):
         final_outcome_state = "error_upload_api_exception"
     except Exception as e:
         print(f"ERROR during file download/upload preparation: {e}")
-        traceback.print_exc() # Uncomment for debugging
+        #traceback.print_exc() # Uncomment for debugging
         final_outcome_state = "error_upload_general_exception"
 
     if not upload_successful or not analysis_id:
@@ -342,7 +361,7 @@ def scan_file_gti(cloud_event):
             print(f"File {blob_name} stays in {source_bucket_name} due to API error.")
         except Exception as e:
             print(f"ERROR during file info lookup or moving: {e}")
-            traceback.print_exc() # Uncomment for debugging
+            #traceback.print_exc() # Uncomment for debugging
             final_outcome_state = "error_exception_file_info_or_move"
             print(f"File {blob_name} may remain in {source_bucket_name} due to exception.")
 
