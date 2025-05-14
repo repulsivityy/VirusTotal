@@ -158,7 +158,6 @@ services:
 ############################
 
   worker:
-    container_name: opencti_workers
     image: opencti/worker:6.6.10
     environment:
       - OPENCTI_URL=http://opencti:8080
@@ -403,7 +402,6 @@ services:
   connector-ransomware:
     container_name: ransomwarelive_connector
     image: opencti/connector-ransomwarelive:6.6.10
-    container_name: ransomware-connector
     environment:
       # Connector's definition parameters:
       - CONNECTOR_NAME=Ransomware Connector
