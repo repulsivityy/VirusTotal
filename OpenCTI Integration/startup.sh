@@ -29,24 +29,49 @@ echo "####################"
 echo "Getting Environment Ready"
 echo "####################"
 
-#sudo echo "vm.max_map_count=1048575" >> /etc/sysctl.conf
+mkdir ~/opencti
+cd ~/opencti
+vi .env
 
-#mkdir ~/opencti
-#mkdir ~/opencti/open-appsec
-#mkdir ~/opencti/open-appsec/conf
-#mkdir ~/opencti/open-appsec/data
-#mkdir ~/opencti/open-appsec/logs
+sudo echo "vm.max_map_count=1048575" >> /etc/sysctl.conf
 
-#mkdir ~/opencti/certbot
-#mkdir ~/opencti/certbot/www
-#mkdir ~/opencti/certbot/conf
-
-#cd ~/opencti
+(cat << EOF
+OPENCTI_ADMIN_EMAIL=<ChangeMePlease>
+OPENCTI_ADMIN_PASSWORD=<ChangeMePlease>
+OPENCTI_ADMIN_TOKEN=$(cat /proc/sys/kernel/random/uuid)
+OPENCTI_BASE_URL=http://localhost:8080
+OPENCTI_HEALTHCHECK_ACCESS_KEY=$(cat /proc/sys/kernel/random/uuid)
+MINIO_ROOT_USER=$(cat /proc/sys/kernel/random/uuid)
+MINIO_ROOT_PASSWORD=$(cat /proc/sys/kernel/random/uuid)
+RABBITMQ_DEFAULT_USER=guest
+RABBITMQ_DEFAULT_PASS=guest
+ELASTIC_MEMORY_SIZE=4G
+CONNECTOR_HISTORY_ID=$(cat /proc/sys/kernel/random/uuid)
+CONNECTOR_EXPORT_FILE_STIX_ID=$(cat /proc/sys/kernel/random/uuid)
+CONNECTOR_EXPORT_FILE_CSV_ID=$(cat /proc/sys/kernel/random/uuid)
+CONNECTOR_IMPORT_FILE_STIX_ID=$(cat /proc/sys/kernel/random/uuid)
+CONNECTOR_EXPORT_FILE_TXT_ID=$(cat /proc/sys/kernel/random/uuid)
+CONNECTOR_IMPORT_DOCUMENT_ID=$(cat /proc/sys/kernel/random/uuid)
+CONNECTOR_ANALYSIS_ID=$(cat /proc/sys/kernel/random/uuid)
+SMTP_HOSTNAME=localhost
+GTI_API_KEY=
+URLSCAN_API_KEY=<ChangeMePlease>
+ALIENVAULT_API_KEY=<ChangeMePlease>
+GREYNOISE_API_KEY=<ChangeMePlease>
+OPEN_APPSEC_TOKEN=<ChangeMePlease>
+EOF
+) > .env
 
 #wget -O default.conf "https://raw.githubusercontent.com/repulsivityy/VirusTotal/refs/heads/main/OpenCTI%20Integration/default.conf"
 wget -O docker-compose.yml "https://raw.githubusercontent.com/repulsivityy/VirusTotal/refs/heads/main/OpenCTI%20Integration/docker-compose.yml"
 wget -O latest_docker.sh "https://raw.githubusercontent.com/repulsivityy/VirusTotal/refs/heads/main/OpenCTI%20Integration/latest_docker.sh"
 chmod 755 latest_docker.sh
+
+cd ~/opencti
+mkdir open-appsec-advance-model
+cd open-appsec-advance-model
+wget -O open-appsec-advanced-model.tgz https://github.com/repulsivityy/VirusTotal/raw/refs/heads/main/OpenCTI%20Integration/open-appsec-advanced-model.tgz
+cd ~/opencti
 
 echo "####################"
 echo "Bringing OpenCTI up"
