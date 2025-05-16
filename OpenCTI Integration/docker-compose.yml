@@ -136,7 +136,7 @@ services:
       - APP__HEALTH_ACCESS_KEY=${OPENCTI_HEALTHCHECK_ACCESS_KEY}
       - APP__SESSION_TIMEOUT=14400000
     ports:
-      - "8080:8081"
+      - "8080:8080"
     depends_on:
       redis:
         condition: service_healthy
@@ -355,25 +355,25 @@ services:
   #   depends_on:
   #     opencti:
   #       condition: service_healthy
-  # connector-cisa-known-exploited-vulnerabilities:
-  #   container_name: cisa_kev_connector
-  #   image: opencti/connector-cisa-known-exploited-vulnerabilities:6.6.10
-  #   environment:
-  #     - OPENCTI_URL=http://opencti:8080
-  #     - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-  #     - CONNECTOR_ID=d8bccd25-d1ce-40d6-8549-78ddc41a3787
-  #     - "CONNECTOR_NAME=CISA Known Exploited Vulnerabilities"
-  #     - CONNECTOR_SCOPE=cisa
-  #     - CONNECTOR_RUN_AND_TERMINATE=false
-  #     - CONNECTOR_LOG_LEVEL=error
-  #     - CONNECTOR_DURATION_PERIOD=P7D
-  #     - CISA_CATALOG_URL=https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
-  #     - CISA_CREATE_INFRASTRUCTURES=false
-  #     - CISA_TLP=TLP:CLEAR
-  #   restart: always
-  #   depends_on:
-  #     opencti:
-  #       condition: service_healthy
+  connector-cisa-known-exploited-vulnerabilities:
+    container_name: cisa_kev_connector
+    image: opencti/connector-cisa-known-exploited-vulnerabilities:6.6.10
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=d8bccd25-d1ce-40d6-8549-78ddc41a3787
+      - "CONNECTOR_NAME=CISA Known Exploited Vulnerabilities"
+      - CONNECTOR_SCOPE=cisa
+      - CONNECTOR_RUN_AND_TERMINATE=false
+      - CONNECTOR_LOG_LEVEL=error
+      - CONNECTOR_DURATION_PERIOD=P7D
+      - CISA_CATALOG_URL=https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+      - CISA_CREATE_INFRASTRUCTURES=false
+      - CISA_TLP=TLP:CLEAR
+    restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
   # connector-threatfox:
   #   container_name: threatfox_connector
   #   image: opencti/connector-threatfox:6.6.10
@@ -491,23 +491,23 @@ services:
     depends_on:
       opencti:
         condition: service_healthy
-  # connector-shodan-internetdb:
-  #   container_name: shodan_internetdb_connector
-  #   image: opencti/connector-shodan-internetdb:6.6.10
-  #   environment:
-  #     - OPENCTI_URL=http://opencti:8080
-  #     - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-  #     - CONNECTOR_ID=801571d2-74d8-4f7d-b7b1-16403f3e1be2
-  #     - CONNECTOR_NAME=Shodan InternetDB
-  #     - CONNECTOR_SCOPE=IPv4-Addr
-  #     - CONNECTOR_AUTO=true
-  #     - CONNECTOR_LOG_LEVEL=error
-  #     - SHODAN_MAX_TLP=TLP:CLEAR
-  #     - SHODAN_SSL_VERIFY=true
-  #   restart: always
-  #   depends_on:
-  #     opencti:
-  #       condition: service_healthy
+  connector-shodan-internetdb:
+    container_name: shodan_internetdb_connector
+    image: opencti/connector-shodan-internetdb:6.6.10
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=801571d2-74d8-4f7d-b7b1-16403f3e1be2
+      - CONNECTOR_NAME=Shodan InternetDB
+      - CONNECTOR_SCOPE=IPv4-Addr
+      - CONNECTOR_AUTO=true
+      - CONNECTOR_LOG_LEVEL=error
+      - SHODAN_MAX_TLP=TLP:CLEAR
+      - SHODAN_SSL_VERIFY=true
+    restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
   connector-mitre:
     container_name: mitre_connector
     image: opencti/connector-mitre:6.6.10
@@ -525,30 +525,30 @@ services:
     depends_on:
       opencti:
         condition: service_healthy
-  # connector-urlscan-enrichment:
-  #   container_name: urlscan_connector
-  #   image: opencti/connector-urlscan-enrichment:6.6.10
-  #   environment:
-  #     # OpenCTI's generic execution parameters:
-  #     - OPENCTI_URL=http://opencti:8080
-  #     - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-  #     # Connector's generic execution parameters:
-  #     - CONNECTOR_ID=d40f7ae3-8b7d-43e1-975c-88e916c015f3
-  #     - CONNECTOR_NAME=Urlscan
-  #     - CONNECTOR_SCOPE=url,ipv4-addr,ipv6-addr
-  #     - CONNECTOR_AUTO=false
-  #     - CONNECTOR_LOG_LEVEL=error
-  #     # Connector's custom execution parameters:
-  #     - URLSCAN_ENRICHMENT_API_KEY=${URLSCAN_API_KEY}
-  #     - URLSCAN_ENRICHMENT_API_BASE_URL=https://urlscan.io/api/v1/
-  #     - URLSCAN_ENRICHMENT_IMPORT_SCREENSHOT=true
-  #     - URLSCAN_ENRICHMENT_VISIBILITY=unlisted # Available values : public, unlisted, private
-  #     - URLSCAN_ENRICHMENT_SEARCH_FILTERED_BY_DATE=>now-90d # Available : ">now-1h", ">now-1d", ">now-1y", "[2022 TO 2023]", "[2022/01/01 TO 2023/12/01]"
-  #     - URLSCAN_ENRICHMENT_MAX_TLP=TLP:AMBER # Required, Available values: TLP:CLEAR, TLP:WHITE, TLP:GREEN, TLP:AMBER, TLP:AMBER+STRICT, TLP:RED
-  #   restart: always
-  #   depends_on:
-  #     opencti:
-  #       condition: service_healthy
+  connector-urlscan-enrichment:
+    container_name: urlscan_connector
+    image: opencti/connector-urlscan-enrichment:6.6.10
+    environment:
+      # OpenCTI's generic execution parameters:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      # Connector's generic execution parameters:
+      - CONNECTOR_ID=d40f7ae3-8b7d-43e1-975c-88e916c015f3
+      - CONNECTOR_NAME=Urlscan
+      - CONNECTOR_SCOPE=url,ipv4-addr,ipv6-addr
+      - CONNECTOR_AUTO=false
+      - CONNECTOR_LOG_LEVEL=error
+      # Connector's custom execution parameters:
+      - URLSCAN_ENRICHMENT_API_KEY=${URLSCAN_API_KEY}
+      - URLSCAN_ENRICHMENT_API_BASE_URL=https://urlscan.io/api/v1/
+      - URLSCAN_ENRICHMENT_IMPORT_SCREENSHOT=true
+      - URLSCAN_ENRICHMENT_VISIBILITY=unlisted # Available values : public, unlisted, private
+      - URLSCAN_ENRICHMENT_SEARCH_FILTERED_BY_DATE=>now-90d # Available : ">now-1h", ">now-1d", ">now-1y", "[2022 TO 2023]", "[2022/01/01 TO 2023/12/01]"
+      - URLSCAN_ENRICHMENT_MAX_TLP=TLP:AMBER # Required, Available values: TLP:CLEAR, TLP:WHITE, TLP:GREEN, TLP:AMBER, TLP:AMBER+STRICT, TLP:RED
+    restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
   connector-opencti:
     container_name: opencti_connector
     image: opencti/connector-opencti:6.6.10
