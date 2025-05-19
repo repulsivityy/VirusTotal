@@ -11,10 +11,7 @@
 # -- Cloud Function
 # -- EventArc
 #
-#
 # gcloud commands found on README.MD to spin up infrastructure
-# 
-# Next Action: Convert to terraform, include ClamAV as first layer of scanning
 #####################################
  
 import functions_framework
