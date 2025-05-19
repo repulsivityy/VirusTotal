@@ -1,15 +1,17 @@
-#####################################
-GCP Cloud Bucket Sandbox Enrivonment
-Note 1 - Code was optimised with Gemini 2.5 pro
-Note 2 - GTI API Key is hardcoded into the code. Use secrets manager if needed. 
-Note 3 - This uses GCloud Commmands.
 
-TODO 1: Migrate to TF 
-TODO 2: Integrate ClamAV Scanning from https://cloud.google.com/architecture/automate-malware-scanning-for-documents-uploaded-to-cloud-storage
+## GCP Cloud Bucket Sandbox Environment
+### Disclaimers: 
+1. Code was optimised with Gemini 2.5 pro
+2. GTI API Key is hardcoded into the code. Use secrets manager if needed. 
+3. This uses GCloud Commmands to be run from terminal. 
+4. Disclaimer - Use at your own risk
 
-Disclaimer - Use at your own risk
-#####################################
+TODO: 
+- [ ]: Migrate to TF 
+- [ ]: Integrate ClamAV Scanning from https://cloud.google.com/architecture/automate-malware-scanning-for-documents-uploaded-to-cloud-storage
 
+
+---
 #### Configuration
 ```
 export PROJECT_ID="<ProjectID>"
