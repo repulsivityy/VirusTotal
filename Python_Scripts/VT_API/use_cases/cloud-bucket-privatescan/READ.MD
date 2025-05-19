@@ -12,6 +12,8 @@ TODO:
 
 
 ---
+###Instructions
+---
 #### Configuration
 ```
 export PROJECT_ID="<ProjectID>"
