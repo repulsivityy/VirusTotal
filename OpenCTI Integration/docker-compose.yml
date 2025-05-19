@@ -399,28 +399,27 @@ services:
   #   depends_on:
   #     opencti:
   #       condition: service_healthy
-  # connector-ransomware:
-  #   container_name: ransomwarelive_connector
-  #   image: opencti/connector-ransomwarelive:6.6.11
-  #   environment:
-  #     # Connector's definition parameters:
-  #     - CONNECTOR_NAME=Ransomware Connector
-  #     - CONNECTOR_SCOPE=identity,attack-pattern,course-of-action,intrusion-set,malware,tool,report
-  #     # Connector's generic execution parameters:
-  #     - OPENCTI_URL=http://opencti:8080
-  #     - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-  #     - CONNECTOR_ID=694281b3-6723-4533-88f0-3a618c87cd5d
-  #     - CONNECTOR_CONFIDENCE_LEVEL=80 # From 0 (Unknown) to 100 (Fully trusted).
-  #     - CONNECTOR_LOG_LEVEL=info # Log level: debug, info, warn, error
-  #     - CONNECTOR_UPDATE_EXISTING_DATA=True
-  #     - CONNECTOR_PULL_HISTORY=false # If true, the connector will pull the history of the data. But it is not recommended to set it to true as there will a large influx of data.
-  #     - CONNECTOR_HISTORY_START_YEAR=2024 # Data only goes back till 2020
-  #     - CONNECTOR_RUN_EVERY=120m # 10 minutes will be the ideal time
-  #     # Connector's custom execution parameters:
-  #   restart: always
-  #   depends_on:
-  #     opencti:
-  #       condition: service_healthy
+  connector-ransomware:
+    container_name: ransomwarelive_connector
+    image: opencti/connector-ransomwarelive:6.6.11
+    environment:
+      # Connector's definition parameters:
+      - CONNECTOR_NAME=Ransomware Connector
+      - CONNECTOR_SCOPE=identity,attack-pattern,course-of-action,intrusion-set,malware,tool,report
+      # Connector's generic execution parameters:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=694281b3-6723-4533-88f0-3a618c87cd5d
+      - CONNECTOR_LOG_LEVEL=info # Log level: debug, info, warn, error
+      - CONNECTOR_UPDATE_EXISTING_DATA=True
+      - CONNECTOR_PULL_HISTORY=false # If true, the connector will pull the history of the data. But it is not recommended to set it to true as there will a large influx of data.
+      - CONNECTOR_HISTORY_START_YEAR=2025 # Data only goes back till 2020
+      - CONNECTOR_RUN_EVERY=120m # 10 minutes will be the ideal time
+      # Connector's custom execution parameters:
+    restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
   # connector-phishunt:
   #   container_name: phishhunt_connector
   #   image: opencti/connector-phishunt:6.6.11
@@ -571,23 +570,23 @@ services:
     depends_on:
       opencti:
         condition: service_healthy
-  # connector-greynoise:
-  #   container_name: greynoise_connector
-  #   image: opencti/connector-greynoise:6.6.11
-  #   environment:
-  #     - OPENCTI_URL=http://opencti:8080
-  #     - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-  #     - CONNECTOR_ID=4be6ea25-9023-40c3-b48a-55eec7f42439
-  #     - CONNECTOR_NAME=GreyNoise
-  #     - CONNECTOR_SCOPE=IPv4-Addr
-  #     - CONNECTOR_AUTO=true
-  #     - CONNECTOR_LOG_LEVEL=error
-  #     - GREYNOISE_KEY=${GREYNOISE_API_KEY}
-  #     - GREYNOISE_MAX_TLP=TLP:AMBER
-  #     - "GREYNOISE_NAME=GreyNoise Internet Scanner"
-  #     - "GREYNOISE_DESCRIPTION=GreyNoise collects and analyzes opportunistic scan and attack activity for devices connected directly to the Internet."
-  #     - GREYNOISE_SIGHTING_NOT_SEEN=false
-  #     - GREYNOISE_DEFAULT_SCORE=50
+  connector-greynoise:
+    container_name: greynoise_connector
+    image: opencti/connector-greynoise:6.6.11
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=4be6ea25-9023-40c3-b48a-55eec7f42439
+      - CONNECTOR_NAME=GreyNoise
+      - CONNECTOR_SCOPE=IPv4-Addr
+      - CONNECTOR_AUTO=true
+      - CONNECTOR_LOG_LEVEL=error
+      - GREYNOISE_KEY=${GREYNOISE_API_KEY}
+      - GREYNOISE_MAX_TLP=TLP:AMBER
+      - "GREYNOISE_NAME=GreyNoise Internet Scanner"
+      - "GREYNOISE_DESCRIPTION=GreyNoise collects and analyzes opportunistic scan and attack activity for devices connected directly to the Internet."
+      - GREYNOISE_SIGHTING_NOT_SEEN=false
+      - GREYNOISE_DEFAULT_SCORE=50
 volumes:
   esdata:
   s3data:
