@@ -2,28 +2,38 @@
 GCP Cloud Bucket Sandbox Enrivonment
 Note 1 - Code was optimised with Gemini 2.5 pro
 Note 2 - GTI API Key is hardcoded into the code. Use secrets manager if needed. 
+Note 3 - This uses GCloud Commmands.
+
+TODO 1: Migrate to TF 
+TODO 2: Integrate ClamAV Scanning from https://cloud.google.com/architecture/automate-malware-scanning-for-documents-uploaded-to-cloud-storage
+
 Disclaimer - Use at your own risk
 #####################################
 
-# --- Configuration ---
+#### Configuration
+```
 export PROJECT_ID="<ProjectID>"
 export REGION="<Region>"
 # DANGER: Hardcoding API key for testing ONLY. Do NOT commit this key.
 export GTI_API_KEY="<GTI_APIKEY>"
+```
 
-# --- Resource Names (modify if needed, must be unique) ---
+#### Resource Names (modify if needed, must be unique)
+```
 export NEW_BUCKET_NAME="${PROJECT_ID}-gti-new-files"
 export ALLOW_BUCKET_NAME="${PROJECT_ID}-gti-allow-files"
 export QUARANTINE_BUCKET_NAME="${PROJECT_ID}-gti-quarantine-files"
 export FUNCTION_SERVICE_ACCOUNT="gti-scanner-func-sa"
 export FUNCTION_NAME="gti-file-scanner"
-# --- End Configuration ---
+```
 
-# Derived variables
+#### Derived variables
+```
 export FUNCTION_SA_EMAIL="${FUNCTION_SERVICE_ACCOUNT}@${PROJECT_ID}.iam.gserviceaccount.com"
 export PROJECT_NUMBER=$(gcloud projects describe ${PROJECT_ID} --format='value(projectNumber)') # Needed for IAM binding
+```
 
-# Set gcloud defaults for convenience
+#### Set gcloud defaults for convenience
 gcloud config set project $PROJECT_ID
 gcloud config set functions/region $REGION
 gcloud config set eventarc/location $REGION 
