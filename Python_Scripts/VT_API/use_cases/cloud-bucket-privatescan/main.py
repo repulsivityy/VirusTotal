@@ -27,29 +27,25 @@ import traceback # Import traceback for detailed error info (optional)
 from google.cloud import storage
 from google.cloud import exceptions
 
-# --- Configuration (Read from Environment Variables at deployment) ---
+#Configuration (Read from Environment Variables at deployment)
 PROJECT_ID = os.environ.get("GCP_PROJECT")
-#####Possible security risk#####
-# Reading API key directly from environment variable is insecure for production.
-GTI_APIKEY = os.environ.get("GTI_APIKEY")
-# --- End Security Risk ---
+GTI_APIKEY = os.environ.get("GTI_APIKEY") # Reading API key directly from environment variable is insecure for production.
+
 ALLOW_BUCKET_NAME = os.environ.get("ALLOW_BUCKET")
 QUARANTINE_BUCKET_NAME = os.environ.get("QUARANTINE_BUCKET")
 
-# --- Private Scanning Payload Options ---
+# Private Scanning Payload Options -- taken from https://gtidocs.virustotal.com/reference/upload-file-private-scanning 
 GTI_DISABLE_SANDBOX = os.environ.get("GTI_DISABLE_SANDBOX", "true")
 GTI_INTERCEPT_TLS = os.environ.get("GTI_INTERCEPT_TLS", "true")
 GTI_RETENTION_DAYS = os.environ.get("GTI_RETENTION_DAYS", "1")
 GTI_STORAGE_REGION = os.environ.get("GTI_STORAGE_REGION", "US")
 GTI_LOCALE = os.environ.get("GTI_LOCALE", "EN_US")
 GTI_ENABLE_INTERNET = os.environ.get("GTI_ENABLE_INTERNET", "true")
-# --- End Payload Options ---
 
-# --- Other Config ---
+# Other variables
 GTI_TOOL_NAME = os.environ.get("GTI_TOOL_NAME", "gti_scanner_cf") # Updated tool name
 POLL_INTERVAL_SECONDS = int(os.environ.get("POLL_INTERVAL_SECONDS", "15"))
 MAX_POLL_TIME_SECONDS = int(os.environ.get("MAX_POLL_TIME_SECONDS", "480"))
-# --- End Configuration ---
 
 # Initialize clients outside function handler
 try:
@@ -58,12 +54,12 @@ except Exception as e:
     print(f"CRITICAL: Failed to initialize Storage client: {e}")
     storage_client = None # Indicate failure
 
-# --- API Endpoints for Private Scanning ---
+# API Endpoints for Private Scanning
 GTI_API_URL_PRIVATE_FILES_UPLOAD = "https://www.virustotal.com/api/v3/private/files"
 GTI_API_URL_PRIVATE_ANALYSES = "https://www.virustotal.com/api/v3/private/analyses/{}"
 GTI_API_URL_PRIVATE_FILES_INFO = "https://www.virustotal.com/api/v3/private/files/{}"
 
-
+# def to move files
 def move_blob(source_bucket_name, blob_name, destination_bucket_name):
     """Copies a blob, verifies, and deletes the source upon success."""
     if not storage_client:
@@ -93,13 +89,12 @@ def move_blob(source_bucket_name, blob_name, destination_bucket_name):
             print(f"  Verification successful: Blob exists in {destination_bucket_name}.")
         except exceptions.NotFound: 
             print(f"  ERROR: Verification failed! Copied blob not found in {destination_bucket_name}.")
-            # Do NOT delete source if copy verification failed
             return False
 
         # === Step 3: Delete Source (only if copy+verify succeeded) ===
         try:
             print(f"  Deleting source blob gs://{source_bucket_name}/{blob_name}...")
-            source_blob.delete() # <--- THE DELETION HAPPENS HERE
+            source_blob.delete() # < THE DELETION HAPPENS HERE
             print(f"  Source blob deleted.")
             print(f"Successfully moved {blob_name} from {source_bucket_name} to {destination_bucket_name}")
             return True # Indicate successful move (copy + delete)
@@ -144,7 +139,7 @@ def scan_file_gti(cloud_event):
     # Track the outcome more granularly
     final_outcome_state = "processing_started"
 
-    # --- Basic Checks ---
+    #  Basic Checks 
     if not storage_client:
         print("CRITICAL ERROR: Storage client failed to initialize. Aborting.")
         # Cannot proceed without storage access
@@ -156,7 +151,7 @@ def scan_file_gti(cloud_event):
         # Cannot proceed without API key
         return
 
-    # --- Event Data Parsing ---
+    #  Event Data Parsing 
     try:
         if not event_data:
             print("ERROR: No data received in cloud_event.")
@@ -178,12 +173,12 @@ def scan_file_gti(cloud_event):
         final_outcome_state = "error_parsing_event_data"
         return
 
-    # --- Initialize State Variables ---
+    #  Initialize State Variables 
     upload_successful = False
     analysis_id = None
     file_sha256 = None
 
-    # --- Step 1: Upload to GTI/VirusTotal Private Scanning ---
+    #  Step 1: Upload to GTI/VirusTotal Private Scanning 
     try:
         final_outcome_state = "upload_started"
         source_bucket = storage_client.bucket(source_bucket_name)
@@ -245,7 +240,7 @@ def scan_file_gti(cloud_event):
         print(f"Processing finished for gs://{source_bucket_name}/{blob_name}. Final outcome state: {final_outcome_state}. Duration: {end_processing_time - start_processing_time:.2f}s")
         return
 
-    # --- Step 2: Poll GTI Private Analysis for Results ---
+    #  Step 2: Poll GTI Private Analysis for Results 
     start_poll_time = time.time()
     analysis_complete = False
     final_outcome_state = "polling_started"
@@ -263,7 +258,7 @@ def scan_file_gti(cloud_event):
                 print("GTI Private Analysis completed.")
                 final_outcome_state = "analysis_completed"
                 analysis_complete = True
-                # --- Corrected SHA256 Extraction ---
+                #  Corrected SHA256 Extraction 
                 try:
                     file_sha256 = result.get("meta", {}).get("file_info", {}).get("sha256")
                     if file_sha256:
@@ -278,10 +273,10 @@ def scan_file_gti(cloud_event):
                     print(f"  ERROR: Exception while trying to extract SHA256: {e}")
                     final_outcome_state = "error_extracting_sha256_exception"
                     file_sha256 = None # Ensure it's None on error
-                # --- End SHA256 Extraction ---
+                #  End SHA256 Extraction 
                 break # Exit polling loop
 
-            elif status in ["queued", "in-progress"]:
+            elif status in ["queued", "in-progress", "initializing"]:
                 print(f" Analysis status: {status}. Waiting {POLL_INTERVAL_SECONDS}s...")
                 final_outcome_state = f"polling_status_{status}"
                 time.sleep(POLL_INTERVAL_SECONDS)
@@ -307,7 +302,7 @@ def scan_file_gti(cloud_event):
          print(f"ERROR: GTI analysis did not complete within timeout ({MAX_POLL_TIME_SECONDS}s).")
          final_outcome_state = "error_polling_timeout"
 
-    # --- Step 3: Get File Info / Verdict using SHA256 ---
+    #  Step 3: Get File Info / Verdict using SHA256 
     if file_sha256:
         print(f"Querying file info using SHA256: {file_sha256}...")
         final_outcome_state = "file_info_lookup_started"
@@ -370,6 +365,6 @@ def scan_file_gti(cloud_event):
              final_outcome_state = "error_sha256_not_available"
         print(f"File {blob_name} stays in {source_bucket_name} for review.")
 
-    # --- Final Logging ---
+    #  Final Logging 
     end_processing_time = time.time()
     print(f"Processing finished for gs://{source_bucket_name}/{blob_name}. Final outcome state: {final_outcome_state}. Duration: {end_processing_time - start_processing_time:.2f}s")
