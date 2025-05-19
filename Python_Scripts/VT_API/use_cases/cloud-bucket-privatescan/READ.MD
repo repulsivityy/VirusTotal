@@ -117,7 +117,7 @@ echo "Granted IAM permissions to service account."
 ```
 
 #### Deploying the Cloud Function
-Run this on your terminal that has the python file 
+Run this on your terminal that has the python file (default named as *main.py*)
 ```
 gcloud functions deploy ${FUNCTION_NAME} \
   --gen2 \
