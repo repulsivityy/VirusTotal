@@ -34,6 +34,7 @@ export PROJECT_NUMBER=$(gcloud projects describe ${PROJECT_ID} --format='value(p
 ```
 
 #### Set gcloud defaults for convenience
+```
 gcloud config set project $PROJECT_ID
 gcloud config set functions/region $REGION
 gcloud config set eventarc/location $REGION 
@@ -42,10 +43,10 @@ echo "Using Project: ${PROJECT_ID}, Region: ${REGION}"
 echo "Service Account: ${FUNCTION_SA_EMAIL}"
 echo "Buckets: ${NEW_BUCKET_NAME}, ${ALLOW_BUCKET_NAME}, ${QUARANTINE_BUCKET_NAME}"
 echo "Using GTI API Key ending in: ${GTI_API_KEY: -4}" # Verify without printing the whole key
+```
 
-#######
-#Enable the required APIs
-#######
+#### Enable the relevant cloud APIs
+```
 gcloud services enable \
   cloudfunctions.googleapis.com \
   storage.googleapis.com \
@@ -55,10 +56,10 @@ gcloud services enable \
   cloudbuild.googleapis.com \
   iam.googleapis.com \
   secretmanager.googleapis.com # Keep enabled for easier switch later
+```
 
-#####
-# Grant Pub/Sub permissions to service account
-#####
+#### Grant Pub/Sub permissions to service account
+```
 echo "Granting Pub/Sub Publisher role to the project's Cloud Storage service account."
 export GCS_SERVICE_ACCOUNT="service-${PROJECT_NUMBER}@gs-project-accounts.iam.gserviceaccount.com"
 gcloud projects add-iam-policy-binding ${PROJECT_ID} \
@@ -66,27 +67,25 @@ gcloud projects add-iam-policy-binding ${PROJECT_ID} \
     --role="roles/pubsub.publisher" \
     --condition=None
 echo "Pub/Sub Publisher role granted to ${GCS_SERVICE_ACCOUNT}."
+```
 
-#####
-# Create the buckets
-#####
-
+#### Create the buckets
+```
 gcloud storage buckets create gs://${NEW_BUCKET_NAME} --location=${REGION}
 gcloud storage buckets create gs://${ALLOW_BUCKET_NAME} --location=${REGION}
 gcloud storage buckets create gs://${QUARANTINE_BUCKET_NAME} --location=${REGION}
 echo "Created buckets."
+```
 
-
-#####
-# Create Service Account
-#####
+#### Create Service Account
+```
 gcloud iam service-accounts create ${FUNCTION_SERVICE_ACCOUNT} \
   --display-name="GTI Scanner Function Service Account"
 echo "Created service account ${FUNCTION_SA_EMAIL}."
+```
 
-#####
-# Granting Permissions to Service Account
-#####
+#### Granting Permissions to Service Account
+```
 # Permission for Cloud Storage access
 gcloud storage buckets add-iam-policy-binding gs://${NEW_BUCKET_NAME} \
   --member="serviceAccount:${FUNCTION_SA_EMAIL}" \
@@ -111,8 +110,11 @@ gcloud iam service-accounts add-iam-policy-binding ${FUNCTION_SA_EMAIL} \
    --role="roles/iam.serviceAccountUser" \
    --project=${PROJECT_ID}
 echo "Granted IAM permissions to service account."
+```
 
-
+#### Deploying the Cloud Function
+Run this on your terminal that has the python file 
+```
 gcloud functions deploy ${FUNCTION_NAME} \
   --gen2 \
   --runtime=python311 \
@@ -123,7 +125,5 @@ gcloud functions deploy ${FUNCTION_NAME} \
   --trigger-event-filters="bucket=${NEW_BUCKET_NAME}" \
   --set-env-vars="GCP_PROJECT=${PROJECT_ID},ALLOW_BUCKET=${ALLOW_BUCKET_NAME},QUARANTINE_BUCKET=${QUARANTINE_BUCKET_NAME},GTI_API_KEY=${GTI_API_KEY},GTI_DISABLE_SANDBOX=true,GTI_INTERCEPT_TLS=true,GTI_RETENTION_DAYS=1,GTI_STORAGE_REGION=US,GTI_LOCALE=EN_US,GTI_ENABLE_INTERNET=true,POLL_INTERVAL_SECONDS=15,GTI_TOOL_NAME=gti_scanner" \
   --timeout=540s \
-  --allow-unauthenticated
-
-echo "Deployment with allow-unauthenticated initiated."
-
+  --allow-unauthenticated #allow-unauthenticated for testing
+```
