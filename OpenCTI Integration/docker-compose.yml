@@ -267,7 +267,7 @@ services:
       - CONNECTOR_NAME=Mandiant
       - CONNECTOR_SCOPE=mandiant
       - CONNECTOR_LOG_LEVEL=error
-      - CONNECTOR_DURATION_PERIOD=PT72H # In ISO8601 Format starting with "P" for Period ex: "PT5M" = Period time of 5 minutes
+      - CONNECTOR_DURATION_PERIOD=PT24H # In ISO8601 Format starting with "P" for Period ex: "PT5M" = Period time of 5 minutes
       - MANDIANT_API_V4_KEY_ID=gti-user
       - MANDIANT_API_V4_KEY_SECRET=${GTI_API_KEY}
       - MANDIANT_INDICATOR_MINIMUM_SCORE=70
@@ -374,31 +374,31 @@ services:
     depends_on:
       opencti:
         condition: service_healthy
-  # connector-threatfox:
-  #   container_name: threatfox_connector
-  #   image: opencti/connector-threatfox:6.6.11
-  #   environment:
-  #     - OPENCTI_URL=http://opencti:8080
-  #     - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-  #     - CONNECTOR_ID=b9dd9381-5fd7-499b-a01b-0d4dc4900b2c
-  #     - CONNECTOR_NAME=Abuse.ch | ThreatFox
-  #     - CONNECTOR_SCOPE=ThreatFox
-  #     - CONNECTOR_CONFIDENCE_LEVEL=40 # From 0 (Unknown) to 100 (Fully trusted)
-  #     - CONNECTOR_LOG_LEVEL=error
-  #     - THREATFOX_CSV_URL=https://threatfox.abuse.ch/export/csv/recent/
-  #     - THREATFOX_IMPORT_OFFLINE=true
-  #     - THREATFOX_CREATE_INDICATORS=true
-  #     - THREATFOX_DEFAULT_X_OPENCTI_SCORE=50
-  #     - THREATFOX_X_OPENCTI_SCORE_IP=60
-  #     - THREATFOX_X_OPENCTI_SCORE_DOMAIN=70
-  #     - THREATFOX_X_OPENCTI_SCORE_URL=75
-  #     - THREATFOX_X_OPENCTI_SCORE_HASH=80
-  #     - THREATFOX_INTERVAL=3 # In days, must be strictly greater than 1
-  #     - THREATFOX_IOC_TO_IMPORT=ip:port,domain,url # List of IOC types to import
-  #   restart: always
-  #   depends_on:
-  #     opencti:
-  #       condition: service_healthy
+  connector-threatfox:
+    container_name: threatfox_connector
+    image: opencti/connector-threatfox:6.6.11
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=b9dd9381-5fd7-499b-a01b-0d4dc4900b2c
+      - CONNECTOR_NAME=ThreatFox
+      - CONNECTOR_SCOPE=ThreatFox
+      - CONNECTOR_CONFIDENCE_LEVEL=40 # From 0 (Unknown) to 100 (Fully trusted)
+      - CONNECTOR_LOG_LEVEL=error
+      - THREATFOX_CSV_URL=https://threatfox.abuse.ch/export/csv/recent/
+      - THREATFOX_IMPORT_OFFLINE=true
+      - THREATFOX_CREATE_INDICATORS=true
+      - THREATFOX_DEFAULT_X_OPENCTI_SCORE=50
+      - THREATFOX_X_OPENCTI_SCORE_IP=60
+      - THREATFOX_X_OPENCTI_SCORE_DOMAIN=70
+      - THREATFOX_X_OPENCTI_SCORE_URL=75
+      - THREATFOX_X_OPENCTI_SCORE_HASH=80
+      - THREATFOX_INTERVAL=3 # In days, must be strictly greater than 1
+      - THREATFOX_IOC_TO_IMPORT=ip:port,domain,url # List of IOC types to import
+    restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
   connector-ransomware:
     container_name: ransomwarelive_connector
     image: opencti/connector-ransomwarelive:6.6.11
@@ -414,7 +414,7 @@ services:
       - CONNECTOR_UPDATE_EXISTING_DATA=True
       - CONNECTOR_PULL_HISTORY=false # If true, the connector will pull the history of the data. But it is not recommended to set it to true as there will a large influx of data.
       - CONNECTOR_HISTORY_START_YEAR=2025 # Data only goes back till 2020
-      - CONNECTOR_RUN_EVERY=120m # 10 minutes will be the ideal time
+      - CONNECTOR_RUN_EVERY=480m # 10 minutes will be the ideal time
       # Connector's custom execution parameters:
     restart: always
     depends_on:
@@ -441,7 +441,19 @@ services:
   #   depends_on:
   #     opencti:
   #       condition: service_healthy
-
+  connector-anyrun-feed:
+    container_name: anyrun_feeds
+    image: opencti/connector-anyrun-feed:6.6.12
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=ec9bfb29-2196-45cc-bf17-e56e3defc7cd
+      - CONNECTOR_NAME=ANYRUN_feed
+      - CONNECTOR_SCOPE=stix2
+      - CONNECTOR_LOG_LEVEL=info
+      - CONNECTOR_RUN_EVERY=1d
+      - ANYRUN_TI_TOKEN=${ANYRUN_APIKEY} # Required
+    restart: always
 ############################
 # Enrichments
 ############################
