@@ -317,44 +317,44 @@ services:
   #   depends_on:
   #     opencti:
   #       condition: service_healthy
-  # connector-alienvault:
-  #   container_name: alienvault_connector
-  #   image: opencti/connector-alienvault:6.6.11
-  #   environment:
-  #     - OPENCTI_URL=http://opencti:8080
-  #     - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
-  #     - CONNECTOR_ID=009da4af-5259-4202-9771-13ec1d4ed85f
-  #     - CONNECTOR_NAME=AlienVault
-  #     - CONNECTOR_SCOPE=alienvault
-  #     - CONNECTOR_LOG_LEVEL=error
-  #     - CONNECTOR_DURATION_PERIOD=PT3H # In ISO8601 Format starting with "P" for Period ex: "PT30M" = Period time of 30 minutes
-  #     - ALIENVAULT_BASE_URL=https://otx.alienvault.com
-  #     - ALIENVAULT_API_KEY=${ALIENVAULT_API_KEY}
-  #     - ALIENVAULT_TLP=White
-  #     - ALIENVAULT_CREATE_OBSERVABLES=true
-  #     - ALIENVAULT_CREATE_INDICATORS=true
-  #     - ALIENVAULT_PULSE_START_TIMESTAMP=2025-03-01T00:00:00                  # BEWARE! Could be a lot of pulses!
-  #     - ALIENVAULT_REPORT_TYPE=threat-report
-  #     - ALIENVAULT_REPORT_STATUS=New
-  #     - ALIENVAULT_GUESS_MALWARE=false                                        # Use tags to guess malware.
-  #     - ALIENVAULT_GUESS_CVE=false                                            # Use tags to guess CVE.
-  #     - ALIENVAULT_EXCLUDED_PULSE_INDICATOR_TYPES=FileHash-MD5,FileHash-SHA1  # Excluded Pulse indicator types.
-  #     - ALIENVAULT_ENABLE_RELATIONSHIPS=true                                  # Enable/Disable relationship creation between SDOs.
-  #     - ALIENVAULT_ENABLE_ATTACK_PATTERNS_INDICATES=false                     # Enable/Disable "indicates" relationships between indicators and attack patterns
-  #     - ALIENVAULT_INTERVAL_SEC=1800
-  #     - ALIENVAULT_DEFAULT_X_OPENCTI_SCORE=50
-  #     - ALIENVAULT_X_OPENCTI_SCORE_IP=50
-  #     - ALIENVAULT_X_OPENCTI_SCORE_DOMAIN=70
-  #     - ALIENVAULT_X_OPENCTI_SCORE_HOSTNAME=50
-  #     - ALIENVAULT_X_OPENCTI_SCORE_EMAIL=70
-  #     - ALIENVAULT_X_OPENCTI_SCORE_FILE=80
-  #     - ALIENVAULT_X_OPENCTI_SCORE_URL=75
-  #     - ALIENVAULT_X_OPENCTI_SCORE_MUTEX=60
-  #     - ALIENVAULT_X_OPENCTI_SCORE_CRYPTOCURRENCY_WALLET=80
-  #   restart: always
-  #   depends_on:
-  #     opencti:
-  #       condition: service_healthy
+  connector-alienvault:
+    container_name: alienvault_connector
+    image: opencti/connector-alienvault:6.6.11
+    environment:
+      - OPENCTI_URL=http://opencti:8080
+      - OPENCTI_TOKEN=${OPENCTI_ADMIN_TOKEN}
+      - CONNECTOR_ID=009da4af-5259-4202-9771-13ec1d4ed85f
+      - CONNECTOR_NAME=AlienVault
+      - CONNECTOR_SCOPE=alienvault
+      - CONNECTOR_LOG_LEVEL=error
+      - CONNECTOR_DURATION_PERIOD=PT2H # In ISO8601 Format starting with "P" for Period ex: "PT30M" = Period time of 30 minutes
+      - ALIENVAULT_BASE_URL=https://otx.alienvault.com
+      - ALIENVAULT_API_KEY=${ALIENVAULT_API_KEY}
+      - ALIENVAULT_TLP=White
+      - ALIENVAULT_CREATE_OBSERVABLES=true
+      - ALIENVAULT_CREATE_INDICATORS=true
+      - ALIENVAULT_PULSE_START_TIMESTAMP=2025-01-01T00:00:00                  # BEWARE! Could be a lot of pulses!
+      - ALIENVAULT_REPORT_TYPE=threat-report
+      - ALIENVAULT_REPORT_STATUS=New
+      - ALIENVAULT_GUESS_MALWARE=false                                        # Use tags to guess malware.
+      - ALIENVAULT_GUESS_CVE=false                                            # Use tags to guess CVE.
+      - ALIENVAULT_EXCLUDED_PULSE_INDICATOR_TYPES=FileHash-MD5,FileHash-SHA1  # Excluded Pulse indicator types.
+      - ALIENVAULT_ENABLE_RELATIONSHIPS=true                                  # Enable/Disable relationship creation between SDOs.
+      - ALIENVAULT_ENABLE_ATTACK_PATTERNS_INDICATES=false                     # Enable/Disable "indicates" relationships between indicators and attack patterns
+      - ALIENVAULT_INTERVAL_SEC=1800
+      - ALIENVAULT_DEFAULT_X_OPENCTI_SCORE=50
+      - ALIENVAULT_X_OPENCTI_SCORE_IP=50
+      - ALIENVAULT_X_OPENCTI_SCORE_DOMAIN=70
+      - ALIENVAULT_X_OPENCTI_SCORE_HOSTNAME=50
+      - ALIENVAULT_X_OPENCTI_SCORE_EMAIL=70
+      - ALIENVAULT_X_OPENCTI_SCORE_FILE=80
+      - ALIENVAULT_X_OPENCTI_SCORE_URL=75
+      - ALIENVAULT_X_OPENCTI_SCORE_MUTEX=60
+      - ALIENVAULT_X_OPENCTI_SCORE_CRYPTOCURRENCY_WALLET=80
+    restart: always
+    depends_on:
+      opencti:
+        condition: service_healthy
   connector-cisa-known-exploited-vulnerabilities:
     container_name: cisa_kev_connector
     image: opencti/connector-cisa-known-exploited-vulnerabilities:6.6.11
