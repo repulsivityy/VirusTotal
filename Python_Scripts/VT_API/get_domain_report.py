@@ -31,6 +31,7 @@ VT_API_URL_DOMAIN_RELATIONSHIP = "https://www.virustotal.com/api/v3/domains/{}/{
 RELATIONSHIP_FIELD_MAPPING = {
     "subdomains": ["id", "last_analysis_stats"],
     "urls": ["id", "last_final_url", "last_analysis_stats"],
+    "related_threat_actors": ["id", "name", "alt_names", "motivations"],
     # Add other relationship mappings here if you add more CLI flags
     # e.g., "resolutions": ["id", "ip_address_last_analysis_stats", "network"],
 }
@@ -255,10 +256,12 @@ def main():
                     "If specific relationship arguments (e.g., --subdomains) are used, "
                     "it will pull those relationships and extract them into CSV files. "
                     "Otherwise, it displays a summary of the main domain report.")
-    parser.add_argument("domain", help="The domain to analyze (e.g., example.com).")
+    parser.add_argument("input_source", help="The domain to analyze (e.g., example.com) or a path to a CSV/TXT file containing domains (one per line or first column for CSV).")
     parser.add_argument("--subdomains", action="store_true", help="Fetch and export subdomains to CSV.")
     parser.add_argument("--urls", action="store_true", help="Fetch and export URLs associated with the domain to CSV.")
+    parser.add_argument("--related-threat-actors", action="store_true", help="Fetch and export related threat actors to CSV.")
     # Add more relationship flags here as needed, e.g., --resolutions, --urls
+    parser.add_argument("--no-header", action="store_true", help="Set if the input CSV file has no header row.")
     parser.add_argument("--output-dir", default=".", help="Directory to save output CSV files. Defaults to current directory.")
     parser.add_argument("--limit", type=int, default=None, help="Maximum number of items to fetch for each specified relationship.")
 
@@ -270,56 +273,93 @@ def main():
         print("Error: GTI_APIKEY environment variable not set. Please set it before running the script.")
         return
 
-    domain = args.domain.strip()
-    if not domain:
-        print("Error: Domain argument cannot be empty.")
+    input_source_str = args.input_source.strip()
+    if not input_source_str:
+        print("Error: Input source (domain or file path) cannot be empty.")
         return
 
-    possible_relationships_map = {
-        "subdomains": args.subdomains,
-        "urls": args.urls,
-        # "resolutions": args.resolutions, # Example: Add new args here
-    }
-    relationships_to_fetch_args = [rel_name for rel_name, requested in possible_relationships_map.items() if requested]
-    specific_relationship_requested = bool(relationships_to_fetch_args)
+    domains_to_process = []
+    input_path = pathlib.Path(input_source_str)
 
-    if specific_relationship_requested:
-        fetched_data = {}
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor: # Adjust max_workers as needed
-            future_to_rel = {
-                executor.submit(get_relationship_data, api_key, domain, rel_name, total_limit_arg=args.limit): rel_name 
-                for rel_name in relationships_to_fetch_args
-            }
-            for future in concurrent.futures.as_completed(future_to_rel):
-                rel_name = future_to_rel[future]
-                try:
-                    data = future.result()
-                    if data:
-                        fetched_data[rel_name] = data
-                        print(f"Successfully fetched data for relationship: {rel_name}")
-                except Exception as exc:
-                    print(f"Relationship '{rel_name}' generated an exception during fetch: {exc}")
-
-        # Process and extract fetched data sequentially after all futures are complete
-        for rel_name, data_content in fetched_data.items():
-            print(f"\n--- Extracting {rel_name} for {domain} ---")
-            extract_relationship_to_csv(domain, rel_name, data_content, args.output_dir)
-
-        print("\nFinished processing specified relationships.")
-    else:
-        # If no specific relationship flags were used, fetch and display the main domain report summary.
-        print(f"\nFetching main report for domain: {domain}...")
-        report_data = get_domain_report(api_key, domain)
-
-        if not report_data or "data" not in report_data or "attributes" not in report_data["data"]:
-            print("Failed to retrieve or parse valid main report data.")
+    if input_path.is_file():
+        print(f"Reading domains from file: {input_path}")
+        try:
+            with open(input_path, "r", encoding="utf-8") as f:
+                if input_path.suffix.lower() == ".csv":
+                    reader = csv.reader(f)
+                    if not args.no_header:
+                        try:
+                            next(reader) # Skip header row
+                        except StopIteration:
+                            print(f"Warning: CSV file '{input_path}' is empty or only contains a header.")
+                    for row_num, row in enumerate(reader, 1 if args.no_header else 2):
+                        if row:
+                            domain = row[0].strip()
+                            if domain:
+                                domains_to_process.append(domain)
+                            else:
+                                print(f"Warning: Empty domain in CSV file '{input_path}' at row {row_num}.")
+                        else:
+                            print(f"Warning: Empty row in CSV file '{input_path}' at row {row_num}.")
+                elif input_path.suffix.lower() == ".txt":
+                    for line_num, line in enumerate(f, 1):
+                        domain = line.strip()
+                        if domain:
+                            domains_to_process.append(domain)
+                        else:
+                            print(f"Warning: Empty line in TXT file '{input_path}' at line {line_num}.")
+                else:
+                    print(f"Error: Unsupported file type '{input_path.suffix}'. Please use .csv or .txt files.")
+                    return
+        except FileNotFoundError:
+            print(f"Error: File not found at '{input_path}'.")
             return
+        except Exception as e:
+            print(f"Error reading file '{input_path}': {e}")
+            return
+        if not domains_to_process:
+            print(f"No domains found in file '{input_path}'.")
+            return
+    else:
+        domains_to_process.append(input_source_str) # Treat as a single domain
 
-        print("\n--- Domain Report Summary ---")
-        attributes = report_data["data"]["attributes"]
-        print(f"Domain: {domain}")
-        print(f"Last Analysis Stats: {attributes.get('last_analysis_stats')}")
-        print(f"Reputation: {attributes.get('reputation')}")
+    for domain_count, domain in enumerate(domains_to_process, 1):
+        print(f"\nProcessing domain {domain_count}/{len(domains_to_process)}: {domain}")
+        possible_relationships_map = {
+            "subdomains": args.subdomains,
+            "urls": args.urls,
+            "related_threat_actors": args.related_threat_actors,
+        }
+        relationships_to_fetch_args = [rel_name for rel_name, requested in possible_relationships_map.items() if requested]
+        specific_relationship_requested = bool(relationships_to_fetch_args)
+
+        if specific_relationship_requested:
+            fetched_data = {}
+            with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+                future_to_rel = {
+                    executor.submit(get_relationship_data, api_key, domain, rel_name, total_limit_arg=args.limit): rel_name
+                    for rel_name in relationships_to_fetch_args
+                }
+                for future in concurrent.futures.as_completed(future_to_rel):
+                    rel_name = future_to_rel[future]
+                    try:
+                        data = future.result()
+                        if data: fetched_data[rel_name] = data
+                    except Exception as exc:
+                        print(f"Relationship '{rel_name}' for domain '{domain}' generated an exception during fetch: {exc}")
+            for rel_name, data_content in fetched_data.items():
+                extract_relationship_to_csv(domain, rel_name, data_content, args.output_dir)
+        else:
+            report_data = get_domain_report(api_key, domain)
+            if report_data and "data" in report_data and "attributes" in report_data["data"]:
+                print(f"\n--- Domain Report Summary for {domain} ---")
+                attributes = report_data["data"]["attributes"]
+                print(f"  Last Analysis Stats: {attributes.get('last_analysis_stats')}")
+                print(f"  Reputation: {attributes.get('reputation')}")
+            else:
+                print(f"Failed to retrieve or parse valid main report data for domain: {domain}")
+
+    print(f"\nFinished processing all {len(domains_to_process)} domain(s).")
 
 if __name__ == "__main__":
     main()

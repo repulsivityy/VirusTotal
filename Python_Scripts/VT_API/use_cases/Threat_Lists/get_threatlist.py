@@ -34,7 +34,7 @@ THREAT_LIST_DESCRIPTIONS = {
     "cryptominer": "Malware IOCs categorized as miners by the VT engines.",
     "phishing": "Malware IOCs categorized as phishing by the VT engines.",
     "first-stage-delivery-vectors": "Malware IOCs found attached in emails and its embedded urls. Also ITW urls that have seen these IOCs.",
-    "vulnerability-weaponization": "Malware IOCs associated with vulnerabilities.", # Note: Typo in original list name 'vulernability' kept for consistency
+    "vulnerability-weaponization": "Malware IOCs associated with vulnerabilities.", 
     "infostealer": "IOCs categorized as stealers by the VT engines or Mandiant Intelligence."
 }
 
