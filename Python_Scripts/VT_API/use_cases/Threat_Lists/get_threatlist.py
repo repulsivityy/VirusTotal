@@ -9,7 +9,7 @@
 # - GTI Standard / Enterprise / Enterprise + license
 #
 # Usage
-# get_threatlist.py -THREATS <available_lists> -LIMIT <# of results return>
+# get_threatlist.py -THREAT <available_lists> -LIMIT <# of results return>
 #####################################
  
 import os
