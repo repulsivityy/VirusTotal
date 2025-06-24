@@ -6,7 +6,7 @@
 # 4. update results from #3 to a google sheets (todo)
 #
 # Usage: 
-# - save Google Threat Intel API (or VT Enterprise API) as environment various (GTI_APIKEY)
+# - save Google Threat Intel API (or VT Enterprise API) as environment variable (GTI_APIKEY)
 # - the default will search for files submitted within a specific first-seen timeframe in a specific country
 # -- update the FILE_DETECT variable if there's a need to change the search
 # - python3 create_update_collectons.py
