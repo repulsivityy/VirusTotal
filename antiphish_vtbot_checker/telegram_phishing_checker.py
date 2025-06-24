@@ -9,6 +9,15 @@ links are safe, suspicious, or malicious. The bot is designed to handle multiple
 requests efficiently and can be extended with additional security checkers in the future.
 
 Gemini 2.5 Pro and Claude Sonnet was used to optimise the code for performance and readability.
+
+Usage: 
+1. Set environment variables for TELEGRAM_TOKEN, VIRUSTOTAL_API_KEY, and WEBRISK_API_KEY.
+2. install required packages: `pip install python-telegram-bot aiohttp`.
+3. Update your variables under --- Constants --- section if needed.
+4. Run the script: `python telegram_phishing_checker.py`.
+
+# author: dominicchua@
+# version: 1.0
 """
 
 import os
