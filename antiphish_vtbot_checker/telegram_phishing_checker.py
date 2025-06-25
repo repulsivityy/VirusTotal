@@ -64,7 +64,6 @@ class ScanResult:
 # --- Core Components ---
 class URLExtractor:
     """Extracts URLs and domains based on clear classification rules."""
-    # A single, broad regex to find anything that looks like a link or domain.
     LINK_REGEX = re.compile(
         r'(?:https?://)?(?:www\.)?[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+[^\s]*'
     )
@@ -82,20 +81,13 @@ class URLExtractor:
         seen = set()
 
         for candidate in candidates:
-            # Rule: If it has a protocol or path, it's a URL.
             if "://" in candidate or "/" in candidate:
                 item_type = 'url'
-                # Ensure it has a protocol for the request
-                if not candidate.startswith('http'):
-                    value = 'http://' + candidate
-                else:
-                    value = candidate
-            # Rule: Otherwise, it's a domain.
+                value = 'http://' + candidate if not candidate.startswith('http') else candidate
             else:
                 item_type = 'domain'
                 value = candidate
             
-            # Add to results if we haven't seen this exact item before
             item_tuple = (item_type, value)
             if item_tuple not in seen:
                 final_results.append({'type': item_type, 'value': value})
@@ -123,14 +115,32 @@ class VirusTotalChecker(BaseChecker):
     def __init__(self, api_key: str, session: aiohttp.ClientSession):
         super().__init__(session)
         self.api_key = api_key
-        self.headers = {"x-apikey": self.api_key, "Accept": "application/json"}
+        self.headers = {"x-apikey": self.api_key, "x-tool": "telegrambot_phish_checker", "Accept": "application/json"}
 
     async def _make_request(self, endpoint, method='GET', **kwargs):
         return await self.session.request(method, endpoint, headers=self.headers, timeout=API_TIMEOUT, **kwargs)
 
     def _parse_results(self, vt_data: Dict) -> ScanResult:
         attributes = vt_data.get("data", {}).get("attributes", {})
-        stats = attributes.get("last_analysis_stats", attributes.get("stats", {}))
+        gti_assessment = attributes.get("gti_assessment")
+
+        if gti_assessment:
+            verdict = gti_assessment.get("verdict", {}).get("value", "VERDICT_UNKNOWN")
+            severity = gti_assessment.get("severity", {}).get("value", "SEVERITY_UNSPECIFIED")
+            gti_score = gti_assessment.get("threat_score", {}).get("value")
+
+            display_verdict = verdict.replace("VERDICT_", "")
+            display_severity = severity.replace("SEVERITY_", "")
+            is_malicious = display_verdict == "MALICIOUS"
+
+            summary = f"GTI Verdict: {display_verdict} ({display_severity} Severity)"
+            gti_assessment['threat_score_value'] = gti_score 
+            return ScanResult(is_malicious, summary, self.SOURCE_NAME, details=gti_assessment)
+
+        stats = attributes.get("last_analysis_stats", {})
+        if not stats:
+            return ScanResult(False, "No analysis data available", self.SOURCE_NAME, error=True)
+
         malicious_count = stats.get("malicious", 0) + stats.get("suspicious", 0)
         total_engines = sum(stats.values())
         is_malicious = malicious_count >= MALICIOUS_THRESHOLD
@@ -145,18 +155,12 @@ class VirusTotalChecker(BaseChecker):
 
             async with await self._make_request(endpoint) as response:
                 if response.status == 404:
-                    if item_type == 'url':
-                        return await self._submit_and_check_url(value)
-                    else:
-                        return ScanResult(False, "Not found in database", self.SOURCE_NAME)
+                    return ScanResult(False, "Not found in database", self.SOURCE_NAME)
                 response.raise_for_status()
                 return self._parse_results(await response.json())
         except (aiohttp.ClientError, asyncio.TimeoutError) as e:
             logger.error(f"{self.SOURCE_NAME} error for {value}: {e}")
             return ScanResult(False, "API Error", self.SOURCE_NAME, error=True)
-
-    async def _submit_and_check_url(self, url: str) -> ScanResult:
-        return ScanResult(False, "Submitted for analysis", self.SOURCE_NAME)
 
 
 class WebRiskChecker(BaseChecker):
@@ -212,32 +216,53 @@ class ResponseFormatter:
     }
 
     def _get_risk_level(self, vt_result: ScanResult, wr_result: ScanResult) -> str:
+        """Determines a risk category using the 'Known-Bad, Known-Good, Else-Suspicious' model."""
         if vt_result.error or wr_result.error:
             return "ERROR"
-        
-        wr_has_high_threat = any(c in ["HIGH", "EXTREMELY_HIGH"] for c in wr_result.details.values())
-        if vt_result.is_malicious or wr_has_high_threat:
+
+        # --- Step 1: Check for KNOWN BAD (DANGER) ---
+        gti_score = vt_result.details.get("threat_score_value")
+        gti_verdict = vt_result.details.get("verdict", {}).get("value")
+        classic_vt_malicious_threshold = (vt_result.details.get("malicious", 0) + vt_result.details.get("suspicious", 0)) >= MALICIOUS_THRESHOLD
+        wr_is_high_threat = any(c in ["HIGH", "EXTREMELY_HIGH"] for c in wr_result.details.values())
+
+        if (gti_verdict == "VERDICT_MALICIOUS" or
+            (gti_score is not None and gti_score > 60) or
+            wr_is_high_threat or
+            classic_vt_malicious_threshold):
             return "DANGER"
 
-        wr_is_malicious = any(c != "SAFE" for c in wr_result.details.values())
-        vt_has_some_detections = vt_result.details.get("malicious", 0) > 0 or vt_result.details.get("suspicious", 0) > 0
-        if wr_is_malicious or vt_has_some_detections:
-             return "WARNING"
+        # --- Step 2: Check for KNOWN GOOD (SAFE) ---
+        classic_vt_is_clean = (vt_result.details.get("malicious", 0) + vt_result.details.get("suspicious", 0)) == 0
+        wr_is_clean = all(c == "SAFE" for c in wr_result.details.values())
 
-        return "SAFE"
+        if gti_verdict == "VERDICT_HARMLESS" or (classic_vt_is_clean and wr_is_clean):
+            return "SAFE"
+
+        # --- Step 3: Everything else is SUSPICIOUS (WARNING) ---
+        return "WARNING"
 
     def format_combined_response(self, target: str, vt_result: ScanResult, wr_result: ScanResult) -> str:
+        """Creates the final user-facing message string."""
         risk_level = self._get_risk_level(vt_result, wr_result)
         template = self.RESPONSE_TEMPLATES[risk_level]
 
         header = f"{template['emoji']} {template['level']}"
         recommendation = f"<b>Recommendation:</b>\n {template['rec']}"
 
+        # Logic to add the GTI verdict line if available
+        gti_verdict_line = ""
+        gti_verdict_raw = vt_result.details.get("verdict", {}).get("value")
+        if gti_verdict_raw:
+            display_verdict = gti_verdict_raw.replace("VERDICT_", "").capitalize()
+            gti_verdict_line = f"Google TI Verdict: {display_verdict}\n"
+
         return (
             f"{header}\n"
             f"Link: <code>{target}</code>\n"
             "----------------------------------\n"
             f"VirusTotal: {vt_result.summary}\n"
+            f"{gti_verdict_line}"
             f"Google Web Risk: {wr_result.summary}\n\n"
             f"{recommendation}"
         )
@@ -306,12 +331,8 @@ class TelegramBot:
 
         for i in range(0, total_items, MAX_CONCURRENT_CHECKS):
             chunk = items[i:i + MAX_CONCURRENT_CHECKS]
-            
             if total_items > MAX_CONCURRENT_CHECKS:
-                await update.message.reply_text(
-                    f"Processing items {i+1} to {i+len(chunk)} of {total_items}..."
-                )
-
+                await update.message.reply_text(f"Processing items {i+1} to {i+len(chunk)} of {total_items}...")
             tasks = [self._check_and_report_item(update, item, vt_checker, webrisk_checker) for item in chunk]
             await asyncio.gather(*tasks)
         
@@ -324,11 +345,7 @@ class TelegramBot:
         try:
             vt_task = vt_checker.check(item_value, item_type)
             wr_task = webrisk_checker.check(item_value, item_type)
-
-            vt_result, wr_result = await asyncio.wait_for(
-                asyncio.gather(vt_task, wr_task),
-                timeout=TOTAL_TIMEOUT
-            )
+            vt_result, wr_result = await asyncio.wait_for(asyncio.gather(vt_task, wr_task), timeout=TOTAL_TIMEOUT)
             response = self.response_formatter.format_combined_response(item_value, vt_result, wr_result)
             await proc_msg.edit_text(response, parse_mode='HTML')
         except asyncio.TimeoutError:
