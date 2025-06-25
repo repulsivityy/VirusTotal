@@ -7,6 +7,7 @@ import json
 # for security purposes.
 # In your terminal (Linux/macOS): export GTI_APIKEY='your_api_key_here'
 # In your terminal (Windows): set GTI_APIKEY='your_api_key_here'
+
 API_KEY = os.getenv("GTI_APIKEY")
 
 BASE_URL = "https://www.virustotal.com/api/v3/asm"
