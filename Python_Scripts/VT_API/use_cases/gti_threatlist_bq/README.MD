@@ -379,6 +379,38 @@ When calling private Cloud Functions from Cloud Scheduler, we encountered `The r
 ---
 ## 6. Usage / Testing
 
+### Testing the Pipeline Logic
+
+The repository includes unit tests to verify critical data transformation logic locally before deployment.
+
+#### Testing the "Fetch" De-duplication Logic
+This test simulates a "dirty" API response with duplicate records and verifies that only the most recent version of each record is kept.
+
+1.  Navigate into the fetch function's directory:
+    ```bash
+    cd gti-fetch-iocs
+    ```
+2.  Run the test script:
+    ```bash
+    python3 test_fetch_dedup_logic.py
+    ```
+
+#### Testing the "Merge" SQL Generation
+This test confirms that the `MERGE` SQL statement is constructed correctly inside the merge function, without needing to connect to BigQuery.
+
+1.  Navigate into the merge function's directory:
+    ```bash
+    cd gti-execute-merge
+    ```
+2.  Install local dependencies if you haven't already:
+    ```bash
+    pip3 install google-cloud-bigquery
+    ```
+3.  Run the test script:
+    ```bash
+    python3 -m unittest test_merge_logic.py
+    ```
+
 ### Manually Triggering the Pipeline
 To run the entire pipeline immediately for testing purposes, you can manually trigger the first scheduler job. This will start the fetch, load, and merge sequence.
 
