@@ -22,8 +22,8 @@ def gcs_upload(bucket_name, blob_name, data):
 
 def fetch_and_store_gti_data(request):
     """
-    Main Cloud Function to fetch data from GTI, reshape it to match the BQ schema,
-    convert it to NDJSON, and store it in GCS.
+    Main Cloud Function to fetch data from GTI, de-duplicate based on the latest timestamp,
+    reshape it, and store it in GCS.
     """
     # ... (environment variable and API key fetching code is the same) ...
     try:
@@ -40,7 +40,6 @@ def fetch_and_store_gti_data(request):
         print(f"Error fetching API key: {e}")
         return ("Internal Server Error: Could not fetch API key.", 500)
 
-
     url = "https://www.virustotal.com/api/v3/threat_lists/malicious-network-infrastructure/latest?&type=url&format=json"
     headers = {
         "accept": "application/json",
@@ -53,17 +52,31 @@ def fetch_and_store_gti_data(request):
         response.raise_for_status()
         api_data = response.json()
         
-        # --- FINAL JSON TRANSFORMATION LOGIC ---
-        reshaped_iocs = []
+        # --- INTELLIGENT DE-DUPLICATION LOGIC ---
+        unique_iocs = {}
         for item in api_data.get('iocs', []):
-            # Start with the attributes dictionary, which has most of our fields
-            # Use .get() to avoid errors if a key is missing
-            attributes = item.get('data', {}).get('attributes', {})
+            ioc_data = item.get('data', {})
+            ioc_id = ioc_data.get('id')
             
-            # Create a new dictionary that matches the BQ schema
+            if not ioc_id:
+                continue
+
+            # Get the timestamp for comparison. Default to 0 if missing.
+            current_mod_date = ioc_data.get('attributes', {}).get('last_modification_date', 0)
+            
+            # If we haven't seen this ID, or if the new one is more recent, store it.
+            if ioc_id not in unique_iocs or current_mod_date > unique_ioc_s[ioc_id].get('attributes', {}).get('last_modification_date', 0):
+                unique_iocs[ioc_id] = ioc_data
+        
+        # --- END OF INTELLIGENT DE-DUPLICATION LOGIC ---
+
+        # The reshaping logic remains the same, but now operates on the de-duplicated data
+        reshaped_iocs = []
+        for ioc_id, data in unique_iocs.items():
+            attributes = data.get('attributes', {})
             new_ioc = {
-                "ioc_id": item.get('data', {}).get('id'),
-                "ioc_type": item.get('data', {}).get('type'),
+                "ioc_id": ioc_id,
+                "ioc_type": data.get('type'),
                 "url": attributes.get('url'),
                 "tld": attributes.get('tld'),
                 "positives": attributes.get('positives'),
@@ -80,22 +93,16 @@ def fetch_and_store_gti_data(request):
                 "gti_assessment_threat_score": attributes.get('gti_assessment', {}).get('threat_score', {}).get('value'),
                 "gti_assessment_verdict": attributes.get('gti_assessment', {}).get('verdict', {}).get('value'),
                 "categories": attributes.get('categories'),
-                "relationships": item.get('data', {}).get('relationships') # Keep the whole relationships object
+                "relationships": data.get('relationships')
             }
             reshaped_iocs.append(new_ioc)
         
-        # Convert the list of reshaped dictionaries to an NDJSON string
         ndjson_data = "\n".join(json.dumps(ioc) for ioc in reshaped_iocs)
-        # --- END OF TRANSFORMATION LOGIC ---
 
-    except requests.exceptions.RequestException as e:
-        print(f"Error calling GTI API: {e}")
-        return ("Internal Server Error: API call failed.", 502)
-    except (json.JSONDecodeError, KeyError) as e:
-        print(f"Error parsing JSON response: {e}")
-        return ("Internal Server Error: Could not parse API response.", 500)
+    except (requests.exceptions.RequestException, json.JSONDecodeError, KeyError) as e:
+        print(f"Error processing data: {e}")
+        return ("Internal Server Error: Could not process API response.", 500)
 
-    # ... (timestamp generation and GCS upload code is the same) ...
     sgt_timezone = pytz.timezone('Asia/Singapore')
     now_in_sgt = datetime.now(sgt_timezone)
     blob_name = f"gti_responses/{now_in_sgt.strftime('%Y-%m-%d')}/{now_in_sgt.strftime('%H-%M-%S')}.json"
@@ -106,4 +113,4 @@ def fetch_and_store_gti_data(request):
         print(f"Error uploading to GCS: {e}")
         return ("Internal Server Error: GCS upload failed.", 500)
         
-    return (f"Successfully fetched, reshaped, and stored GTI data to {blob_name}.", 200)
+    return (f"Successfully fetched, de-duplicated, and stored GTI data to {blob_name}.", 200)
