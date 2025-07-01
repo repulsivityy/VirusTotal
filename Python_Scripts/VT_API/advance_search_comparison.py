@@ -1,143 +1,195 @@
 ##############
-# Advance Search to get # offiles with >1 detection in a given time period (country vs global stats)
+# VirusTotal Intelligence Search to IOC Collection
+#
+# This script performs multiple VirusTotal Intelligence searches for different
+# entity types (files, URLs, domains, IPs) and compiles the results into a
+# single IOC Collection for easy tracking and management.
 ##############
 
 import json
 import os
 from pprint import pprint
-import urllib
+import urllib.parse
 import requests
-
-#countrycode = input("Enter country code")
-firstseen = "2024-05-01+"
-lastseen = "2024-05-14-"
-#firstseen = input("Enter First Seen Start Date (eg 2023-12-01+):")
-#lastseen = input("Enter First Seen End Date (eg 2023-12-31-):")
-
-FILE = 'entity:file submitter:au fs:'+ firstseen +' fs:'+ lastseen
-FILE_DETECT = 'entity:file submitter:au fs:'+ firstseen +' fs:'+ lastseen +' p:1+'
-FILE_DETECT_GLOBAL = 'entity:file fs:'+ firstseen +' fs:'+ lastseen +' p:1+'
-"""
-URL = 'entity:url submitter:au fs:'+ firstseen + ' fs:'+ lastseen
-URL_DETECT = 'entity:url submitter:au fs:'+ firstseen +' fs:'+lastseen +' p:1+'
-DOMAIN = 'entity:domain tld:au AND ((last_update_date:'+ lastseen +' AND last_update_date:'+ firstseen +') OR (last_modification_date:'+ lastseen +' AND last_modification_date:'+ firstseen +'))'
-DOMAIN_DETECT = 'entity:domain tld:au AND ((last_update_date:'+ lastseen + ' AND last_update_date:'+ firstseen +') OR (last_modification_date:'+ lastseen +' AND last_modification_date:'+ firstseen +')) p:1+'
-IP = 'entity:ip country:au last_modification_date:'+ lastseen +' last_modification_date:'+ firstseen
-IP_DETECT = 'entity:ip country:au last_modification_date:'+ lastseen +' last_modification_date:'+ firstseen +' p:1+'
-"""
-LIMIT = '10'  # Max is 300 results
-ORDER = 'last_submission_date'  # See below for order. Default is last_submission for files and url, and last_modification for domains and IP
-#ORDER_1 = 'last_modification_date'
+import time
+import re
 
 class color:
     red = '\033[91m'
     darkcyan = '\033[36m'
+    green = '\033[92m'
+    blue = '\033[94m'
     end = '\033[0m'
 
-def file(query):
-    url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&order={ORDER}&limit={LIMIT}&descriptors_only=false'
-    headers = {'Accept': 'application/json', 'x-apikey': os.environ['VT_APIKEY']}
-    res = requests.get(url, headers=headers)
+# --- Configuration ---
+# The script uses GTI_APIKEY, but you can change it to VT_APIKEY if you prefer.
+API_KEY = os.environ.get('GTI_APIKEY')
+if not API_KEY:
+    raise ValueError("GTI_APIKEY environment variable not set.")
+
+BASE_URL = "https://www.virustotal.com/api/v3"
+HEADERS = {'Accept': 'application/json', 'x-apikey': API_KEY, 'x-tool': 'gti-advance-search'}
+
+def search_intelligence(query):
+    """
+    Performs a VirusTotal Intelligence search, handles pagination, and returns a list of IOCs.
+    """
+    iocs = []
+    search_url = f"{BASE_URL}/intelligence/search"
+    # Use descriptors_only=True for efficiency as we only need the ID and type.
+    # The API page limit is 300.
+    params = {'query': query, 'limit': 300, 'descriptors_only': True}
+    
+    page_count = 0
+    has_printed_total = False
+
+    while True:
+        try:
+            # Make the request first
+            res = requests.get(search_url, headers=HEADERS, params=params)
+            res.raise_for_status()
+            data = res.json()
+
+            # On the first successful request, print the total hits
+            if not has_printed_total:
+                total_hits = data.get('meta', {}).get('total_hits', 0)
+                print(f"  {color.darkcyan}Total hits found: {total_hits}{color.end}")
+                if total_hits == 0:
+                    break  # Exit if there's nothing to fetch
+                print(f"  Now fetching all available IOCs (300 per page)...")
+                has_printed_total = True
+
+            page_count += 1
+            print(f"  Fetched page {page_count} ({len(data.get('data', []))} items)...")
+
+            # Process the data from the current page
+            if "data" in data:
+                for item in data["data"]:
+                    iocs.append({'type': item.get('type'), 'id': item.get('id')})
+
+            # Check for the next page
+            cursor = data.get('meta', {}).get('cursor')
+            if cursor:
+                params['cursor'] = cursor
+            else:
+                break  # No more pages, exit the loop
+        except requests.HTTPError as e:
+            print(f"{color.red}  HTTP Error during search: {e.response.status_code} - {e.response.text}{color.end}")
+            break
+        except Exception as e:
+            print(f"{color.red}  An unexpected error occurred during search: {e}{color.end}")
+            break
+
+    return iocs
+
+def create_ioc_collection(name, description, iocs):
+    """
+    Creates an IOC collection on VirusTotal with the given IOCs.
+    """
+    # Group IOCs by type
+    grouped_iocs = {
+        'files': [],
+        'urls': [],
+        'domains': [],
+        'ip_addresses': []
+    }
+    
+    type_mapping = {
+        'file': 'files',
+        'url': 'urls',
+        'domain': 'domains',
+        'ip_address': 'ip_addresses'
+    }
+
+    for ioc in iocs:
+        ioc_type_singular = ioc.get('type')
+        ioc_id = ioc.get('id')
+        
+        if ioc_type_singular and ioc_id:
+            plural_type = type_mapping.get(ioc_type_singular)
+            if plural_type:
+                # The API expects a list of {'type': '...', 'id': '...'} objects
+                # The type here is the singular form.
+                grouped_iocs[plural_type].append({'type': ioc_type_singular, 'id': ioc_id})
+
+    # Build relationships dictionary, only including types with IOCs
+    relationships = {}
+    for plural_type, ioc_list in grouped_iocs.items():
+        if ioc_list:
+            relationships[plural_type] = {'data': ioc_list}
+
+    if not relationships:
+        print("No valid IOCs to add to the collection.")
+        return None
+
+    # Build the final payload
+    payload = {
+        "data": {
+            "type": "collection",
+            "attributes": {
+                "name": name,
+                "description": description
+            },
+            "relationships": relationships
+        }
+    }
+
+    collection_url = f"{BASE_URL}/collections"
+    res = requests.post(collection_url, headers=HEADERS, json=payload)
     res.raise_for_status()
+    return res.json()
 
-    # Extract and print the total_hits field
-    print(f"Query is: " + FILE)
-    print(color.darkcyan + f"Total hits: {res.json()['meta']['total_hits']}" + color.end)
+def main():
+    # --- Get User Query ---
+    user_query = input("Enter your VTI search query (must start with 'entity:file', 'entity:url', 'entity:domain', or 'entity:ip'):\n> ")
 
-def file_detect(query):
-    url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&order={ORDER}&limit={LIMIT}&descriptors_only=false'
-    headers = {'Accept': 'application/json', 'x-apikey': os.environ['VT_APIKEY']}
-    res = requests.get(url, headers=headers)
-    res.raise_for_status()
+    # --- Validate Query ---
+    if not re.match(r"^\s*entity:(file|url|domain|ip)\b", user_query.strip()):
+        print(f"{color.red}Invalid query format. The query must start with 'entity:file', 'entity:url', 'entity:domain', or 'entity:ip'.{color.end}")
+        return
 
-    # Extract and print the total_hits field
-    print(f"Query is : " + FILE_DETECT)
-    print(color.red + f"Total hits with detection: {res.json()['meta']['total_hits']}" + color.end)
+    # --- Perform Search ---
+    print(f"\n{color.blue}--- Starting IOC Search ---{color.end}")
+    print(f"  Query: {user_query}")
+    
+    all_iocs = search_intelligence(user_query)
 
-def file_detect_global(query):
-    url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&order={ORDER}&limit={LIMIT}&descriptors_only=false'
-    headers = {'Accept': 'application/json', 'x-apikey': os.environ['VT_APIKEY']}
-    res = requests.get(url, headers=headers)
-    res.raise_for_status()
+    if not all_iocs:
+        print(f"\n{color.red}No IOCs found for the given query. Exiting.{color.end}")
+        return
 
-    # Extract and print the total_hits field
-    print(f"Query is : " + FILE_DETECT_GLOBAL)
-    print(color.red + f"Total hits with detection: {res.json()['meta']['total_hits']}" + color.end)
-"""
-def url(query):
-    url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&order={ORDER}&limit={LIMIT}&descriptors_only=false'
-    headers = {'Accept': 'application/json', 'x-apikey': os.environ['VT_APIKEY']}
-    res = requests.get(url, headers=headers)
-    res.raise_for_status()
+    # --- Create Collection ---
+    print(f"\n{color.blue}--- Found {len(all_iocs)} IOCs to add to collection ---{color.end}")
 
-    # Extract and print the total_hits field
-    print(f"Query is: " + URL)
-    print(color.darkcyan + f"Total hits: {res.json()['meta']['total_hits']}" + color.end)
+    # Generate a default name based on the query
+    default_name = f"Collection for query: {user_query[:50]}..." if len(user_query) > 50 else f"Collection for query: {user_query}"
+    collection_name = input(f"Enter collection name (press Enter for default: '{default_name}'): ") or default_name
+    
+    collection_desc = input(f"Enter collection description (press Enter to use the query as description):\n> ") or f"IOCs found using the VTI query:\n\n{user_query}"
 
-def url_detect(query):
-    url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&order={ORDER}&limit={LIMIT}&descriptors_only=false'
-    headers = {'Accept': 'application/json', 'x-apikey': os.environ['VT_APIKEY']}
-    res = requests.get(url, headers=headers)
-    res.raise_for_status()
+    print(f"\nCreating collection: '{collection_name}'")
 
-    # Extract and print the total_hits field
-    print(f"Query is : " + URL_DETECT)
-    print(color.red + f"Total hits with detection: {res.json()['meta']['total_hits']}" + color.end)
+    try:
+        collection_result = create_ioc_collection(collection_name, collection_desc, all_iocs)
+        collection_id = collection_result.get("data", {}).get("id")
+        
+        if collection_id:
+            collection_link = f"https://www.virustotal.com/gui/collection/{collection_id}"
+            print(f"\n{color.green}--- Collection Created Successfully! ---{color.end}")
+            print(f"Name: {collection_name}")
+            print(f"ID: {collection_id}")
+            print(f"Link: {color.blue}{collection_link}{color.end}")
+        else:
+            print(f"\n{color.red}--- Failed to create collection ---{color.end}")
+            pprint(collection_result)
+            
+    except requests.HTTPError as e:
+        print(f"{color.red}\n--- Error creating collection ---{color.end}")
+        print(f"Status Code: {e.response.status_code}")
+        try:
+            pprint(e.response.json())
+        except json.JSONDecodeError:
+            print(e.response.text)
 
-def domain(query):
-    url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&order={ORDER_1}&limit={LIMIT}&descriptors_only=false'
-    headers = {'Accept': 'application/json', 'x-apikey': os.environ['VT_APIKEY']}
-    res = requests.get(url, headers=headers)
-    res.raise_for_status()
-
-    # Extract and print the total_hits field
-    print(f"Query is: " + DOMAIN)
-    print(color.darkcyan + f"Total hits: {res.json()['meta']['total_hits']}" + color.end)
-
-def domain_detect(query):
-    url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&order={ORDER_1}&limit={LIMIT}&descriptors_only=false'
-    headers = {'Accept': 'application/json', 'x-apikey': os.environ['VT_APIKEY']}
-    res = requests.get(url, headers=headers)
-    res.raise_for_status()
-
-    # Extract and print the total_hits field
-    print(f"Query is: " + DOMAIN_DETECT)
-    print(color.red + f"Total hits with detection: {res.json()['meta']['total_hits']}" + color.end)
-
-def ip(query):
-    url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&order={ORDER_1}&limit={LIMIT}&descriptors_only=false'
-    headers = {'Accept': 'application/json', 'x-apikey': os.environ['VT_APIKEY']}
-    res = requests.get(url, headers=headers)
-    res.raise_for_status()
-
-    # Extract and print the total_hits field
-    print(f"Query is: " + IP)
-    print(color.darkcyan + f"Total hits: {res.json()['meta']['total_hits']}" + color.end)
-
-def ip_detect(query):
-    url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&order={ORDER_1}&limit={LIMIT}&descriptors_only=false'
-    headers = {'Accept': 'application/json', 'x-apikey': os.environ['VT_APIKEY']}
-    res = requests.get(url, headers=headers)
-    res.raise_for_status()
-
-    # Extract and print the total_hits field
-    print(f"Query is: " + IP_DETECT)
-    print(color.red + f"Total hits with detection: {res.json()['meta']['total_hits']}" + color.end)
-"""
-## output section
-#print(DOMAIN, "\n" + DOMAIN_DETECT)
-
-print("\n##### Files #####")
-file(FILE)
-file_detect(FILE_DETECT)
-file_detect_global(FILE_DETECT_GLOBAL)
-#print("\n##### URLs #####")
-#url(URL)
-#url_detect(URL_DETECT)
-#print("\n##### Domains #####")
-#domain(DOMAIN)
-#domain_detect(DOMAIN_DETECT)
-#print("\n##### IPs #####\n")
-#ip(IP)
-#ip_detect(IP_DETECT)
-
+if __name__ == "__main__":
+    main()
