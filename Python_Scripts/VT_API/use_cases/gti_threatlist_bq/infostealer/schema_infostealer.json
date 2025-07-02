@@ -1,0 +1,56 @@
+[
+    { "name": "ioc_id", "type": "STRING", "mode": "NULLABLE" },
+    { "name": "ioc_type", "type": "STRING", "mode": "NULLABLE" },
+    { "name": "md5", "type": "STRING", "mode": "NULLABLE" },
+    { "name": "vhash", "type": "STRING", "mode": "NULLABLE" },
+    { "name": "meaningful_name", "type": "STRING", "mode": "NULLABLE" },
+    { "name": "names", "type": "STRING", "mode": "REPEATED" },
+    { "name": "type_tags", "type": "STRING", "mode": "REPEATED" },
+    { "name": "positives", "type": "INTEGER", "mode": "NULLABLE" },
+    { "name": "times_submitted", "type": "INTEGER", "mode": "NULLABLE" },
+    { "name": "creation_date", "type": "TIMESTAMP", "mode": "NULLABLE" },
+    { "name": "first_submission_date", "type": "TIMESTAMP", "mode": "NULLABLE" },
+    { "name": "last_submission_date", "type": "TIMESTAMP", "mode": "NULLABLE" },
+    { "name": "last_analysis_date", "type": "TIMESTAMP", "mode": "NULLABLE" },
+    { "name": "last_modification_date", "type": "TIMESTAMP", "mode": "NULLABLE" },
+    { "name": "last_analysis_stats_harmless", "type": "INTEGER", "mode": "NULLABLE" },
+    { "name": "last_analysis_stats_malicious", "type": "INTEGER", "mode": "NULLABLE" },
+    { "name": "last_analysis_stats_suspicious", "type": "INTEGER", "mode": "NULLABLE" },
+    { "name": "last_analysis_stats_undetected", "type": "INTEGER", "mode": "NULLABLE" },
+    { "name": "last_analysis_stats_timeout", "type": "INTEGER", "mode": "NULLABLE" },
+    { "name": "last_analysis_stats_typeUnsupported", "type": "INTEGER", "mode": "NULLABLE" },
+    { "name": "gti_assessment_severity", "type": "STRING", "mode": "NULLABLE" },
+    { "name": "gti_assessment_threat_score", "type": "INTEGER", "mode": "NULLABLE" },
+    { "name": "gti_assessment_verdict", "type": "STRING", "mode": "NULLABLE" },
+    {
+        "name": "relationships",
+        "type": "RECORD",
+        "mode": "NULLABLE",
+        "fields": [
+            {
+                "name": "malware_families",
+                "type": "RECORD",
+                "mode": "NULLABLE",
+                "fields": [
+                    {
+                        "name": "data",
+                        "type": "RECORD",
+                        "mode": "REPEATED",
+                        "fields": [
+                            { "name": "id", "type": "STRING", "mode": "NULLABLE" },
+                            { "name": "type", "type": "STRING", "mode": "NULLABLE" },
+                            {
+                                "name": "attributes",
+                                "type": "RECORD",
+                                "mode": "NULLABLE",
+                                "fields": [
+                                    { "name": "name", "type": "STRING", "mode": "NULLABLE" }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+]
