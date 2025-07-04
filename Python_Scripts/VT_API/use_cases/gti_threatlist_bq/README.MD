@@ -8,6 +8,7 @@ Workflow:
 3. The entire process is event-driven and designed for reliability and low operational overhead.
 
 Change logs are handled by github version control. I suck at writing good commit messages, and this forces me to build a good habit of commiting often. 
+
 ---
 
 ### Pipeline #1 - Malicious Network Infrastructure, URLS
