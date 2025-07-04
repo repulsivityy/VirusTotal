@@ -1,0 +1,212 @@
+[
+    { "name": "ioc_id", "type": "STRING", "mode": "NULLABLE", "description": "The domain name itself, used as the unique identifier." },
+    {
+        "name": "attributes",
+        "type": "RECORD",
+        "mode": "NULLABLE",
+        "fields": [
+            { "name": "reputation", "type": "INTEGER", "mode": "NULLABLE" },
+            { "name": "tld", "type": "STRING", "mode": "NULLABLE" },
+            { "name": "registrar", "type": "STRING", "mode": "NULLABLE" },
+            { "name": "jarm", "type": "STRING", "mode": "NULLABLE", "description": "JARM fingerprint of the domain's TLS configuration." },
+            { "name": "whois", "type": "STRING", "mode": "NULLABLE", "description": "The full raw WHOIS record as a string." },
+            { "name": "creation_date", "type": "TIMESTAMP", "mode": "NULLABLE" },
+            { "name": "expiration_date", "type": "TIMESTAMP", "mode": "NULLABLE" },
+            { "name": "last_modification_date", "type": "TIMESTAMP", "mode": "NULLABLE" },
+            { "name": "last_analysis_date", "type": "TIMESTAMP", "mode": "NULLABLE" },
+            { "name": "last_dns_records_date", "type": "TIMESTAMP", "mode": "NULLABLE" },
+            { "name": "last_https_certificate_date", "type": "TIMESTAMP", "mode": "NULLABLE" },
+            { "name": "tags", "type": "STRING", "mode": "REPEATED" },
+            { "name": "categories", "type": "JSON", "mode": "NULLABLE", "description": "JSON object of categories. Stored as JSON string due to potentially variable keys." },
+            { "name": "popularity_ranks", "type": "JSON", "mode": "NULLABLE", "description": "JSON object of popularity ranks from various sources. Stored as JSON string." },
+            { "name": "last_analysis_results", "type": "JSON", "mode": "NULLABLE", "description": "JSON object of all individual scanner results. Stored as JSON string." },
+            {
+                "name": "total_votes",
+                "type": "RECORD",
+                "mode": "NULLABLE",
+                "fields": [
+                    { "name": "harmless", "type": "INTEGER", "mode": "NULLABLE" },
+                    { "name": "malicious", "type": "INTEGER", "mode": "NULLABLE" }
+                ]
+            },
+            {
+                "name": "last_analysis_stats",
+                "type": "RECORD",
+                "mode": "NULLABLE",
+                "fields": [
+                    { "name": "harmless", "type": "INTEGER", "mode": "NULLABLE" },
+                    { "name": "malicious", "type": "INTEGER", "mode": "NULLABLE" },
+                    { "name": "suspicious", "type": "INTEGER", "mode": "NULLABLE" },
+                    { "name": "undetected", "type": "INTEGER", "mode": "NULLABLE" },
+                    { "name": "timeout", "type": "INTEGER", "mode": "NULLABLE" }
+                ]
+            },
+            {
+                "name": "gti_assessment",
+                "type": "RECORD",
+                "mode": "NULLABLE",
+                "fields": [
+                    { "name": "verdict", "type": "JSON", "mode": "NULLABLE" },
+                    { "name": "severity", "type": "JSON", "mode": "NULLABLE" },
+                    { "name": "threat_score", "type": "JSON", "mode": "NULLABLE" },
+                    { "name": "contributing_factors", "type": "JSON", "mode": "NULLABLE" },
+                    { "name": "description", "type": "STRING", "mode": "NULLABLE" }
+                ]
+            },
+            {
+                "name": "last_https_certificate",
+                "type": "RECORD",
+                "mode": "NULLABLE",
+                "fields": [
+                    { "name": "thumbprint_sha256", "type": "STRING", "mode": "NULLABLE" },
+                    { "name": "size", "type": "INTEGER", "mode": "NULLABLE" },
+                    { "name": "version", "type": "STRING", "mode": "NULLABLE" },
+                    { "name": "serial_number", "type": "STRING", "mode": "NULLABLE" },
+                    { "name": "cert_signature", "type": "JSON", "mode": "NULLABLE"},
+                    { "name": "validity", "type": "JSON", "mode": "NULLABLE"},
+                    { "name": "extensions", "type": "JSON", "mode": "NULLABLE"},
+                    { "name": "public_key", "type": "JSON", "mode": "NULLABLE"},
+                    { "name": "issuer", "type": "JSON", "mode": "NULLABLE"},
+                    { "name": "subject", "type": "JSON", "mode": "NULLABLE"}
+                ]
+            }
+        ]
+    },
+    {
+        "name": "relationships",
+        "type": "RECORD",
+        "mode": "NULLABLE",
+        "fields": [
+            {
+                "name": "resolutions",
+                "type": "RECORD",
+                "mode": "NULLABLE",
+                "fields": [
+                    {
+                        "name": "data",
+                        "type": "RECORD",
+                        "mode": "REPEATED",
+                        "fields": [
+                            { "name": "type", "type": "STRING", "mode": "NULLABLE" },
+                            { "name": "id", "type": "STRING", "mode": "NULLABLE" }
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "siblings",
+                "type": "RECORD",
+                "mode": "NULLABLE",
+                "fields": [
+                     {
+                        "name": "data",
+                        "type": "RECORD",
+                        "mode": "REPEATED",
+                        "fields": [
+                            { "name": "type", "type": "STRING", "mode": "NULLABLE" },
+                            { "name": "id", "type": "STRING", "mode": "NULLABLE" }
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "urls",
+                "type": "RECORD",
+                "mode": "NULLABLE",
+                "fields": [
+                     {
+                        "name": "data",
+                        "type": "RECORD",
+                        "mode": "REPEATED",
+                        "fields": [
+                            { "name": "type", "type": "STRING", "mode": "NULLABLE" },
+                            { "name": "id", "type": "STRING", "mode": "NULLABLE" },
+                            { "name": "context_attributes", "type": "JSON", "mode": "NULLABLE" }
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "referrer_files",
+                "type": "RECORD",
+                "mode": "NULLABLE",
+                "fields": [
+                     {
+                        "name": "data",
+                        "type": "RECORD",
+                        "mode": "REPEATED",
+                        "fields": [
+                            { "name": "type", "type": "STRING", "mode": "NULLABLE" },
+                            { "name": "id", "type": "STRING", "mode": "NULLABLE" }
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "downloaded_files",
+                "type": "RECORD",
+                "mode": "NULLABLE",
+                "fields": [
+                     {
+                        "name": "data",
+                        "type": "RECORD",
+                        "mode": "REPEATED",
+                        "fields": [
+                            { "name": "type", "type": "STRING", "mode": "NULLABLE" },
+                            { "name": "id", "type": "STRING", "mode": "NULLABLE" }
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "communicating_files",
+                "type": "RECORD",
+                "mode": "NULLABLE",
+                "fields": [
+                     {
+                        "name": "data",
+                        "type": "RECORD",
+                        "mode": "REPEATED",
+                        "fields": [
+                            { "name": "type", "type": "STRING", "mode": "NULLABLE" },
+                            { "name": "id", "type": "STRING", "mode": "NULLABLE" }
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "subdomains",
+                "type": "RECORD",
+                "mode": "NULLABLE",
+                "fields": [
+                     {
+                        "name": "data",
+                        "type": "RECORD",
+                        "mode": "REPEATED",
+                        "fields": [
+                            { "name": "type", "type": "STRING", "mode": "NULLABLE" },
+                            { "name": "id", "type": "STRING", "mode": "NULLABLE" }
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "associations",
+                "type": "RECORD",
+                "mode": "NULLABLE",
+                "fields": [
+                     {
+                        "name": "data",
+                        "type": "RECORD",
+                        "mode": "REPEATED",
+                        "fields": [
+                            { "name": "type", "type": "STRING", "mode": "NULLABLE" },
+                            { "name": "id", "type": "STRING", "mode": "NULLABLE" }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    { "name": "ingestion_timestamp", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp when the record was added to BigQuery." }
+]
