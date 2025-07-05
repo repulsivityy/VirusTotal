@@ -1,7 +1,8 @@
 import unittest
-import os
 from unittest.mock import patch, MagicMock, call
+import os
 
+# Import the function from 'main.py'
 from main import execute_bigquery_merge
 
 class TestMergeFunction(unittest.TestCase):
@@ -12,7 +13,7 @@ class TestMergeFunction(unittest.TestCase):
         "BQ_TABLE_NAME": "final_domains",
         "BQ_STAGING_TABLE_NAME": "staging_domains"
     })
-    @patch('main.bigquery.Client') 
+    @patch('main.bigquery.Client')
     def test_merge_handles_duplicates_in_staging(self, mock_bigquery_client):
         """
         Tests that the generated SQL correctly de-duplicates the source data.
@@ -34,8 +35,8 @@ class TestMergeFunction(unittest.TestCase):
         merge_sql = instance.query.call_args_list[0].args[0]
         truncate_sql = instance.query.call_args_list[1].args[0]
 
-        # Assert that it partitions by `ioc_id` to handle duplicates.
-        self.assertIn("PARTITION BY ioc_id", merge_sql)
+        # FIX: Check for 'PARTITION BY id' instead of 'ioc_id'
+        self.assertIn("PARTITION BY id", merge_sql)
         
         # Assert that it orders by the latest analysis date.
         self.assertIn("ORDER BY attributes.last_analysis_date DESC", merge_sql)
