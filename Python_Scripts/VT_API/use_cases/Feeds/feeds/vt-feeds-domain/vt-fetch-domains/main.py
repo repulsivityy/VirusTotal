@@ -1,3 +1,4 @@
+# Use this simpler, memory-efficient version for your fetch function's main.py
 import os
 import requests
 import bz2
@@ -11,19 +12,8 @@ def get_gti_api_key(project_id, secret_name):
     response = client.access_secret_version(request={"name": secret_version_name})
     return response.payload.data.decode("UTF-8")
 
-def gcs_upload(bucket_name, blob_name, data):
-    """Uploads bytes data to a GCS bucket."""
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
-    blob = bucket.blob(blob_name)
-    blob.upload_from_string(data, content_type="application/octet-stream")
-    print(f"File {blob_name} uploaded to {bucket_name}.")
-
 
 def fetch_and_stream_feed(request):
-    """
-    Fetches a 10-minute block of feeds with a 1-hour offset, in chronological order.
-    """
     try:
         project_id = os.environ.get("GCP_PROJECT")
         bucket_name = os.environ.get("BUCKET_NAME")
@@ -33,13 +23,12 @@ def fetch_and_stream_feed(request):
         print(f"Error getting config: {e}")
         return ("Internal Server Error", 500)
 
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
     base_time_utc = datetime.now(timezone.utc)
 
-    # Loop from 10 down to 1 to fetch oldest data first.
     for i in range(10, 0, -1):
-        
         target_time = base_time_utc - timedelta(hours=1) - timedelta(minutes=i)
-        
         feed_time = target_time.strftime('%Y%m%d%H%M')
         
         api_url = f"https://www.virustotal.com/api/v3/feeds/domains/{feed_time}"
@@ -53,18 +42,23 @@ def fetch_and_stream_feed(request):
             if initial_response.status_code == 302:
                 download_url = initial_response.headers.get('Location')
                 if not download_url:
-                    print(f"Warning: No Location header for {feed_time}, skipping.")
                     continue
 
-                file_response = requests.get(download_url)
-                file_response.raise_for_status()
-                decompressed_data = bz2.decompress(file_response.content)
-
                 blob_name = f"domain-feeds/{feed_time}.jsonl"
-                gcs_upload(bucket_name, blob_name, decompressed_data)
+                blob = bucket.blob(blob_name)
+
+                with requests.get(download_url, stream=True) as file_response:
+                    file_response.raise_for_status()
+                    decompressor = bz2.BZ2Decompressor()
+                    with blob.open("wb") as gcs_file:
+                        for chunk in file_response.iter_content(chunk_size=8192):
+                            decompressed_chunk = decompressor.decompress(chunk)
+                            gcs_file.write(decompressed_chunk)
+                
+                print(f"Successfully streamed {blob_name} to {bucket_name}.")
 
             else:
-                print(f"Warning: Expected 302 for {feed_time}, got {initial_response.status_code}. Skipping.")
+                 print(f"Warning: Expected 302 for {feed_time}, got {initial_response.status_code}. Skipping.")
 
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
@@ -76,6 +70,6 @@ def fetch_and_stream_feed(request):
             print(f"An error occurred for {feed_time}: {e}. Skipping this minute.")
             continue
         
-        time.sleep(1) 
+        time.sleep(1)
 
     return ("Batch fetch complete.", 200)
