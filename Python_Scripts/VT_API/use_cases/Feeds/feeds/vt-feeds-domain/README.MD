@@ -120,7 +120,7 @@ However, for domains, since running per hour jobs does timeout, we had to batch 
 
 With truncate, we basically clear everything from the 1110 fetch, and we'll lose ioc_2. 
 
-With some google-fu and gemini-fu, the solution is to dedup on the fly. using the most recent ioc based on last_analysed_date.
+With some google-fu and gemini-fu, the solution is to dedup on the fly using the most recent ioc based on last_analysed_date.
 
 ```bash
 MERGE `project.dataset.domains` T
