@@ -3,8 +3,8 @@ from pprint import pprint
 import urllib
 import requests
 
-QUERY = 'entity:ip gti_score:60+ p:10+ last_modification_date:1d+'
-LIMIT = '5' #Max is 300 results
+QUERY = 'entity:file type:apk p:10+ have:threat_actor'
+LIMIT = '2' #Max is 300 results per page
 
 def advanced_search(query):
   url = f'https://www.virustotal.com/api/v3/intelligence/search?query={urllib.parse.quote(query)}&limit={LIMIT}&descriptors_only=false'
