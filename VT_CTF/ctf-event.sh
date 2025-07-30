@@ -25,14 +25,15 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin 
 echo "####################"
 echo "Please choose which CTF to run. Enter only the number."
 echo "####################"
-echo "1 - Golden CTF"
-echo "2 - Dom's CTF"
+echo "1 - Golden GTI CTF"
+echo "2 - GUS CTF"
+echo "3 - Dom's CTF"
 #echo "VT CTF"
 read choice
 
 # Validate the input
-while [[ "$choice" != "1" && "$choice" != "2" ]]; do
-  echo "Invalid choice. Please enter 1 or 2."
+while [[ "$choice" != "1" && "$choice" != "2" && "$choice" != "3"]]; do
+  echo "Invalid choice. Please enter 1, 2 or 3."
   read choice
 done
 
@@ -43,7 +44,9 @@ echo "####################"
 wget https://raw.githubusercontent.com/repulsivityy/VirusTotal/main/VT_CTF/compose.yaml
 if [ "$choice" == "1" ]; then
   sudo docker compose --profile tarah up -d
-else
+elseif [ "$choice" == "2" ]; then
+  sudo docker compose --profile gus up -d
+else 
   sudo docker compose --profile dom up -d
 fi
 
