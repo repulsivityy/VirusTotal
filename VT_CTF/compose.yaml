@@ -6,8 +6,13 @@ services:
       - 8000:8000
     profiles: ["dom"]
   tarahctf:
-    image: tklew/gti:v2
+    image: tklew/gti:latest
     ports:
       - 8000:8000
     profiles: ["tarah"]
+  gus:
+    image: tklew/gus:latest
+    ports:
+      - 8000:8000
+    profiles: ["gus"]
     
