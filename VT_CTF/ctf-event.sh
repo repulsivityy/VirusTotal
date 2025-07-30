@@ -44,7 +44,7 @@ echo "####################"
 wget https://raw.githubusercontent.com/repulsivityy/VirusTotal/main/VT_CTF/compose.yaml
 if [ "$choice" == "1" ]; then
   sudo docker compose --profile tarah up -d
-elseif [ "$choice" == "2" ]; then
+elif ["$choice" == "2" ]; then
   sudo docker compose --profile gus up -d
 else 
   sudo docker compose --profile dom up -d
