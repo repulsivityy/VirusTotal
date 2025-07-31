@@ -1,9 +1,23 @@
+#####################################
+# Purpose: To automatically download 
+# Others: learning argparse, so using that. if planning to run automatically, remove the LIMITS and run it every hour. Sample code under "get_threatlist_auto.py"
+# Code is provided as best effort. Use at your own risk
+# VirusTotal/GTI // dominicchua@
+#
+# requirements:
+# - Google Threat Intelligence API Key
+# - GTI Standard / Enterprise / Enterprise + license
+#
+# Usage
+# get_threatlist.py -THREAT <available_lists> -LIMIT <# of results return>
+#####################################
+ 
 import os
 import requests
 import argparse
-import json # 1. Import the json module
+import json 
 
-# Note: Your hardcoded variables and input remain
+
 FILTER = input("Enter a filter to apply to the threat list (gti_score:60+): ").strip()
 TYPE = "ip_address"
 DEFAULT_LIMIT = 3
