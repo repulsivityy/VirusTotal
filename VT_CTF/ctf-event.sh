@@ -7,7 +7,7 @@ echo "####################"
 echo "Instaling Docker"
 echo "####################"
 # Add Docker's official GPG key:
-sudo apt-get install ca-certificates curl
+sudo apt-get install ca-certificates curl -y
 sudo install -m 0755 -d /etc/apt/keyrings
 sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
 sudo chmod a+r /etc/apt/keyrings/docker.asc
@@ -21,7 +21,7 @@ sudo apt-get update
 
 sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
 
-# Chose which CTF to run: 
+# Chose which CTF to run:
 echo "####################"
 echo "Please choose which CTF to run. Enter only the number."
 echo "####################"
@@ -46,7 +46,7 @@ if [ "$choice" == "1" ]; then
   sudo docker compose --profile tarah up -d
 elif ["$choice" == "2" ]; then
   sudo docker compose --profile gus up -d
-else 
+else
   sudo docker compose --profile dom up -d
 fi
 
