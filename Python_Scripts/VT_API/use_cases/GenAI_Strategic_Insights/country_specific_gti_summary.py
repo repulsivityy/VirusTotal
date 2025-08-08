@@ -16,10 +16,10 @@ from tqdm import tqdm
 import aiohttp
 import json
 import argparse
-import tempfile
-import aiofiles # a library for async file operations
 
-# --- Configuration and Initialization ---
+####################
+#  Configuration and Initialization 
+####################
 
 def parse_arguments():
     """
@@ -84,7 +84,9 @@ def load_env_vars():
     print("✅ Environment variables loaded successfully.")
     return gti_api_key, gemini_api_key
 
-# --- Data Fetching and Parsing ---
+####################
+#  Data Fetching and Parsing
+####################
 
 def parse_report_from_api(report_data):
     """
@@ -254,7 +256,10 @@ async def fetch_reports(session, gti_api_key, start_date='4d', end_date='0d', li
     print(f"✅ Fetched {len(collections)} reports.")
     return collections
 
-# Gemini AI Interaction
+####################
+#  Gemini System Prompt
+####################
+
 def get_system_instruction(output_country, output_language):
     """
     Creates the detailed system instruction prompt for the Gemini model.
@@ -355,13 +360,17 @@ def get_system_instruction(output_country, output_language):
     </PROMPT>
     """
 
+####################
+#  User Prompt Creation
+####################
+
 def get_user_prompt(collections, output_country, cve_details=None):
     """
     Creates the user-facing prompt that includes the fetched report data and optional CVE data.
     """
     today_str = datetime.date.today().strftime("%A, %B %d, %Y")
     
-    collections_subset = collections[:350]
+    collections_subset = collections[:300] # Limit to the first 300 reports to avoid exceeding token limits. Number can be adjusted based on testing.
     
     total_length = len(str(collections_subset))
     est_tokens = total_length / 4
