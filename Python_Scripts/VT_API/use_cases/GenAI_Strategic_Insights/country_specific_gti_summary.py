@@ -1,24 +1,61 @@
+
 """
-This script fetches threat intelligence reports from Google Threat Intel (GTI) via API, 
+This script fetches threat intelligence reports from Google Threat Intelligence (GTI) via API, 
 uses Google's Gemini AI model to generate a country-specific threat summary, 
 and prints the result to the console.
+
+It is a conversion of a Jupyter Notebook to a standalone Python script.
 """
 
 import os
+import re
 import asyncio
 import datetime
 from tqdm import tqdm
 import aiohttp
 import json
+import argparse
 
 # --- Configuration and Initialization ---
+
+def parse_arguments():
+    """
+    Parses command-line arguments for the script.
+    """
+    parser = argparse.ArgumentParser(
+        description="Generate a country-specific threat intelligence summary using GTI and Gemini."
+    )
+    parser.add_argument(
+        "-c", "--country",
+        type=str,
+        default="Singapore",
+        help="The country to focus the report on (e.g., 'Germany'). Default: Singapore."
+    )
+    parser.add_argument(
+        "-l", "--language",
+        type=str,
+        default="English",
+        help="The output language for the summary (e.g., 'German'). Default: English."
+    )
+    parser.add_argument(
+        "-d", "--days",
+        type=int,
+        default=4,
+        help="The number of days back to fetch reports from. Default: 4."
+    )
+    parser.add_argument(
+        "--enrich-cve",
+        action="store_true",
+        help="Enable this flag to fetch and include summaries for CVEs mentioned in the reports."
+    )
+    return parser.parse_args()
 
 def load_env_vars():
     """
     Loads environment variables directly from the OS.
     
     Environment Variables Required:
-        - GTI_APIKEY: Your VirusTotal (Google Threat Intelligence) API key.
+        - GTI_APIKEY: Your Google Threat Intelligence (Google Threat Intelligence) API key.
         - GEMINI_APIKEY: Your Google AI Studio API key for Gemini.
     
     Returns:
@@ -40,10 +77,10 @@ def load_env_vars():
 
 def parse_report_from_api(report_data):
     """
-    Parses a report dictionary from the VT API JSON response.
+    Parses a report dictionary from the GTI API JSON response.
     
     Args:
-        report_data (dict): A single report item from the 'data' array of the VT API response.
+        report_data (dict): A single report item from the 'data' array of the GTI API response.
 
     Returns:
         dict: A dictionary containing key attributes from the report.
@@ -51,7 +88,6 @@ def parse_report_from_api(report_data):
     attrs = report_data.get('attributes', {})
     creation_timestamp = attrs.get('creation_date')
     
-    # Convert timestamp to ISO 8601 format string if it exists
     creation_date_str = datetime.datetime.fromtimestamp(creation_timestamp).isoformat() if creation_timestamp else ''
 
     return {
@@ -67,38 +103,128 @@ def parse_report_from_api(report_data):
         'link': report_data.get('links', {}).get('self', '').replace('/api/v3/', '/')
     }
 
-async def fetch_reports(session, gti_api_key, start_date='2d', end_date='0d', limit=1000):
+def extract_cves_from_reports(collections):
     """
-    Fetches threat intelligence reports from the VirusTotal API based on a date range.
-
+    Extracts all unique CVE identifiers from the fetched reports.
+    
     Args:
-        session (aiohttp.ClientSession): The aiohttp session for making requests.
-        gti_api_key (str): The VirusTotal API key.
-        start_date (str): The start date for the report search (e.g., '4d' for 4 days ago).
-        end_date (str): The end date for the report search (e.g., '0d' for today).
-        limit (int): The maximum number of reports to fetch.
+        collections (list): A list of report dictionaries.
 
     Returns:
-        list: A list of dictionaries, where each dictionary is a parsed report.
+        set: A set of unique CVE strings found in the reports.
+    """
+    cve_pattern = re.compile(r'CVE-\d{4}-\d{4,7}', re.IGNORECASE)
+    all_text = json.dumps(collections)
+    found_cves = set(cve_pattern.findall(all_text))
+    
+    if found_cves:
+        print(f"✅ Found {len(found_cves)} unique CVEs to enrich.")
+    
+    return found_cves
+
+def parse_vulnerability_from_api(cve_id, vuln_data):
+    """
+    Parses the JSON response from the GTI vulnerabilities endpoint to extract detailed information.
+    
+    Args:
+        cve_id (str): The CVE identifier (e.g., 'CVE-2025-8610').
+        vuln_data (dict): The JSON data from the API response for a single vulnerability.
+
+    Returns:
+        dict: A dictionary containing the parsed CVE details for the AI prompt.
+    """
+    try:
+        attributes = vuln_data.get('data', {}).get('attributes', {})
+        cvss_data = attributes.get('cvss', {})
+        cwe_data = attributes.get('cwe', {})
+        cisa_kev_data = attributes.get('cisa_known_exploited', {})
+
+        # Check if the CVE is in CISA's KEV catalog
+        is_in_kev = "Yes" if cisa_kev_data and cisa_kev_data.get('added_date') else "No"
+
+        return {
+            "cve_id": cve_id.upper(),
+            "name": attributes.get('name', cve_id.upper()),
+            "risk_rating": attributes.get('risk_rating', 'N/A'),
+            "cwe_title": cwe_data.get('title', 'N/A'),
+            "cvss_v4_score": cvss_data.get('cvssv4_x', {}).get('score', 'N/A'),
+            "cisa_kev": is_in_kev,
+            # Provide raw data for the AI to determine the vendor
+            "description_for_vendor": attributes.get('description', ''),
+            "sources_for_vendor": attributes.get('sources', [])
+        }
+    except (KeyError, TypeError):
+        print(f"Could not parse data for {cve_id.upper()}. Response format might be different.")
+        return None
+
+async def fetch_vulnerability_details(session, gti_api_key, cves):
+    """
+    Fetches details for a list of CVEs from the Google Threat Intelligence vulnerabilities endpoint.
+    
+    Args:
+        session (aiohttp.ClientSession): The aiohttp session for making requests.
+        gti_api_key (str): The Google Threat Intelligence API key.
+        cves (set): A set of CVE IDs to fetch details for.
+
+    Returns:
+        list: A list of dictionaries, each containing details for a CVE.
+    """
+    headers = {'x-apikey': gti_api_key, 'x-tool': 'AI Content Generation'}
+    
+    async def fetch_single_cve(cve_id):
+        # The API endpoint uses the format: vulnerability--cve-xxxx-yyyyy
+        collection_id = f"vulnerability--{cve_id.lower()}"
+        url = f"https://www.virustotal.com/api/v3/collections/{collection_id}"
+        try:
+            async with session.get(url, headers=headers) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return parse_vulnerability_from_api(cve_id, data)
+                elif response.status == 404:
+                    print(f"ℹ️  CVE {cve_id.upper()} not found in Google Threat Intelligence.")
+                    return None
+                else:
+                    print(f"⚠️  Error fetching {cve_id.upper()}: Status {response.status}")
+                    return None
+        except Exception as e:
+            print(f"An error occurred fetching {cve_id.upper()}: {e}")
+            return None
+
+    tasks = [fetch_single_cve(cve) for cve in cves]
+    
+    results = []
+    for task in tqdm(asyncio.as_completed(tasks), total=len(tasks), desc="Fetching CVE Details"):
+        result = await task
+        if result:
+            results.append(result)
+
+    if results:
+         print(f"✅ Successfully enriched {len(results)} of {len(cves)} CVEs.")
+    else:
+        print("No CVE details could be fetched.")
+
+    return results
+
+async def fetch_reports(session, gti_api_key, start_date='4d', end_date='0d', limit=1000):
+    """
+    Fetches threat intelligence reports from the Google Threat Intelligence API based on a date range.
     """
     print(f"Fetching reports from {start_date} ago to {end_date} ago...")
     
     base_url = 'https://www.virustotal.com/api/v3/collections'
     headers = {'x-apikey': gti_api_key, 'x-tool': 'AI Content Generation'}
-    # Parameters are only used for the very first request
     params = {
         "filter": f"collection_type:report NOT origin:'Google Threat Intelligence' creation_date:{start_date}+ creation_date:{end_date}-",
         "order": "creation_date-",
-        "limit": 40  # Max limit per request is 40
+        "limit": 40
     }
 
     collections = []
     next_url = base_url
 
-    with tqdm(total=limit, desc="Fetching VT Reports") as pbar:
+    with tqdm(total=limit, desc="Fetching GTI Reports") as pbar:
         while next_url and len(collections) < limit:
             async with session.get(next_url, headers=headers, params=params) as response:
-                # Clear params after the first request as the `next_url` contains them
                 if params:
                     params = None
                 
@@ -108,12 +234,10 @@ async def fetch_reports(session, gti_api_key, start_date='2d', end_date='0d', li
                 fetched_data = data.get('data', [])
                 parsed_reports = [parse_report_from_api(item) for item in fetched_data]
                 
-                # Ensure we don't exceed the overall limit
                 num_to_add = min(len(parsed_reports), limit - len(collections))
                 collections.extend(parsed_reports[:num_to_add])
                 pbar.update(num_to_add)
 
-                # Check for the next page
                 next_url = data.get('links', {}).get('next') if len(collections) < limit else None
 
     print(f"✅ Fetched {len(collections)} reports.")
@@ -128,77 +252,122 @@ def get_system_instruction(output_country, output_language):
     return f"""
     <PROMPT>
         <ROLE>
-            You are a highly sophisticated AI simulating a skilled writer with the combined expertise of a **seasoned Threat Intelligence Analyst** and a **meticulous News Editor**. You have a keen ability to identify and summarize threat landscape developments with specific relevance to a particular country and communicate them clearly in the local language.
+            You are a highly sophisticated AI simulating a skilled writer with the combined expertise of a **seasoned Threat Intelligence Analyst** and a **meticulous News Editor**. You have a keen ability to identify and summarize threat landscape developments with specific relevance to a particular country and communicate them clearly in the local language. Your writing is authoritative, concise, accurate, and engaging.
         </ROLE>
+
         <TASK>
-            Generate a **compelling, concise, and engaging weekly threat intelligence newsletter** focused on the most important landscape developments relevant to the specified {output_country}. You must filter provided reports for relevance, select the top stories, summarize them accurately in {output_language}, and format the output precisely as defined.
+            Generate a **compelling, concise, and engaging weekly threat intelligence newsletter** focused on the most important landscape developments relevant to the specified {output_country}. You must filter provided reports for relevance, select the top stories, summarize them accurately in {output_language}, and format the output precisely as defined. If vulnerability data is provided, you must also include a CVE summary table at the end.
         </TASK>
+
+        <CONTEXT>
+            <!-- Context: Emphasizes the newsletter's value for a specific regional audience. -->
+            This newsletter serves as a key intelligence touchpoint for customers and security professionals operating in the {output_country}. It offers a curated, easy-to-digest summary of the most critical OSINT developments impacting their security posture. The goal is to provide actionable or contextually significant intelligence tailored to their specific region.
+        </CONTEXT>
+
+        <INPUT_FORMAT>
+            <!-- Input: Now includes country and language parameters. -->
+            1.  **`TARGET_COUNTRY`:** The specific country the newsletter should focus on (e.g., "Brazil," "Germany," "Japan").
+            2.  **`TARGET_LANGUAGE`:** The language for the final output (e.g., "Portuguese," "German," "Japanese").
+            3.  **`REPORT_OBJECTS`:** A list of intelligence report objects, primarily with `Origin` of 'Crowdsourced' or 'Partner', but may also include 'News Analysis' reports for perspective. Each object may contain fields such as:
+                *   `content`: Text of the report/summary.
+                *   `link`: URL to the source.
+                *   `report_id` (for any `origin:Google Threat Intelligence` reports).
+                *   `date`: Publication or update date.
+        </INPUT_FORMAT>
+
         <PROCESSING_INSTRUCTIONS>
-            1.  **Filter for Country Relevance:** Analyze all provided `REPORT_OBJECTS` and create a shortlist of reports with **direct relevance** to organizations, government entities, or individuals in {output_country}.
-            2.  **Select & Synthesize:** From your shortlist, select the **top 8-10 most significant stories**. Write a concise summary (2-4 sentences) for each. Ensure each summary includes an inline link to the source report.
-            3.  **Translate:** Ensure the entire final output is written fluently and accurately in {output_language}.
+           1.  **Read & Filter for Country Relevance:**
+            *   Analyze all provided `REPORT_OBJECTS`.
+            *   Create a shortlist of reports that have **direct relevance** to organizations, government entities, or individuals in {output_country}. This includes threats originating from, targeting, or having specific industry or geopolitical implications for that country.
+
+        2.  **Select & Synthesize for the Newsletter:**
+            *   From your country-relevant shortlist, select the **top 8-10 most significant stories**.
+            *   Prioritize stories involving: 1) Widely exploited vulnerabilities impacting the country, 2) Major intrusions against entities in the country, 3) Cyber attacks with real-world local consequences, or 4) Notable shifts in the regional threat landscape.
+            *   For each selected story, write a concise summary (2-4 sentences).
+            *   **GTI Perspective:** If any `origin:Google Threat Intelligence` 'News Analysis' reports are available on these topics, incorporate or reference that perspective to add value.
+            *   **Link Source:** Ensure each summary includes an inline link to the primary OSINT source report using its `link` field. Prioritize media sources based in the same region as the {output_country}.
+
+        3.  **Vulnerability Summary (If Applicable):** 
+            * If `VULNERABILITY_DETAILS` are provided, create a section at the end titled "Vulnerability Spotlight". In this section, generate a Markdown table summarizing the CVEs. The table should have columns for "CVE", "Name", "Vendor", "CVSSv4 Score", "Risk Rating", "CWE Title", and "CISA KEV". To determine the "Vendor", analyze the 'description_for_vendor' and 'sources_for_vendor' fields for each vulnerability.
+
+        4.  **Translate to Target Language:**
+            *   Ensure the entire final output, including all headings and summaries, is written fluently and accurately in {output_language}.
         </PROCESSING_INSTRUCTIONS>
+
         <OUTPUT_FORMAT>
-            Generate the briefing in Markdown, translating all static text (headings, greetings) into the **`TARGET_LANGUAGE`**.
+            <!-- Output Format: Simplified structure with a dynamic title. -->
+            Generate the briefing in Markdown, adhering strictly to the following structure and translating all static text (headings, greetings) into the **`TARGET_LANGUAGE`**.
+
             1.  **Date:** Start with the full date (e.g., `Tuesday, April 15, 2025`).
-            2.  **Title:** Add a bold title: `**Google Threat Intelligence Update for {output_country}**` (Translated).
-            3.  **Summary Paragraph:** Write a brief introductory paragraph highlighting the 1-2 most important developments.
-            4.  **Section:** Include one main section: `**Key Threat Landscape Developments**` (Translated).
-            5.  **List Items:** List the 8-10 summaries using Markdown bullet points (`* `). Start each item with a bold title/phrase. Embed a relevant Markdown link *within* the description text: `[Descriptive Text](URL)`.
+            2.  **Title:** Add a bold title on the next line: `**Google Threat Intelligence Update for {output_language}**` (Translated).
+            3.  **Greeting:** Add a simple, professional greeting (Translated).
+            4.  **Summary Paragraph:** Write a brief (2-4 sentence) introductory paragraph highlighting the 1-2 most important developments covered below, based *only* on selected items (Translated).
+            5.  **Section:** Include a single main section, for example: `**Key Threat Landscape Developments**` (Translated).
+            6.  **List Items:** Within the main section, list the 8-10 individual story summaries using Markdown bullet points (`* `).
+                *   Start each item with a bold title/phrase summarizing the story (Translated).
+                *   Provide a concise (2-4 sentences) description of the development, including its specific relevance to **`{output_country}`**.
+                *   Embed a relevant Markdown link *within* the description text: `[Descriptive Text](URL)`. Hyperlink 3-5 contextually relevant words. The URL should come from the OSINT report's `link` field.
+                *   If you reference a GTI perspective from a 'News Analysis' report, you may also include a link to it using its `report_id`.
+            7.  **Vulnerability Table (If Applicable):** Append the "Vulnerability Spotlight" section and table as described above.
         </OUTPUT_FORMAT>
+
+        <STYLE_GUIDELINES>
+        <!-- Style: Emphasizes country relevance and native-level fluency. -->
+            *   **Language & Tone:** The entire output must be in fluent, professional **`{output_country}`**. Maintain an authoritative, objective, and concise tone appropriate for security professionals in that country.
+            *   **Country Relevance:** **Every single item** included must clearly state or imply its relevance to the **`{output_country}`**. This is the primary value of the newsletter.
+            *   **Style:** Be direct, factual, and engaging.
+            *   **GTI Attribution:** Use appropriate phrasing (in the `{output_language}`) to attribute any perspectives from `origin:Google Threat Intelligence` analysis.
+        </STYLE_GUIDELINES>
+
         <CONSTRAINTS>
-            * All stories MUST be relevant to `{output_country}`.
-            * The final output MUST be entirely in `{output_language}`.
-            * The newsletter should contain **8-10** summaries.
-            * Use *only* inline Markdown links.
-            * Do not hallucinate; base all information on the provided reports.
+        <!-- Constraints: Updated to reflect the new structure and focus. -->
+            *   **Country Focus:** All selected stories MUST be relevant to `{output_country}`.
+            *   **Language:** The final output MUST be entirely in `{output_language}`.
+            *   **Item Count:** The newsletter should contain **8-10** story summaries.
+            *   **Section Structure:** The newsletter must NOT contain `From the Frontlines` or `In the News` sections. It should have one primary content section.
+            *   **Recency:** Prioritize information from the last 24-48 hours for a daily brief, or the last week for a weekly brief.
+            *   **Linking:** Use *only* inline Markdown links. Every item must have at least one functional link to a source.
+            *   **Accuracy:** Report facts accurately based on the provided inputs. Do not hallucinate.
+            *   **No Sub-bullets:** Do not use nested bullet points within a summary item.
         </CONSTRAINTS>
     </PROMPT>
     """
 
-def get_user_prompt(collections, output_country):
+def get_user_prompt(collections, output_country, cve_details=None):
     """
-    Creates the user-facing prompt that includes the fetched report data.
+    Creates the user-facing prompt that includes the fetched report data and optional CVE data.
     """
     today_str = datetime.date.today().strftime("%A, %B %d, %Y")
     
-    # *** FIX: Truncate the collections to a reasonable size to avoid API errors ***
-    # Let's take the most recent 100 reports as a sample
-    collections_subset = collections[:100]
+    collections_subset = collections[:1000]
     
     total_length = len(str(collections_subset))
     est_tokens = total_length / 4
     print(f"Truncated collection to {len(collections_subset)} reports.")
     print(f"Estimated tokens for Gemini prompt: {int(est_tokens)}")
 
-    return f"""
+    prompt = f"""
     Create a concise, engaging newsletter for cyber threat intelligence professionals protecting organizations and interests based in {output_country}.
     Use the following reports as source material.
     Begin each item in the newsletter summary (before the bold title) with a thematically appropriate emoji, following the bullet point. No duplicates; each item must have a unique emoji.
-    Use Bold text for the section headers.
+    Use Bold text for the section headers; do not use H2 headers.
     Select items with an eye to your {output_country} readership.
     Make sure you highlight concerns that would be relevant to {output_country} security professionals.
 
     Today's date is {today_str}
 
-    Input: {collections_subset}
-
-    Output:
+    REPORT_OBJECTS: {collections_subset}
     """
+
+    if cve_details:
+        prompt += f"\n\nVULNERABILITY_DETAILS: {cve_details}"
+
+    prompt += "\n\nOutput:"
+    return prompt
 
 async def generate_summary(session, api_key, model_name, system_instruction, user_prompt):
     """
     Generates the threat intelligence summary using the Gemini API directly.
-
-    Args:
-        session (aiohttp.ClientSession): The aiohttp session for making requests.
-        api_key (str): Your API key for the Gemini API.
-        model_name (str): The name of the Gemini model to use (e.g., 'gemini-1.5-pro-latest').
-        system_instruction (str): The system prompt defining the AI's role and task.
-        user_prompt (str): The user prompt containing the report data.
-
-    Returns:
-        str: The generated text summary from the AI model.
     """
     print("Generating summary with Gemini API...")
     
@@ -237,34 +406,37 @@ async def main():
     """
     The main function to run the threat intelligence summary generation process.
     """
-    # --- Parameters ---
-    output_country = "Korea"
-    output_language = "Korean" 
-    gemini_model_name = "gemini-2.5-flash-preview-05-20" # Use the specified flash model
-    # --- End Parameters ---
+    args = parse_arguments()
+    
+    output_country = args.country
+    output_language = args.language
+    start_date = f"{args.days}d"
+    #gemini_model_name = "gemini-2.5-flash-preview-05-20"
+    gemini_model_name = "gemini-2.5-pro"
 
     try:
         gti_api_key, gemini_api_key = load_env_vars()
         
-        # Use a single session for all API calls
         async with aiohttp.ClientSession() as session:
-            # 1. Fetch reports from VT API
-            collections = await fetch_reports(session, gti_api_key)
+            collections = await fetch_reports(session, gti_api_key, start_date=start_date)
             
             if not collections:
                 print("No reports found. Exiting.")
                 return
-                
-            # 2. Prepare prompts for Gemini
-            system_instruction = get_system_instruction(output_country, output_language)
-            user_prompt = get_user_prompt(collections, output_country)
             
-            # 3. Generate the summary via Gemini API
+            cve_details = None
+            if args.enrich_cve:
+                cves = extract_cves_from_reports(collections)
+                if cves:
+                    cve_details = await fetch_vulnerability_details(session, gti_api_key, cves)
+            
+            system_instruction = get_system_instruction(output_country, output_language)
+            user_prompt = get_user_prompt(collections, output_country, cve_details)
+            
             summary_text = await generate_summary(
                 session, gemini_api_key, gemini_model_name, system_instruction, user_prompt
             )
             
-            # 4. Print the final result
             print("\n" + "="*80)
             print(f"Threat Intelligence Summary for {output_country}")
             print("="*80 + "\n")
@@ -278,6 +450,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
-
-
