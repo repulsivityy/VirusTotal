@@ -15,6 +15,8 @@ from tqdm import tqdm
 import aiohttp
 import json
 import argparse
+import tempfile
+import aiofiles # a library for async file operations
 
 # --- Configuration and Initialization ---
 
@@ -44,8 +46,9 @@ def parse_arguments():
         help="The number of days back to fetch reports from. Default: 4."
     )
     parser.add_argument(
-        "--enrich-cve",
-        action="store_true",
+       "--enrich-cve",
+        action=argparse.BooleanOptionalAction,
+        default=True,
         help="Enable this flag to fetch and include summaries for CVEs mentioned in the reports."
     )
     return parser.parse_args()
@@ -284,15 +287,26 @@ def get_system_instruction(output_country, output_language):
             *   From your country-relevant shortlist, select the **top 8-10 most significant stories**.
             *   Prioritize stories involving: 1) Widely exploited vulnerabilities impacting the country, 2) Major intrusions against entities in the country, 3) Cyber attacks with real-world local consequences, or 4) Notable shifts in the regional threat landscape.
             *   For each selected story, write a concise summary (2-4 sentences).
+            *   **Include CVEs in Headlines:** If a story revolves around a specific vulnerability or vulnerabilities, ensure the CVE identifier (e.g., CVE-2024-12345) is mentioned prominently in the bold title or the first sentence of the summary. This is critical for the vulnerability enrichment step.
             *   **GTI Perspective:** If any `origin:Google Threat Intelligence` 'News Analysis' reports are available on these topics, incorporate or reference that perspective to add value.
             *   **Link Source:** Ensure each summary includes an inline link to the primary OSINT source report using its `link` field. Prioritize media sources based in the same region as the {output_country}.
 
         3.  **Vulnerability Summary (If Applicable):** 
-            * If `VULNERABILITY_DETAILS` are provided, create a section at the end titled "Vulnerability Spotlight". In this section, generate a Markdown table summarizing the CVEs. The table should have columns for "CVE", "Name", "Vendor", "CVSSv4 Score", "Risk Rating", "CWE Title", and "CISA KEV". To determine the "Vendor", analyze the 'description_for_vendor' and 'sources_for_vendor' fields for each vulnerability.
+            * If a `VULNERABILITY_DETAILS` object is provided, you must create a section at the end of the report titled "**Vulnerability Spotlight**" (translated to `{output_language}`).
+            * This section must contain a table that summarizes the key details for each CVE mentioned in the reports. The table should look similar to the example below.
+            * You are responsible for extracting the vendor from the `description_for_vendor` and `sources_for_vendor` fields and populating the rest of the table from the provided data.
 
         4.  **Translate to Target Language:**
             *   Ensure the entire final output, including all headings and summaries, is written fluently and accurately in {output_language}.
         </PROCESSING_INSTRUCTIONS>
+
+        <EXAMPLE>
+            **Vulnerability Spotlight**
+            | CVE | Name | Vendor | CVSSv4 Score | Risk Rating | CWE Title | CISA KEV |
+            |---|---|---|---|---|---|---|
+            | CVE-2024-4577 | PHP Remote Code Execution Vulnerability | PHP Group | 9.8 | Critical | CWE-22: Path Traversal | No |
+            | CVE-2024-8610 | Authentication Bypass in a WordPress Plugin | WordPress.org | 7.5 | High | CWE-287: Improper Authentication | No |
+        </EXAMPLE>
 
         <OUTPUT_FORMAT>
             <!-- Output Format: Simplified structure with a dynamic title. -->
@@ -308,12 +322,13 @@ def get_system_instruction(output_country, output_language):
                 *   Provide a concise (2-4 sentences) description of the development, including its specific relevance to **`{output_country}`**.
                 *   Embed a relevant Markdown link *within* the description text: `[Descriptive Text](URL)`. Hyperlink 3-5 contextually relevant words. The URL should come from the OSINT report's `link` field.
                 *   If you reference a GTI perspective from a 'News Analysis' report, you may also include a link to it using its `report_id`.
-            7.  **Vulnerability Table (If Applicable):** Append the "Vulnerability Spotlight" section and table as described above.
+            7.  **Vulnerabilities:** If any vulnerabilities are seen within the reports, add a section titled `**Vulnerability Spotlight**` (Translated). 
         </OUTPUT_FORMAT>
 
         <STYLE_GUIDELINES>
         <!-- Style: Emphasizes country relevance and native-level fluency. -->
             *   **Language & Tone:** The entire output must be in fluent, professional **`{output_country}`**. Maintain an authoritative, objective, and concise tone appropriate for security professionals in that country.
+            * **CVE Inclusion:** When a story is about a vulnerability, the corresponding CVE-ID must be present in the summary text to facilitate further analysis and linking.
             *   **Country Relevance:** **Every single item** included must clearly state or imply its relevance to the **`{output_country}`**. This is the primary value of the newsletter.
             *   **Style:** Be direct, factual, and engaging.
             *   **GTI Attribution:** Use appropriate phrasing (in the `{output_language}`) to attribute any perspectives from `origin:Google Threat Intelligence` analysis.
@@ -339,7 +354,7 @@ def get_user_prompt(collections, output_country, cve_details=None):
     """
     today_str = datetime.date.today().strftime("%A, %B %d, %Y")
     
-    collections_subset = collections[:1000]
+    collections_subset = collections[:250]
     
     total_length = len(str(collections_subset))
     est_tokens = total_length / 4
@@ -413,7 +428,7 @@ async def main():
     start_date = f"{args.days}d"
     #gemini_model_name = "gemini-2.5-flash-preview-05-20"
     gemini_model_name = "gemini-2.5-pro"
-
+    
     try:
         gti_api_key, gemini_api_key = load_env_vars()
         
