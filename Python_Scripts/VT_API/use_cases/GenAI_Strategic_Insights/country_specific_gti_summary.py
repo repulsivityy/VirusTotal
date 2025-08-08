@@ -5,6 +5,7 @@ uses Google's Gemini AI model to generate a country-specific threat summary,
 and prints the result to the console.
 
 It is a conversion of a Jupyter Notebook to a standalone Python script.
+Version: 1.1 
 """
 
 import os
@@ -42,7 +43,7 @@ def parse_arguments():
     parser.add_argument(
         "-d", "--days",
         type=int,
-        default=4,
+        default=5,
         help="The number of days back to fetch reports from. Default: 4."
     )
     parser.add_argument(
@@ -50,6 +51,13 @@ def parse_arguments():
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Enable this flag to fetch and include summaries for CVEs mentioned in the reports."
+    )
+    parser.add_argument(
+        "-m", "--model",
+        type=str,
+        default="gemini-2.5-flash",
+        choices=["gemini-2.5-flash", "gemini-2.5-pro"],
+        help="The Gemini model to use for the summary. Default: gemini-2.5-flash."
     )
     return parser.parse_args()
 
@@ -246,8 +254,7 @@ async def fetch_reports(session, gti_api_key, start_date='4d', end_date='0d', li
     print(f"✅ Fetched {len(collections)} reports.")
     return collections
 
-# --- AI Content Generation ---
-
+# Gemini AI Interaction
 def get_system_instruction(output_country, output_language):
     """
     Creates the detailed system instruction prompt for the Gemini model.
@@ -354,7 +361,7 @@ def get_user_prompt(collections, output_country, cve_details=None):
     """
     today_str = datetime.date.today().strftime("%A, %B %d, %Y")
     
-    collections_subset = collections[:250]
+    collections_subset = collections[:350]
     
     total_length = len(str(collections_subset))
     est_tokens = total_length / 4
@@ -415,7 +422,6 @@ async def generate_summary(session, api_key, model_name, system_instruction, use
             print(f"Full response: {result}")
             raise
 
-# --- Main Execution ---
 
 async def main():
     """
@@ -426,8 +432,7 @@ async def main():
     output_country = args.country
     output_language = args.language
     start_date = f"{args.days}d"
-    #gemini_model_name = "gemini-2.5-flash-preview-05-20"
-    gemini_model_name = "gemini-2.5-pro"
+    gemini_model_name = args.model
     
     try:
         gti_api_key, gemini_api_key = load_env_vars()
