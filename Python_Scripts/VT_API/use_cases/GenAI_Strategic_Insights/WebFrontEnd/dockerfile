@@ -1,26 +1,29 @@
 # Dockerfile
 
-# Start from a slim Python base image for a smaller final image size
+# 1. Start from an official Python base image
 FROM python:3.10-slim
 
-# Set the working directory inside the container
+# 2. Set the working directory inside the container
 WORKDIR /app
 
-# Copy the requirements file first to leverage Docker's layer caching
+# 3. Copy the requirements file first
 COPY requirements.txt .
 
-# Install the Python dependencies
+# 4. UPGRADE PIP within the container <<<< ADD THIS LINE
+RUN pip install --upgrade pip
+
+# 5. Now, install the Python dependencies from requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application code into the container
+# 6. Copy your application code into the container
 COPY app.py .
 COPY report_generator.py .
 
-# Expose the default port that Streamlit runs on
+# 7. Expose the port that Streamlit runs on
 EXPOSE 8501
 
-# Define the healthcheck to ensure the app is running
+# 8. Define the healthcheck to ensure the app is running
 HEALTHCHECK CMD streamlit hello
 
-# Define the command to run when the container starts
+# 9. Define the command to run when the container starts
 CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
