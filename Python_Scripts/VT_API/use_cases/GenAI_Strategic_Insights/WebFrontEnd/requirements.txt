@@ -1,0 +1,5 @@
+# requirements.txt
+streamlit
+google-generative-ai
+aiohttp
+tqdm
