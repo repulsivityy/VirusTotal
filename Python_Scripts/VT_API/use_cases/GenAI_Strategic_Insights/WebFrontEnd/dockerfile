@@ -1,0 +1,26 @@
+# Dockerfile
+
+# Start from a slim Python base image for a smaller final image size
+FROM python:3.10-slim
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy the requirements file first to leverage Docker's layer caching
+COPY requirements.txt .
+
+# Install the Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the application code into the container
+COPY app.py .
+COPY report_generator.py .
+
+# Expose the default port that Streamlit runs on
+EXPOSE 8501
+
+# Define the healthcheck to ensure the app is running
+HEALTHCHECK CMD streamlit hello
+
+# Define the command to run when the container starts
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
