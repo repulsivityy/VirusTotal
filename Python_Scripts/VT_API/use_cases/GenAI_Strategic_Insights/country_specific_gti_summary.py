@@ -1,11 +1,24 @@
-
 """
 This script fetches threat intelligence reports from Google Threat Intelligence (GTI) via API, 
 uses Google's Gemini AI model to generate a country-specific threat summary, 
 and prints the result to the console.
 
 It is a conversion of a Jupyter Notebook to a standalone Python script.
-Version: 1.1 
+
+Version: 2.0 (Updated to 2-stage pass for summary and CVE enrichment)
+
+Usage: python3 country_specific_gti_summary.py
+
+Arguments:
+    -c, --country: The country to focus the report on (default: Singapore).
+    -l, --language: The output language for the summary (default: English).
+    -d, --days: The number of days back to fetch reports from (default: 4).
+    --enrich-cve: Enable this flag to fetch and include summaries for CVEs mentioned in the reports (default: True).
+    -m, --model: The Gemini model to use for the summary (default: gemini-2.5-flash).
+
+Environment Variables Required:
+    - GTI_APIKEY: Your Google Threat Intelligence API key.
+    - GEMINI_APIKEY: Your Google AI Studio API key for Gemini.
 """
 
 import os
@@ -69,8 +82,6 @@ def load_env_vars():
         - GTI_APIKEY: Your Google Threat Intelligence (Google Threat Intelligence) API key.
         - GEMINI_APIKEY: Your Google AI Studio API key for Gemini.
     
-    Returns:
-        tuple: A tuple containing the GTI API key and the Gemini API key.
     """
     gti_api_key = os.getenv("GTI_APIKEY")
     gemini_api_key = os.getenv("GEMINI_APIKEY")
@@ -91,12 +102,6 @@ def load_env_vars():
 def parse_report_from_api(report_data):
     """
     Parses a report dictionary from the GTI API JSON response.
-    
-    Args:
-        report_data (dict): A single report item from the 'data' array of the GTI API response.
-
-    Returns:
-        dict: A dictionary containing key attributes from the report.
     """
     attrs = report_data.get('attributes', {})
     creation_timestamp = attrs.get('creation_date')
@@ -118,19 +123,20 @@ def parse_report_from_api(report_data):
 
 def extract_cves_from_reports(collections):
     """
-    Extracts all unique CVE identifiers from the fetched reports.
+    Extracts all unique CVE identifiers from the fetched reports or a block of text.
     
     Args:
-        collections (list): A list of report dictionaries.
+        collections (list or str): A list of report dictionaries or a string of text.
 
     Returns:
-        set: A set of unique CVE strings found in the reports.
+        set: A set of unique CVE strings found.
     """
     cve_pattern = re.compile(r'CVE-\d{4}-\d{4,7}', re.IGNORECASE)
-    all_text = json.dumps(collections)
-    found_cves = set(cve_pattern.findall(all_text))
+    # The input can now be a list of reports or a single string (the AI summary)
+    text_to_search = json.dumps(collections) if isinstance(collections, (list, dict)) else collections
+    found_cves = set(cve_pattern.findall(text_to_search))
     
-    if found_cves:
+    if found_cves and isinstance(collections, list):
         print(f"✅ Found {len(found_cves)} unique CVEs to enrich.")
     
     return found_cves
@@ -162,7 +168,6 @@ def parse_vulnerability_from_api(cve_id, vuln_data):
             "cwe_title": cwe_data.get('title', 'N/A'),
             "cvss_v4_score": cvss_data.get('cvssv4_x', {}).get('score', 'N/A'),
             "cisa_kev": is_in_kev,
-            # Provide raw data for the AI to determine the vendor
             "description_for_vendor": attributes.get('description', ''),
             "sources_for_vendor": attributes.get('sources', [])
         }
@@ -225,7 +230,7 @@ async def fetch_reports(session, gti_api_key, start_date='4d', end_date='0d', li
     print(f"Fetching reports from {start_date} ago to {end_date} ago...")
     
     base_url = 'https://www.virustotal.com/api/v3/collections'
-    headers = {'x-apikey': gti_api_key, 'x-tool': 'AI Content Generation'}
+    headers = {'x-apikey': gti_api_key, 'x-tool': 'AI Content Summarisation'}
     params = {
         "filter": f"collection_type:report NOT origin:'Google Threat Intelligence' creation_date:{start_date}+ creation_date:{end_date}-",
         "order": "creation_date-",
@@ -271,57 +276,41 @@ def get_system_instruction(output_country, output_language):
         </ROLE>
 
         <TASK>
-            Generate a **compelling, concise, and engaging weekly threat intelligence newsletter** focused on the most important landscape developments relevant to the specified {output_country}. You must filter provided reports for relevance, select the top stories, summarize them accurately in {output_language}, and format the output precisely as defined. If vulnerability data is provided, you must also include a CVE summary table at the end.
+            Generate a **compelling, concise, and engaging weekly threat intelligence newsletter** focused on the most important landscape developments relevant to the specified {output_country}. You must filter provided reports for relevance, select the top stories, and summarize them accurately in {output_language}. The output format must be followed precisely.
         </TASK>
 
         <CONTEXT>
-            <!-- Context: Emphasizes the newsletter's value for a specific regional audience. -->
             This newsletter serves as a key intelligence touchpoint for customers and security professionals operating in the {output_country}. It offers a curated, easy-to-digest summary of the most critical OSINT developments impacting their security posture. The goal is to provide actionable or contextually significant intelligence tailored to their specific region.
         </CONTEXT>
 
         <INPUT_FORMAT>
-            <!-- Input: Now includes country and language parameters. -->
             1.  **`TARGET_COUNTRY`:** The specific country the newsletter should focus on (e.g., "Brazil," "Germany," "Japan").
             2.  **`TARGET_LANGUAGE`:** The language for the final output (e.g., "Portuguese," "German," "Japanese").
             3.  **`REPORT_OBJECTS`:** A list of intelligence report objects, primarily with `Origin` of 'Crowdsourced' or 'Partner', but may also include 'News Analysis' reports for perspective. Each object may contain fields such as:
-                *   `content`: Text of the report/summary.
-                *   `link`: URL to the source.
-                *   `report_id` (for any `origin:Google Threat Intelligence` reports).
-                *   `date`: Publication or update date.
+                * `content`: Text of the report/summary.
+                * `link`: URL to the source.
+                * `report_id` (for any `origin:Google Threat Intelligence` reports).
+                * `date`: Publication or update date.
         </INPUT_FORMAT>
 
         <PROCESSING_INSTRUCTIONS>
            1.  **Read & Filter for Country Relevance:**
-            *   Analyze all provided `REPORT_OBJECTS`.
-            *   Create a shortlist of reports that have **direct relevance** to organizations, government entities, or individuals in {output_country}. This includes threats originating from, targeting, or having specific industry or geopolitical implications for that country.
+            * Analyze all provided `REPORT_OBJECTS`.
+            * Create a shortlist of reports that have **direct relevance** to organizations, government entities, or individuals in {output_country}. This includes threats originating from, targeting, or having specific industry or geopolitical implications for that country.
 
         2.  **Select & Synthesize for the Newsletter:**
-            *   From your country-relevant shortlist, select the **top 8-10 most significant stories**.
-            *   Prioritize stories involving: 1) Widely exploited vulnerabilities impacting the country, 2) Major intrusions against entities in the country, 3) Cyber attacks with real-world local consequences, or 4) Notable shifts in the regional threat landscape.
-            *   For each selected story, write a concise summary (2-4 sentences).
-            *   **Include CVEs in Headlines:** If a story revolves around a specific vulnerability or vulnerabilities, ensure the CVE identifier (e.g., CVE-2024-12345) is mentioned prominently in the bold title or the first sentence of the summary. This is critical for the vulnerability enrichment step.
-            *   **GTI Perspective:** If any `origin:Google Threat Intelligence` 'News Analysis' reports are available on these topics, incorporate or reference that perspective to add value.
-            *   **Link Source:** Ensure each summary includes an inline link to the primary OSINT source report using its `link` field. Prioritize media sources based in the same region as the {output_country}.
+            * From your country-relevant shortlist, select the **top 8-10 most significant stories**.
+            * Prioritize stories involving: 1) Widely exploited vulnerabilities impacting the country, 2) Major intrusions against entities in the country, 3) Cyber attacks with real-world local consequences, or 4) Notable shifts in the regional threat landscape.
+            * For each selected story, write a concise summary (2-4 sentences).
+            * **Include CVEs in Headlines:** If a story revolves around a specific vulnerability or vulnerabilities, ensure the CVE identifier (e.g., CVE-2024-12345) is mentioned prominently in the bold title or the first sentence of the summary. This is critical for the vulnerability enrichment step that happens *after* you generate the text.
+            * **GTI Perspective:** If any `origin:Google Threat Intelligence` 'News Analysis' reports are available on these topics, incorporate or reference that perspective to add value.
+            * **Link Source:** Ensure each summary includes an inline link to the primary OSINT source report using its `link` field. Prioritize media sources based in the same region as the {output_country}.
 
-        3.  **Vulnerability Summary (If Applicable):** 
-            * If a `VULNERABILITY_DETAILS` object is provided, you must create a section at the end of the report titled "**Vulnerability Spotlight**" (translated to `{output_language}`).
-            * This section must contain a table that summarizes the key details for each CVE mentioned in the reports. The table should look similar to the example below.
-            * You are responsible for extracting the vendor from the `description_for_vendor` and `sources_for_vendor` fields and populating the rest of the table from the provided data.
-
-        4.  **Translate to Target Language:**
-            *   Ensure the entire final output, including all headings and summaries, is written fluently and accurately in {output_language}.
+        3.  **Translate to Target Language:**
+            * Ensure the entire final output, including all headings and summaries, is written fluently and accurately in {output_language}.
         </PROCESSING_INSTRUCTIONS>
 
-        <EXAMPLE>
-            **Vulnerability Spotlight**
-            | CVE | Name | Vendor | CVSSv4 Score | Risk Rating | CWE Title | CISA KEV |
-            |---|---|---|---|---|---|---|
-            | CVE-2024-4577 | PHP Remote Code Execution Vulnerability | PHP Group | 9.8 | Critical | CWE-22: Path Traversal | No |
-            | CVE-2024-8610 | Authentication Bypass in a WordPress Plugin | WordPress.org | 7.5 | High | CWE-287: Improper Authentication | No |
-        </EXAMPLE>
-
         <OUTPUT_FORMAT>
-            <!-- Output Format: Simplified structure with a dynamic title. -->
             Generate the briefing in Markdown, adhering strictly to the following structure and translating all static text (headings, greetings) into the **`TARGET_LANGUAGE`**.
 
             1.  **Date:** Start with the full date (e.g., `Tuesday, April 15, 2025`).
@@ -330,32 +319,21 @@ def get_system_instruction(output_country, output_language):
             4.  **Summary Paragraph:** Write a brief (2-4 sentence) introductory paragraph highlighting the 1-2 most important developments covered below, based *only* on selected items (Translated).
             5.  **Section:** Include a single main section, for example: `**Key Threat Landscape Developments**` (Translated).
             6.  **List Items:** Within the main section, list the 8-10 individual story summaries using Markdown bullet points (`* `).
-                *   Start each item with a bold title/phrase summarizing the story (Translated).
-                *   Provide a concise (2-4 sentences) description of the development, including its specific relevance to **`{output_country}`**.
-                *   Embed a relevant Markdown link *within* the description text: `[Descriptive Text](URL)`. Hyperlink 3-5 contextually relevant words. The URL should come from the OSINT report's `link` field.
-                *   If you reference a GTI perspective from a 'News Analysis' report, you may also include a link to it using its `report_id`.
-            7.  **Vulnerabilities:** If any vulnerabilities are seen within the reports, add a section titled `**Vulnerability Spotlight**` (Translated). 
+                * Start each item with a bold title/phrase summarizing the story (Translated).
+                * Provide a concise (2-4 sentences) description of the development, including its specific relevance to **`{output_country}`**.
+                * Embed a relevant Markdown link *within* the description text: `[Descriptive Text](URL)`. Hyperlink 3-5 contextually relevant words. The URL should come from the OSINT report's `link` field.
+                * If you reference a GTI perspective from a 'News Analysis' report, you may also include a link to it using its `report_id`.
         </OUTPUT_FORMAT>
-
-        <STYLE_GUIDELINES>
-        <!-- Style: Emphasizes country relevance and native-level fluency. -->
-            *   **Language & Tone:** The entire output must be in fluent, professional **`{output_country}`**. Maintain an authoritative, objective, and concise tone appropriate for security professionals in that country.
-            * **CVE Inclusion:** When a story is about a vulnerability, the corresponding CVE-ID must be present in the summary text to facilitate further analysis and linking.
-            *   **Country Relevance:** **Every single item** included must clearly state or imply its relevance to the **`{output_country}`**. This is the primary value of the newsletter.
-            *   **Style:** Be direct, factual, and engaging.
-            *   **GTI Attribution:** Use appropriate phrasing (in the `{output_language}`) to attribute any perspectives from `origin:Google Threat Intelligence` analysis.
-        </STYLE_GUIDELINES>
-
+        
         <CONSTRAINTS>
-        <!-- Constraints: Updated to reflect the new structure and focus. -->
-            *   **Country Focus:** All selected stories MUST be relevant to `{output_country}`.
-            *   **Language:** The final output MUST be entirely in `{output_language}`.
-            *   **Item Count:** The newsletter should contain **8-10** story summaries.
-            *   **Section Structure:** The newsletter must NOT contain `From the Frontlines` or `In the News` sections. It should have one primary content section.
-            *   **Recency:** Prioritize information from the last 24-48 hours for a daily brief, or the last week for a weekly brief.
-            *   **Linking:** Use *only* inline Markdown links. Every item must have at least one functional link to a source.
-            *   **Accuracy:** Report facts accurately based on the provided inputs. Do not hallucinate.
-            *   **No Sub-bullets:** Do not use nested bullet points within a summary item.
+        * **Country Focus:** All selected stories MUST be relevant to `{output_country}`.
+            * **Language:** The final output MUST be entirely in `{output_language}`.
+            * **Item Count:** The newsletter should contain **8-10** story summaries.
+            * **No CVE Table:** Do NOT generate a "Vulnerability Spotlight" table. This will be added later by the program. Focus only on writing the narrative summary.
+            * **Recency:** Prioritize information from the last 24-48 hours for a daily brief, or the last week for a weekly brief.
+            * **Linking:** Use *only* inline Markdown links. Every item must have at least one functional link to a source.
+            * **Accuracy:** Report facts accurately based on the provided inputs. Do not hallucinate.
+            * **No Sub-bullets:** Do not use nested bullet points within a summary item.
         </CONSTRAINTS>
     </PROMPT>
     """
@@ -389,7 +367,7 @@ def get_user_prompt(collections, output_country, cve_details=None):
 
     REPORT_OBJECTS: {collections_subset}
     """
-
+    # cve_details not needed, but keeping this for potential future use
     if cve_details:
         prompt += f"\n\nVULNERABILITY_DETAILS: {cve_details}"
 
@@ -431,6 +409,46 @@ async def generate_summary(session, api_key, model_name, system_instruction, use
             print(f"Full response: {result}")
             raise
 
+####################
+#  CVE Table Generation
+####################
+
+def create_vulnerability_table(cve_details, output_language):
+    """
+    Creates a Markdown table from a list of enriched CVE details.
+    
+    Args:
+        cve_details (list): A list of dictionaries, each containing details for a CVE.
+        output_language (str): The target language for the section header.
+
+    Returns:
+        str: A Markdown-formatted string containing the vulnerability table.
+    """
+    # A more robust solution for translation could use a proper library.
+    # For now, we default to English.
+    title = "Vulnerability Spotlight"
+    # Example of simple translation
+    if output_language.lower() == 'german':
+        title = "Schwachstellen-Spotlight"
+
+    table_lines = [f"**{title}**"]
+    table_lines.append("| CVE | Name | Vendor | CVSSv4 Score | Risk Rating | CWE Title | CISA KEV |")
+    table_lines.append("|---|---|---|---|---|---|---|")
+    
+    for cve in cve_details:
+        vendor = "TBD"
+        row = (
+            f"| {cve.get('cve_id', 'N/A')} "
+            f"| {cve.get('name', 'N/A')} "
+            f"| {vendor} "
+            f"| {cve.get('cvss_v4_score', 'N/A')} "
+            f"| {cve.get('risk_rating', 'N/A')} "
+            f"| {cve.get('cwe_title', 'N/A')} "
+            f"| {cve.get('cisa_kev', 'N/A')} |"
+        )
+        table_lines.append(row)
+        
+    return "\n".join(table_lines)
 
 async def main():
     """
@@ -447,29 +465,49 @@ async def main():
         gti_api_key, gemini_api_key = load_env_vars()
         
         async with aiohttp.ClientSession() as session:
+            # === PASS 1: Generate Narrative Summary ===
             collections = await fetch_reports(session, gti_api_key, start_date=start_date)
             
             if not collections:
                 print("No reports found. Exiting.")
                 return
             
-            cve_details = None
-            if args.enrich_cve:
-                cves = extract_cves_from_reports(collections)
-                if cves:
-                    cve_details = await fetch_vulnerability_details(session, gti_api_key, cves)
-            
+            # Create prompts for the first pass (narrative only)
             system_instruction = get_system_instruction(output_country, output_language)
-            user_prompt = get_user_prompt(collections, output_country, cve_details)
+            user_prompt = get_user_prompt(collections, output_country, cve_details=None)
             
+            # Generate the base summary text
             summary_text = await generate_summary(
                 session, gemini_api_key, gemini_model_name, system_instruction, user_prompt
             )
             
+            # The final report starts with the AI-generated summary
+            final_report = summary_text
+
+            # === PASS 2: Extract, Enrich, and Append CVEs ===
+            if args.enrich_cve:
+                # Extract CVEs directly from the AI's generated text
+                cves_from_summary = extract_cves_from_reports(summary_text)
+                
+                if cves_from_summary:
+                    print(f"✅ Extracted {len(cves_from_summary)} CVEs from the summary for enrichment.")
+                    
+                    # Fetch details for only the relevant CVEs
+                    cve_details = await fetch_vulnerability_details(session, gti_api_key, cves_from_summary)
+                    
+                    if cve_details:
+                        # Programmatically create the Markdown table
+                        vulnerability_table = create_vulnerability_table(cve_details, output_language)
+                        # Append the table to the final report
+                        final_report += "\n\n" + vulnerability_table
+                else:
+                    print("ℹ️ No CVEs found in the generated summary to enrich.")
+
+            # --- Final Output ---
             print("\n" + "="*80)
             print(f"Threat Intelligence Summary for {output_country}")
             print("="*80 + "\n")
-            print(summary_text)
+            print(final_report)
 
     except aiohttp.ClientResponseError as e:
         print(f"API Error: {e.status} - {e.message}")
