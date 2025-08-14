@@ -242,4 +242,3 @@ async def generate_full_report(country, language, days, model, enrich_cve):
                 print("ℹ️ No CVEs found in the generated summary to enrich.")
     
     return final_report
-```
