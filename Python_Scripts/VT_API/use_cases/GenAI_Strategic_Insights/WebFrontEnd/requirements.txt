@@ -1,5 +1,5 @@
-# requirements.txt
 streamlit
-google-generative-ai
+google-generativeai
 aiohttp
 tqdm
+python-dotenv
