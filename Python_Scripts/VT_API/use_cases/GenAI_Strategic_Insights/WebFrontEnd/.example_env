@@ -1,5 +1,3 @@
-# .env
-# --- DO NOT SHARE THIS FILE OR COMMIT IT TO VERSION CONTROL ---
 
 # Your Google Threat Intelligence (VirusTotal) API Key
 GTI_APIKEY="YOUR_GTI_API_KEY_HERE"

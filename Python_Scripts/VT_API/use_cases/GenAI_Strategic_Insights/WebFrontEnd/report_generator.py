@@ -85,7 +85,7 @@ async def fetch_reports(session, gti_api_key, start_date='5d', limit=400):
     base_url = 'https://www.virustotal.com/api/v3/collections'
     headers = {'x-apikey': gti_api_key, 'x-tool': 'WebAppGTI'}
     params = {
-        "filter": f"collection_type:report creation_date:{start_date}+",
+        "filter": f"collection_type:report NOT origin:'Google Threat Intelligence' creation_date:{start_date}+",
         "order": "creation_date-", "limit": 40
     }
     collections, next_url = [], base_url
