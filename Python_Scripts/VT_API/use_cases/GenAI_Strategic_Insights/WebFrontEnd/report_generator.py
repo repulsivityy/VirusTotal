@@ -87,12 +87,13 @@ async def fetch_vulnerability_details(session, gti_api_key, cves):
     results = [result for result in await asyncio.gather(*tasks) if result]
     return results
 
-async def fetch_reports(session, gti_api_key, start_date='5d', limit=450):
+async def fetch_reports(session, gti_api_key, country, start_date='5d', limit=500):
     """Fetches intelligence reports from the GTI API."""
     base_url = 'https://www.virustotal.com/api/v3/collections'
     headers = {'x-apikey': gti_api_key, 'x-tool': 'WebAppGTI'}
+    # Updated filter to include the target_country
     params = {
-        "filter": f"collection_type:report NOT origin:'Google Threat Intelligence' creation_date:{start_date}+",
+        "filter": f"collection_type:report creation_date:{start_date}+ target_region:{country} NOT origin:'Google Threat Intelligence'",
         "order": "creation_date-", "limit": 40
     }
     collections, next_url = [], base_url
@@ -167,7 +168,7 @@ def get_user_prompt(collections, output_country):
     today_str = datetime.date.today().strftime("%A, %B %d, %Y")
     
     # Truncate the collections to avoid exceeding token limits
-    collections_subset = collections[:450]
+    collections_subset = collections[:500]
     
     return f"""
     Create a concise, engaging newsletter for cyber threat intelligence professionals protecting organizations and interests based in {output_country}.
@@ -227,7 +228,8 @@ async def generate_full_report(country, language, days, model, enrich_cve):
     start_date = f"{days}d"
     
     async with aiohttp.ClientSession() as session:
-        collections = await fetch_reports(session, gti_api_key, start_date=start_date)
+        # Pass the country variable to the fetch_reports function
+        collections = await fetch_reports(session, gti_api_key, country, start_date=start_date)
         if not collections:
             return "No reports found for the specified period."
 
@@ -249,3 +251,4 @@ async def generate_full_report(country, language, days, model, enrich_cve):
                 print("ℹ️ No CVEs found in the generated summary to enrich.")
     
     return final_report
+
