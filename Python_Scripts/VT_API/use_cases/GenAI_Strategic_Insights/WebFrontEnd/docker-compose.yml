@@ -1,0 +1,9 @@
+services:
+  gti-reporter:
+    build:
+      context: .
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    container_name: gti-reporter-app
