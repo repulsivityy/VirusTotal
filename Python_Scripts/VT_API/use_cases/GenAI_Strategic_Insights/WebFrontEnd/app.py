@@ -6,7 +6,7 @@ from report_generator import generate_full_report
 
 # --- Streamlit Page Configuration ---
 st.set_page_config(
-    page_title="GTI Threat Briefing",
+    page_title="GTI OSINT Country-Specific Threat Briefing",
     page_icon="🤖",
     layout="wide"
 )
@@ -19,8 +19,8 @@ with st.sidebar:
     st.header("⚙️ Report Configuration")
     
     country = st.text_input("Country", "Singapore", help="The country to focus the report on.")
-    language = st.selectbox("Language", ["English", "Traditional Chinese", "Chinese", "Thai", "Malay", "Korean" "Japanese"])
-    days = st.slider("Days of History", min_value=1, max_value=30, value=7, help="How many days back to fetch reports from.")
+    language = st.selectbox("Language", ["English", "Chinese", "Traditional Chinese", "Japanese", "Korean", "Malay", "Thai", "Vietnamese"])
+    days = st.slider("Days of History", min_value=1, max_value=14, value=7, help="How many days back to fetch reports from.")
     model = st.selectbox("Gemini Model", ["gemini-2.5-flash", "gemini-2.5-pro"])
     enrich_cve = st.toggle("Enrich CVEs?", value=True, help="If enabled, extracts CVEs from the summary and adds a details table.")
 

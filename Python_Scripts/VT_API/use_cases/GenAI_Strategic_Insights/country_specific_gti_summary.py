@@ -5,7 +5,7 @@ and prints the result to the console.
 
 It is a conversion of a Jupyter Notebook to a standalone Python script.
 
-Version: 2.0 (Updated to 2-stage pass for summary and CVE enrichment)
+Version: 2.1 (Updated the GUI link to use the report ID instead of the API self-link)
 
 Usage: python3 country_specific_gti_summary.py
 
@@ -107,9 +107,13 @@ def parse_report_from_api(report_data):
     creation_timestamp = attrs.get('creation_date')
     
     creation_date_str = datetime.datetime.fromtimestamp(creation_timestamp).isoformat() if creation_timestamp else ''
+    report_id = report_data.get('id', '')
+
+    # Construct the user-friendly GUI link instead of using the API self-link
+    gui_link = f"https://www.virustotal.com/gui/collection/{report_id}" if report_id else ""
 
     return {
-        'report_id': report_data.get('id', ''),
+        'report_id': report_id,
         'name': attrs.get('name', ''),
         'collection_type': attrs.get('collection_type', ''),
         'origin': attrs.get('origin', ''),
@@ -118,7 +122,7 @@ def parse_report_from_api(report_data):
         'executive_summary': attrs.get('executive_summary', ''),
         'content': attrs.get('content', ''),
         'report_type': attrs.get('report_type', ''),
-        'link': report_data.get('links', {}).get('self', '').replace('/api/v3/', '/')
+        'link': gui_link
     }
 
 def extract_cves_from_reports(collections):
@@ -348,7 +352,7 @@ def get_user_prompt(collections, output_country, cve_details=None):
     """
     today_str = datetime.date.today().strftime("%A, %B %d, %Y")
     
-    collections_subset = collections[:300] # Limit to the first 300 reports to avoid exceeding token limits. Number can be adjusted based on testing.
+    collections_subset = collections[:350] # Limit to the first 300 reports to avoid exceeding token limits. Number can be adjusted based on testing.
     
     total_length = len(str(collections_subset))
     est_tokens = total_length / 4
@@ -517,3 +521,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
