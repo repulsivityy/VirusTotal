@@ -1,3 +1,5 @@
+# report_generator.py
+
 import os
 import re
 import asyncio
@@ -31,10 +33,15 @@ def parse_report_from_api(report_data):
     attrs = report_data.get('attributes', {})
     creation_timestamp = attrs.get('creation_date')
     creation_date_str = datetime.datetime.fromtimestamp(creation_timestamp).isoformat() if creation_timestamp else ''
+    report_id = report_data.get('id', '')
+
+    # Construct the user-friendly GUI link instead of using the API self-link
+    gui_link = f"https://www.virustotal.com/gui/collection/{report_id}" if report_id else ""
+
     return {
-        'report_id': report_data.get('id', ''),
+        'report_id': report_id,
         'name': attrs.get('name', ''),
-        'link': report_data.get('links', {}).get('self', '').replace('/api/v3/', '/'),
+        'link': gui_link,
         'content': attrs.get('content', '')
     }
 
@@ -80,7 +87,7 @@ async def fetch_vulnerability_details(session, gti_api_key, cves):
     results = [result for result in await asyncio.gather(*tasks) if result]
     return results
 
-async def fetch_reports(session, gti_api_key, start_date='5d', limit=400):
+async def fetch_reports(session, gti_api_key, start_date='5d', limit=450):
     """Fetches intelligence reports from the GTI API."""
     base_url = 'https://www.virustotal.com/api/v3/collections'
     headers = {'x-apikey': gti_api_key, 'x-tool': 'WebAppGTI'}
@@ -160,7 +167,7 @@ def get_user_prompt(collections, output_country):
     today_str = datetime.date.today().strftime("%A, %B %d, %Y")
     
     # Truncate the collections to avoid exceeding token limits
-    collections_subset = collections[:400]
+    collections_subset = collections[:450]
     
     return f"""
     Create a concise, engaging newsletter for cyber threat intelligence professionals protecting organizations and interests based in {output_country}.
