@@ -9,9 +9,9 @@ import aiohttp
 import json
 from dotenv import load_dotenv
 
-# ==============================================================================
-#  Configuration and Initialization
-# ==============================================================================
+##################
+#  Configuration
+##################
 
 def load_env_vars():
     """Loads API keys from the .env file."""
@@ -24,18 +24,17 @@ def load_env_vars():
         
     return gti_api_key, gemini_api_key
 
-# ==============================================================================
+##################
 #  Helper Functions (from original script, largely unchanged)
-# ==============================================================================
+##################
 
 def parse_report_from_api(report_data):
-    """Parses a single report from the GTI API response."""
+    #Parses a single report from the GTI API response
     attrs = report_data.get('attributes', {})
     creation_timestamp = attrs.get('creation_date')
     creation_date_str = datetime.datetime.fromtimestamp(creation_timestamp).isoformat() if creation_timestamp else ''
     report_id = report_data.get('id', '')
 
-    # Construct the user-friendly GUI link instead of using the API self-link
     gui_link = f"https://www.virustotal.com/gui/collection/{report_id}" if report_id else ""
 
     return {
@@ -46,12 +45,12 @@ def parse_report_from_api(report_data):
     }
 
 def extract_cves_from_text(text):
-    """Extracts unique CVE identifiers from a block of text."""
+    #Extracts unique CVE identifiers the ai response
     cve_pattern = re.compile(r'CVE-\d{4}-\d{4,7}', re.IGNORECASE)
     return set(cve_pattern.findall(text))
 
 def parse_vulnerability_from_api(cve_id, vuln_data):
-    """Parses vulnerability details from the GTI API response."""
+    # parses vul from GTI
     try:
         attributes = vuln_data.get('data', {}).get('attributes', {})
         cvss_data = attributes.get('cvss', {})
@@ -215,9 +214,9 @@ def create_vulnerability_table(cve_details, output_language):
         table_lines.append(row)
     return "\n".join(table_lines)
 
-# ==============================================================================
+##################
 #  Main Callable Function
-# ==============================================================================
+##################
 
 async def generate_full_report(country, language, days, model, enrich_cve):
     """
