@@ -3,9 +3,13 @@ This script fetches threat intelligence reports from Google Threat Intelligence 
 uses Google's Gemini AI model to generate a country-specific threat summary, 
 and prints the result to the console.
 
+Code runs a dual pass method to generate a threat intelligence summary:
+1. Generate a narrative summary using Gemini AI.
+2. Extracts CVEs from the summary, fetch their details, and append a vulnerability table to the report.
+
 It is a conversion of a Jupyter Notebook to a standalone Python script.
 
-Version: 2.1 (Updated the GUI link to use the report ID instead of the API self-link)
+Version: 2.2 (Added country filter to the API query for more relevant results)
 
 Usage: python3 country_specific_gti_summary.py
 
@@ -14,7 +18,7 @@ Arguments:
     -l, --language: The output language for the summary (default: English).
     -d, --days: The number of days back to fetch reports from (default: 4).
     --enrich-cve: Enable this flag to fetch and include summaries for CVEs mentioned in the reports (default: True).
-    -m, --model: The Gemini model to use for the summary (default: gemini-2.5-flash).
+    -m, --model: The Gemini model to use for the summary (default: gemini-1.5-flash).
 
 Environment Variables Required:
     - GTI_APIKEY: Your Google Threat Intelligence API key.
@@ -35,9 +39,7 @@ import argparse
 ####################
 
 def parse_arguments():
-    """
-    Parses command-line arguments for the script.
-    """
+
     parser = argparse.ArgumentParser(
         description="Generate a country-specific threat intelligence summary using GTI and Gemini."
     )
@@ -68,21 +70,13 @@ def parse_arguments():
     parser.add_argument(
         "-m", "--model",
         type=str,
-        default="gemini-2.5-flash",
-        choices=["gemini-2.5-flash", "gemini-2.5-pro"],
-        help="The Gemini model to use for the summary. Default: gemini-2.5-flash."
+        default="gemini-1.5-flash",
+        choices=["gemini-1.5-flash", "gemini-1.5-pro"],
+        help="The Gemini model to use for the summary. Default: gemini-1.5-flash."
     )
     return parser.parse_args()
 
 def load_env_vars():
-    """
-    Loads environment variables directly from the OS.
-    
-    Environment Variables Required:
-        - GTI_APIKEY: Your Google Threat Intelligence (Google Threat Intelligence) API key.
-        - GEMINI_APIKEY: Your Google AI Studio API key for Gemini.
-    
-    """
     gti_api_key = os.getenv("GTI_APIKEY")
     gemini_api_key = os.getenv("GEMINI_APIKEY")
 
@@ -92,7 +86,7 @@ def load_env_vars():
             "Please set GTI_APIKEY and GEMINI_APIKEY in your environment."
         )
     
-    print("✅ Environment variables loaded successfully.")
+    print("Environment variables loaded successfully.")
     return gti_api_key, gemini_api_key
 
 ####################
@@ -100,16 +94,15 @@ def load_env_vars():
 ####################
 
 def parse_report_from_api(report_data):
-    """
-    Parses a report dictionary from the GTI API JSON response.
-    """
+    #Parses a report dictionary from the GTI API JSON response.
+    
     attrs = report_data.get('attributes', {})
     creation_timestamp = attrs.get('creation_date')
     
     creation_date_str = datetime.datetime.fromtimestamp(creation_timestamp).isoformat() if creation_timestamp else ''
     report_id = report_data.get('id', '')
 
-    # Construct the user-friendly GUI link instead of using the API self-link
+    # Construct the user-friendly GUI link instead of using the API self-link because the original linked to the API response
     gui_link = f"https://www.virustotal.com/gui/collection/{report_id}" if report_id else ""
 
     return {
@@ -146,16 +139,7 @@ def extract_cves_from_reports(collections):
     return found_cves
 
 def parse_vulnerability_from_api(cve_id, vuln_data):
-    """
-    Parses the JSON response from the GTI vulnerabilities endpoint to extract detailed information.
-    
-    Args:
-        cve_id (str): The CVE identifier (e.g., 'CVE-2025-8610').
-        vuln_data (dict): The JSON data from the API response for a single vulnerability.
-
-    Returns:
-        dict: A dictionary containing the parsed CVE details for the AI prompt.
-    """
+    # Extracts vul data from GTI 
     try:
         attributes = vuln_data.get('data', {}).get('attributes', {})
         cvss_data = attributes.get('cvss', {})
@@ -180,22 +164,13 @@ def parse_vulnerability_from_api(cve_id, vuln_data):
         return None
 
 async def fetch_vulnerability_details(session, gti_api_key, cves):
-    """
-    Fetches details for a list of CVEs from the Google Threat Intelligence vulnerabilities endpoint.
-    
-    Args:
-        session (aiohttp.ClientSession): The aiohttp session for making requests.
-        gti_api_key (str): The Google Threat Intelligence API key.
-        cves (set): A set of CVE IDs to fetch details for.
+    # Fetches details for a list of CVEs from GTI
 
-    Returns:
-        list: A list of dictionaries, each containing details for a CVE.
-    """
     headers = {'x-apikey': gti_api_key, 'x-tool': 'AI Content Generation'}
     
     async def fetch_single_cve(cve_id):
         # The API endpoint uses the format: vulnerability--cve-xxxx-yyyyy
-        collection_id = f"vulnerability--{cve_id.lower()}"
+        collection_id = f"vulnerability--{cve_id.lower()}" # to matech collection id format
         url = f"https://www.virustotal.com/api/v3/collections/{collection_id}"
         try:
             async with session.get(url, headers=headers) as response:
@@ -227,16 +202,14 @@ async def fetch_vulnerability_details(session, gti_api_key, cves):
 
     return results
 
-async def fetch_reports(session, gti_api_key, start_date='4d', end_date='0d', limit=1000):
-    """
-    Fetches threat intelligence reports from the Google Threat Intelligence API based on a date range.
-    """
-    print(f"Fetching reports from {start_date} ago to {end_date} ago...")
+async def fetch_reports(session, gti_api_key, country, start_date='4d', end_date='0d', limit=1000):
+
+    print(f"Fetching reports from {start_date} ago to {end_date} ago for {country}...")
     
     base_url = 'https://www.virustotal.com/api/v3/collections'
     headers = {'x-apikey': gti_api_key, 'x-tool': 'AI Content Summarisation'}
     params = {
-        "filter": f"collection_type:report NOT origin:'Google Threat Intelligence' creation_date:{start_date}+ creation_date:{end_date}-",
+        "filter": f"collection_type:report target_country:{country} NOT origin:'Google Threat Intelligence' creation_date:{start_date}+ creation_date:{end_date}-",
         "order": "creation_date-",
         "limit": 40
     }
@@ -270,9 +243,7 @@ async def fetch_reports(session, gti_api_key, start_date='4d', end_date='0d', li
 ####################
 
 def get_system_instruction(output_country, output_language):
-    """
-    Creates the detailed system instruction prompt for the Gemini model.
-    """
+
     return f"""
     <PROMPT>
         <ROLE>
@@ -360,7 +331,7 @@ def get_user_prompt(collections, output_country, cve_details=None):
     print(f"Estimated tokens for Gemini prompt: {int(est_tokens)}")
 
     prompt = f"""
-    Create a concise, engaging newsletter for cyber threat intelligence professionals protecting organizations and interests based in {output_country}.
+    Create a concise and engaging newsletter for cyber threat intelligence professionals protecting organizations and interests based in {output_country}.
     Use the following reports as source material.
     Begin each item in the newsletter summary (before the bold title) with a thematically appropriate emoji, following the bullet point. No duplicates; each item must have a unique emoji.
     Use Bold text for the section headers; do not use H2 headers.
@@ -371,7 +342,7 @@ def get_user_prompt(collections, output_country, cve_details=None):
 
     REPORT_OBJECTS: {collections_subset}
     """
-    # cve_details not needed, but keeping this for potential future use
+    # cve_details not needed, but keeping this for potential future use as I got lazy to remove it
     if cve_details:
         prompt += f"\n\nVULNERABILITY_DETAILS: {cve_details}"
 
@@ -379,9 +350,7 @@ def get_user_prompt(collections, output_country, cve_details=None):
     return prompt
 
 async def generate_summary(session, api_key, model_name, system_instruction, user_prompt):
-    """
-    Generates the threat intelligence summary using the Gemini API directly.
-    """
+    # Generates the threat intelligence summary using the Gemini API directly.
     print("Generating summary with Gemini API...")
     
     api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
@@ -418,23 +387,15 @@ async def generate_summary(session, api_key, model_name, system_instruction, use
 ####################
 
 def create_vulnerability_table(cve_details, output_language):
-    """
-    Creates a Markdown table from a list of enriched CVE details.
-    
-    Args:
-        cve_details (list): A list of dictionaries, each containing details for a CVE.
-        output_language (str): The target language for the section header.
-
-    Returns:
-        str: A Markdown-formatted string containing the vulnerability table.
-    """
-    # A more robust solution for translation could use a proper library.
+    # A more robust solution for translation could use a proper library, maybe google translate or similar lib? 
     # For now, we default to English.
     title = "Vulnerability Spotlight"
+
     # Example of simple translation
     if output_language.lower() == 'german':
         title = "Schwachstellen-Spotlight"
 
+    # table creates a Markdown table with CVE details
     table_lines = [f"**{title}**"]
     table_lines.append("| CVE | Name | Vendor | CVSSv4 Score | Risk Rating | CWE Title | CISA KEV |")
     table_lines.append("|---|---|---|---|---|---|---|")
@@ -455,9 +416,7 @@ def create_vulnerability_table(cve_details, output_language):
     return "\n".join(table_lines)
 
 async def main():
-    """
-    The main function to run the threat intelligence summary generation process.
-    """
+
     args = parse_arguments()
     
     output_country = args.country
@@ -465,12 +424,13 @@ async def main():
     start_date = f"{args.days}d"
     gemini_model_name = args.model
     
+
     try:
         gti_api_key, gemini_api_key = load_env_vars()
         
         async with aiohttp.ClientSession() as session:
-            # === PASS 1: Generate Narrative Summary ===
-            collections = await fetch_reports(session, gti_api_key, start_date=start_date)
+            ### PASS 1: Generate Narrative Summary ###
+            collections = await fetch_reports(session, gti_api_key, output_country, start_date=start_date)
             
             if not collections:
                 print("No reports found. Exiting.")
@@ -488,7 +448,7 @@ async def main():
             # The final report starts with the AI-generated summary
             final_report = summary_text
 
-            # === PASS 2: Extract, Enrich, and Append CVEs ===
+            ### PASS 2: Extract, Enrich, and Append CVEs ###
             if args.enrich_cve:
                 # Extract CVEs directly from the AI's generated text
                 cves_from_summary = extract_cves_from_reports(summary_text)
@@ -496,7 +456,7 @@ async def main():
                 if cves_from_summary:
                     print(f"✅ Extracted {len(cves_from_summary)} CVEs from the summary for enrichment.")
                     
-                    # Fetch details for only the relevant CVEs
+                    # Fetch details for relevant CVEs
                     cve_details = await fetch_vulnerability_details(session, gti_api_key, cves_from_summary)
                     
                     if cve_details:
@@ -507,7 +467,7 @@ async def main():
                 else:
                     print("ℹ️ No CVEs found in the generated summary to enrich.")
 
-            # --- Final Output ---
+            ### Final Output ###
             print("\n" + "="*80)
             print(f"Threat Intelligence Summary for {output_country}")
             print("="*80 + "\n")
