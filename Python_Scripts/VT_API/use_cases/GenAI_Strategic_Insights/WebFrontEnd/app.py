@@ -20,7 +20,15 @@ with st.sidebar:
     
     country = st.text_input("Country", "Singapore", help="The country to focus the report on.")
     language = st.selectbox("Language", ["English", "Chinese", "Traditional Chinese", "Japanese", "Korean", "Malay", "Thai", "Vietnamese"])
-    days = st.slider("Days of History", min_value=1, max_value=14, value=7, help="How many days back to fetch reports from.")
+    days = st.slider("Days of History", min_value=1, max_value=30, value=7, help="How many days back to fetch reports from.")
+    
+    # New dropdown for selecting the report source
+    source_option = st.selectbox(
+        "Report Source", 
+        ["Crowdsourced", "GTI", "Both"],
+        help="Filter reports by their origin. 'Crowdsourced' excludes GTI, 'GTI' is only GTI, 'Both' includes all sources."
+    )
+
     model = st.selectbox("Gemini Model", ["gemini-2.5-flash", "gemini-2.5-pro"])
     enrich_cve = st.toggle("Enrich CVEs?", value=True, help="If enabled, extracts CVEs from the summary and adds a details table.")
 
@@ -28,6 +36,9 @@ with st.sidebar:
 if st.button("Generate Report", type="primary", use_container_width=True):
     with st.spinner(f"🔍 Fetching reports and generating summary for **{country}**... This may take a moment."):
         try:
+            # Convert the user-friendly source option to the lowercase version for the API
+            source_for_api = source_option.lower()
+
             # Use asyncio.run() to execute our async function from the sync Streamlit environment
             final_report = asyncio.run(
                 generate_full_report(
@@ -35,7 +46,8 @@ if st.button("Generate Report", type="primary", use_container_width=True):
                     language=language,
                     days=days,
                     model=model,
-                    enrich_cve=enrich_cve
+                    enrich_cve=enrich_cve,
+                    source=source_for_api  # Pass the new source option
                 )
             )
             st.success("Report generated successfully!")
@@ -46,3 +58,4 @@ if st.button("Generate Report", type="primary", use_container_width=True):
             st.error("Please check your API keys in the .env file and ensure the services are reachable.")
 else:
     st.info("Configure the report parameters in the sidebar and click 'Generate Report'.")
+
