@@ -9,9 +9,9 @@ import aiohttp
 import json
 from dotenv import load_dotenv
 
-##################
-#  Configuration
-##################
+# ==============================================================================
+#  Configuration and Initialization
+# ==============================================================================
 
 def load_env_vars():
     """Loads API keys from the .env file."""
@@ -24,17 +24,18 @@ def load_env_vars():
         
     return gti_api_key, gemini_api_key
 
-##################
+# ==============================================================================
 #  Helper Functions (from original script, largely unchanged)
-##################
+# ==============================================================================
 
 def parse_report_from_api(report_data):
-    #Parses a single report from the GTI API response
+    """Parses a single report from the GTI API response."""
     attrs = report_data.get('attributes', {})
     creation_timestamp = attrs.get('creation_date')
     creation_date_str = datetime.datetime.fromtimestamp(creation_timestamp).isoformat() if creation_timestamp else ''
     report_id = report_data.get('id', '')
 
+    # Construct the user-friendly GUI link instead of using the API self-link
     gui_link = f"https://www.virustotal.com/gui/collection/{report_id}" if report_id else ""
 
     return {
@@ -45,12 +46,12 @@ def parse_report_from_api(report_data):
     }
 
 def extract_cves_from_text(text):
-    #Extracts unique CVE identifiers the ai response
+    """Extracts unique CVE identifiers from a block of text."""
     cve_pattern = re.compile(r'CVE-\d{4}-\d{4,7}', re.IGNORECASE)
     return set(cve_pattern.findall(text))
 
 def parse_vulnerability_from_api(cve_id, vuln_data):
-    # parses vul from GTI
+    """Parses vulnerability details from the GTI API response."""
     try:
         attributes = vuln_data.get('data', {}).get('attributes', {})
         cvss_data = attributes.get('cvss', {})
@@ -86,13 +87,26 @@ async def fetch_vulnerability_details(session, gti_api_key, cves):
     results = [result for result in await asyncio.gather(*tasks) if result]
     return results
 
-async def fetch_reports(session, gti_api_key, country, start_date='5d', limit=500):
+async def fetch_reports(session, gti_api_key, country, source, start_date='5d', limit=450):
     """Fetches intelligence reports from the GTI API."""
+    print(f"Fetching reports for {country} (Source: {source})...")
     base_url = 'https://www.virustotal.com/api/v3/collections'
     headers = {'x-apikey': gti_api_key, 'x-tool': 'WebAppGTI'}
-    # Updated filter to include the target_country
+
+    # Dynamically build the filter string based on the source selection
+    base_filter = f"collection_type:report target_country:{country} creation_date:{start_date}+"
+    
+    origin_filter = ""
+    if source == "crowdsource":
+        origin_filter = " NOT origin:'Google Threat Intelligence'"
+    elif source == "gti":
+        origin_filter = " origin:'Google Threat Intelligence'"
+    # If source is 'both', the origin_filter remains empty.
+
+    full_filter = base_filter + origin_filter
+
     params = {
-        "filter": f"collection_type:report creation_date:{start_date}+ target_region:{country} NOT origin:'Google Threat Intelligence'",
+        "filter": full_filter,
         "order": "creation_date-", "limit": 40
     }
     collections, next_url = [], base_url
@@ -107,6 +121,8 @@ async def fetch_reports(session, gti_api_key, country, start_date='5d', limit=50
             parsed = [parse_report_from_api(item) for item in fetched_data]
             collections.extend(parsed[:min(len(parsed), limit - len(collections))])
             next_url = data.get('links', {}).get('next') if len(collections) < limit else None
+    
+    print(f"✅ Fetched {len(collections)} reports.")
     return collections
 
 def get_system_instruction(output_country, output_language):
@@ -167,7 +183,7 @@ def get_user_prompt(collections, output_country):
     today_str = datetime.date.today().strftime("%A, %B %d, %Y")
     
     # Truncate the collections to avoid exceeding token limits
-    collections_subset = collections[:500]
+    collections_subset = collections[:450]
     
     return f"""
     Create a concise, engaging newsletter for cyber threat intelligence professionals protecting organizations and interests based in {output_country}.
@@ -214,11 +230,11 @@ def create_vulnerability_table(cve_details, output_language):
         table_lines.append(row)
     return "\n".join(table_lines)
 
-##################
+# ==============================================================================
 #  Main Callable Function
-##################
+# ==============================================================================
 
-async def generate_full_report(country, language, days, model, enrich_cve):
+async def generate_full_report(country, language, days, model, enrich_cve, source):
     """
     Main logic to generate the full threat intelligence report.
     This function is called by the Streamlit front-end.
@@ -227,8 +243,7 @@ async def generate_full_report(country, language, days, model, enrich_cve):
     start_date = f"{days}d"
     
     async with aiohttp.ClientSession() as session:
-        # Pass the country variable to the fetch_reports function
-        collections = await fetch_reports(session, gti_api_key, country, start_date=start_date)
+        collections = await fetch_reports(session, gti_api_key, country, source, start_date=start_date)
         if not collections:
             return "No reports found for the specified period."
 

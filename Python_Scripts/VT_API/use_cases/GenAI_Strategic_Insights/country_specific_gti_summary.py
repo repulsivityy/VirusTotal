@@ -9,7 +9,7 @@ Code runs a dual pass method to generate a threat intelligence summary:
 
 It is a conversion of a Jupyter Notebook to a standalone Python script.
 
-Version: 2.2 (Added country filter to the API query for more relevant results)
+Version: 2.3 (Added selectable report source: crowdsource, gti, or both)
 
 Usage: python3 country_specific_gti_summary.py
 
@@ -17,8 +17,9 @@ Arguments:
     -c, --country: The country to focus the report on (default: Singapore).
     -l, --language: The output language for the summary (default: English).
     -d, --days: The number of days back to fetch reports from (default: 4).
+    -s, --source: The source of reports: 'crowdsource' (non-GTI), 'gti', or 'both' (default: crowdsource).
     --enrich-cve: Enable this flag to fetch and include summaries for CVEs mentioned in the reports (default: True).
-    -m, --model: The Gemini model to use for the summary (default: gemini-1.5-flash).
+    -m, --model: The Gemini model to use for the summary (default: gemini-2.5-flash).
 
 Environment Variables Required:
     - GTI_APIKEY: Your Google Threat Intelligence API key.
@@ -59,7 +60,14 @@ def parse_arguments():
         "-d", "--days",
         type=int,
         default=5,
-        help="The number of days back to fetch reports from. Default: 4."
+        help="The number of days back to fetch reports from. Default: 5."
+    )
+    parser.add_argument(
+        "-s", "--source",
+        type=str,
+        default="crowdsource",
+        choices=["crowdsource", "gti", "both"],
+        help="The source of the reports. 'crowdsource' for non-GTI, 'gti' for only GTI, 'both' for all. Default: crowdsource."
     )
     parser.add_argument(
        "--enrich-cve",
@@ -70,8 +78,8 @@ def parse_arguments():
     parser.add_argument(
         "-m", "--model",
         type=str,
-        default="gemini-1.5-flash",
-        choices=["gemini-1.5-flash", "gemini-1.5-pro"],
+        default="gemini-2.5-flash",
+        choices=["gemini-2.5-flash", "gemini-2.5-pro"],
         help="The Gemini model to use for the summary. Default: gemini-1.5-flash."
     )
     return parser.parse_args()
@@ -202,14 +210,27 @@ async def fetch_vulnerability_details(session, gti_api_key, cves):
 
     return results
 
-async def fetch_reports(session, gti_api_key, country, start_date='4d', end_date='0d', limit=1000):
+async def fetch_reports(session, gti_api_key, country, source, start_date='4d', end_date='0d', limit=1000):
 
-    print(f"Fetching reports from {start_date} ago to {end_date} ago for {country}...")
+    print(f"Fetching reports from {start_date} ago to {end_date} ago for {country} (Source: {source})...")
     
     base_url = 'https://www.virustotal.com/api/v3/collections'
     headers = {'x-apikey': gti_api_key, 'x-tool': 'AI Content Summarisation'}
+
+    # Dynamically build the filter string based on the source
+    base_filter = f"collection_type:report target_country:{country} creation_date:{start_date}+ creation_date:{end_date}-"
+    
+    origin_filter = ""
+    if source == "crowdsource":
+        origin_filter = " NOT origin:'Google Threat Intelligence'"
+    elif source == "gti":
+        origin_filter = " origin:'Google Threat Intelligence'"
+    # If source is 'both', the origin_filter remains empty, so no origin filter is applied.
+
+    full_filter = base_filter + origin_filter
+    
     params = {
-        "filter": f"collection_type:report target_country:{country} NOT origin:'Google Threat Intelligence' creation_date:{start_date}+ creation_date:{end_date}-",
+        "filter": full_filter,
         "order": "creation_date-",
         "limit": 40
     }
@@ -423,6 +444,7 @@ async def main():
     output_language = args.language
     start_date = f"{args.days}d"
     gemini_model_name = args.model
+    source_option = args.source
     
 
     try:
@@ -430,7 +452,7 @@ async def main():
         
         async with aiohttp.ClientSession() as session:
             ### PASS 1: Generate Narrative Summary ###
-            collections = await fetch_reports(session, gti_api_key, output_country, start_date=start_date)
+            collections = await fetch_reports(session, gti_api_key, output_country, source_option, start_date=start_date)
             
             if not collections:
                 print("No reports found. Exiting.")
