@@ -27,13 +27,13 @@ echo "Please choose which CTF to run. Enter only the number."
 echo "####################"
 echo "1 - Golden GTI CTF"
 echo "2 - GUS CTF"
-echo "3 - Dom's CTF"
-#echo "VT CTF"
+echo "3 - Dom's GTI CTF"
+echo "4 - VT CTF"
 read choice
 
 # Validate the input
-while [[ "$choice" != "1" && "$choice" != "2" && "$choice" != "3"]]; do
-  echo "Invalid choice. Please enter 1, 2 or 3."
+while [[ "$choice" != "1" && "$choice" != "2" && "$choice" != "3" && "$choice" != "4" ]]; do
+  echo "Invalid choice. Please enter 1, 2, 3, or 4."
   read choice
 done
 
@@ -46,8 +46,10 @@ if [ "$choice" == "1" ]; then
   sudo docker compose --profile tarah up -d
 elif ["$choice" == "2" ]; then
   sudo docker compose --profile gus up -d
-else
-  sudo docker compose --profile dom up -d
+elif ["$choice" == "3" ]; then
+  sudo docker compose --profile domgti up -d
+else 
+  sudo docker compose --profile vt up -d
 fi
 
 echo "####################"
