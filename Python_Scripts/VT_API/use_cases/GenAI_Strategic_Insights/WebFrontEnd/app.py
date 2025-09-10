@@ -20,7 +20,7 @@ with st.sidebar:
     
     country = st.text_input("Country", "Singapore", help="The country to focus the report on.")
     language = st.selectbox("Language", ["English", "Chinese", "Traditional Chinese", "Japanese", "Korean", "Malay", "Thai", "Vietnamese"])
-    days = st.slider("Days of History", min_value=1, max_value=14, value=7, help="How many days back to fetch reports from.")
+    days = st.slider("Days of History", min_value=1, max_value=30, value=7, help="How many days back to fetch reports from.")
     
     source_option = st.selectbox(
         "Report Source", 
