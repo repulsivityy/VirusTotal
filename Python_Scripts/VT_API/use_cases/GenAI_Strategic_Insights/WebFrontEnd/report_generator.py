@@ -13,14 +13,19 @@ from dotenv import load_dotenv
 #  Configuration and Initialization
 # ==============================================================================
 
-def load_env_vars():
-    """Loads API keys from the .env file."""
+def load_env_vars(gti_key_ui=None, gemini_key_ui=None):
+    """
+    Loads API keys, prioritizing keys from the UI, then falling back to .env file.
+    """
     load_dotenv()
-    gti_api_key = os.getenv("GTI_APIKEY")
-    gemini_api_key = os.getenv("GEMINI_APIKEY")
     
-    if not all([gti_api_key, gemini_api_key]):
-        raise ValueError("API key missing. Please set GTI_APIKEY and GEMINI_APIKEY in your .env file.")
+    gti_api_key = gti_key_ui if gti_key_ui else os.getenv("GTI_APIKEY")
+    gemini_api_key = gemini_key_ui if gemini_key_ui else os.getenv("GEMINI_APIKEY")
+    
+    if not gti_api_key:
+        raise ValueError("GTI API Key is missing. Provide it in the UI or in the .env file.")
+    if not gemini_api_key:
+        raise ValueError("Gemini API Key is missing. Provide it in the UI or in the .env file.")
         
     return gti_api_key, gemini_api_key
 
@@ -234,12 +239,12 @@ def create_vulnerability_table(cve_details, output_language):
 #  Main Callable Function
 # ==============================================================================
 
-async def generate_full_report(country, language, days, model, enrich_cve, source):
+async def generate_full_report(country, language, days, model, enrich_cve, source, gti_api_key=None, gemini_api_key=None):
     """
     Main logic to generate the full threat intelligence report.
     This function is called by the Streamlit front-end.
     """
-    gti_api_key, gemini_api_key = load_env_vars()
+    gti_api_key, gemini_api_key = load_env_vars(gti_api_key, gemini_api_key)
     start_date = f"{days}d"
     
     async with aiohttp.ClientSession() as session:
