@@ -13,14 +13,19 @@ from dotenv import load_dotenv
 #  Configuration and Initialization
 # ==============================================================================
 
-def load_env_vars():
-    """Loads API keys from the .env file."""
+def load_env_vars(gti_key_ui=None, gemini_key_ui=None):
+    """
+    Loads API keys, prioritizing keys from the UI, then falling back to .env file.
+    """
     load_dotenv()
-    gti_api_key = os.getenv("GTI_APIKEY")
-    gemini_api_key = os.getenv("GEMINI_APIKEY")
     
-    if not all([gti_api_key, gemini_api_key]):
-        raise ValueError("API key missing. Please set GTI_APIKEY and GEMINI_APIKEY in your .env file.")
+    gti_api_key = gti_key_ui if gti_key_ui else os.getenv("GTI_APIKEY")
+    gemini_api_key = gemini_key_ui if gemini_key_ui else os.getenv("GEMINI_APIKEY")
+    
+    if not gti_api_key:
+        raise ValueError("GTI API Key is missing. Provide it in the UI or in the .env file.")
+    if not gemini_api_key:
+        raise ValueError("Gemini API Key is missing. Provide it in the UI or in the .env file.")
         
     return gti_api_key, gemini_api_key
 
@@ -134,46 +139,64 @@ def get_system_instruction(output_country, output_language):
         </ROLE>
 
         <TASK>
-            Generate a **compelling, concise, and engaging weekly threat intelligence newsletter** focused on the most important landscape developments relevant to the specified {output_country}. You must filter provided reports for relevance, select the top stories, summarize them accurately in {output_language}, and format the output precisely as defined.
+            Generate a **compelling, concise, and engaging weekly threat intelligence newsletter** focused on the most important landscape developments relevant to the specified {output_country}. You must filter provided reports for relevance, select the top stories, and summarize them accurately in {output_language}. The output format must be followed precisely.
         </TASK>
 
         <CONTEXT>
-            This newsletter serves as a key intelligence touchpoint for customers and security professionals operating in the {output_country}. It offers a curated, easy-to-digest summary of the most critical OSINT developments impacting their security posture.
+            This newsletter serves as a key intelligence touchpoint for customers and security professionals operating in the {output_country}. It offers a curated, easy-to-digest summary of the most critical OSINT developments impacting their security posture. The goal is to provide actionable or contextually significant intelligence tailored to their specific region.
         </CONTEXT>
+
+        <INPUT_FORMAT>
+            1.  **`TARGET_COUNTRY`:** The specific country the newsletter should focus on (e.g., "Singapore," "Thailand," "Japan").
+            2.  **`TARGET_LANGUAGE`:** The language for the final output (e.g., "Portuguese," "German," "Japanese").
+            3.  **`REPORT_OBJECTS`:** A list of intelligence report objects, primarily with `Origin` of 'Crowdsourced' or 'Partner', but may also include 'News Analysis' reports for perspective. Each object may contain fields such as:
+                * `content`: Text of the report/summary.
+                * `link`: URL to the source.
+                * `report_id` (for any `origin:Google Threat Intelligence` reports).
+                * `date`: Publication or update date.
+        </INPUT_FORMAT>
 
         <PROCESSING_INSTRUCTIONS>
            1.  **Read & Filter for Country Relevance:**
-               - Analyze all provided `REPORT_OBJECTS`.
-               - Create a shortlist of reports that have **direct relevance** to organizations, government entities, or individuals in {output_country}.
+            * Analyze all provided `REPORT_OBJECTS`.
+            * Create a shortlist of reports that have **direct relevance** to organizations, government entities, or individuals in {output_country}. This includes threats originating from, targeting, or having specific industry or geopolitical implications for that country.
 
-           2.  **Select & Synthesize for the Newsletter:**
-               - From your country-relevant shortlist, select the **top 8-10 most significant stories**.
-               - Prioritize stories involving widely exploited vulnerabilities, major intrusions, or notable shifts in the regional threat landscape.
-               - For each selected story, write a concise summary (2-4 sentences).
-               - **Include CVEs in Headlines:** If a story revolves around a specific vulnerability, ensure the CVE identifier (e.g., CVE-2024-12345) is mentioned prominently in the bold title or the first sentence of the summary. This is critical for the enrichment step that happens later.
-               - **Link Source:** Ensure each summary includes an inline Markdown link to the primary OSINT source report using its `link` field.
+        2.  **Select & Synthesize for the Newsletter:**
+            * From your country-relevant shortlist, select the **top 8-10 most significant stories**.
+            * Prioritize stories involving: 1) Widely exploited vulnerabilities impacting the country, 2) Major intrusions against entities in the country, 3) Cyber attacks with real-world local consequences, or 4) Notable shifts in the regional threat landscape.
+            * For each selected story, write a concise summary (2-4 sentences).
+            * **Include CVEs in Headlines:** If a story revolves around a specific vulnerability or vulnerabilities, ensure the CVE identifier (e.g., CVE-2024-12345) is mentioned prominently in the bold title or the first sentence of the summary. This is critical for the vulnerability enrichment step that happens *after* you generate the text.
+            * **GTI Perspective:** If any `origin:Google Threat Intelligence` 'News Analysis' reports are available on these topics, incorporate or reference that perspective to add value.
+            * **Link Source:** Ensure each summary includes an inline link to the primary OSINT source report using its `link` field. Prioritize media sources based in the same region as the {output_country}.
 
-           3.  **Translate to Target Language:**
-               - Ensure the entire final output, including all headings and summaries, is written fluently and accurately in {output_language}.
+        3.  **Translate to Target Language:**
+            * Ensure the entire final output, including all headings and summaries, is written fluently and accurately in {output_language}.
         </PROCESSING_INSTRUCTIONS>
 
         <OUTPUT_FORMAT>
-            Generate the briefing in Markdown, adhering strictly to the following structure and translating all static text into the **`TARGET_LANGUAGE`**.
+            Generate the briefing in Markdown, adhering strictly to the following structure and translating all static text (headings, greetings) into the **`TARGET_LANGUAGE`**.
 
             1.  **Date:** Start with the full date (e.g., `Tuesday, April 15, 2025`).
-            2.  **Title:** Add a bold title: `**Google Threat Intelligence Update for {output_country}**` (Translated).
+            2.  **Title:** Add a bold title on the next line: `**Google Threat Intelligence Update for {output_language}**` (Translated).
             3.  **Greeting:** Add a simple, professional greeting (Translated).
-            4.  **Summary Paragraph:** Write a brief (2-4 sentence) introductory paragraph highlighting the most important developments.
-            5.  **Section:** Include a single main section: `**Key Threat Landscape Developments**` (Translated).
-            6.  **List Items:** List the 8-10 individual story summaries using Markdown bullet points (`* `). Each item must start with a bold title.
+            4.  **Summary Paragraph:** Write a brief (2-4 sentence) introductory paragraph highlighting the 1-2 most important developments covered below, based *only* on selected items (Translated).
+            5.  **Section:** Include a single main section, for example: `**Key Threat Landscape Developments**` (Translated).
+            6.  **List Items:** Within the main section, list the 8-10 individual story summaries using Markdown bullet points (`* `).
+                * Start each item with a bold title/phrase summarizing the story (Translated).
+                * Provide a concise (2-4 sentences) description of the development, including its specific relevance to **`{output_country}`**.
+                * Embed a relevant Markdown link *within* the description text: `[Descriptive Text](URL)`. Hyperlink 3-5 contextually relevant words. The URL should come from the OSINT report's `link` field.
+                * If you reference a GTI perspective from a 'News Analysis' report, you may also include a link to it using its `report_id`.
         </OUTPUT_FORMAT>
-
+        
         <CONSTRAINTS>
-            - All selected stories MUST be relevant to `{output_country}`.
-            - The final output MUST be entirely in `{output_language}`.
-            - **No CVE Table:** Do NOT generate a "Vulnerability Spotlight" table. This will be added later by the program. Focus only on writing the narrative summary.
-            - Use *only* inline Markdown links. Every item must have at least one link to a source.
-            - Do not hallucinate. Report facts accurately based on the provided inputs.
+        * **Country Focus:** All selected stories MUST be relevant to `{output_country}`.
+            * **Language:** The final output MUST be entirely in `{output_language}`.
+            * **Item Count:** The newsletter should contain **8-10** story summaries.
+            * **No CVE Table:** Do NOT generate a "Vulnerability Spotlight" table. This will be added later by the program. Focus only on writing the narrative summary.
+            * **Recency:** Prioritize information from the last 24-48 hours for a daily brief, or the last week for a weekly brief.
+            * **Linking:** Use *only* inline Markdown links. Every item must have at least one functional link to a source.
+            * **Accuracy:** Report facts accurately based on the provided inputs. Do not hallucinate.
+            * **No Sub-bullets:** Do not use nested bullet points within a summary item.
         </CONSTRAINTS>
     </PROMPT>
     """
@@ -234,12 +257,12 @@ def create_vulnerability_table(cve_details, output_language):
 #  Main Callable Function
 # ==============================================================================
 
-async def generate_full_report(country, language, days, model, enrich_cve, source):
+async def generate_full_report(country, language, days, model, enrich_cve, source, gti_api_key=None, gemini_api_key=None):
     """
     Main logic to generate the full threat intelligence report.
     This function is called by the Streamlit front-end.
     """
-    gti_api_key, gemini_api_key = load_env_vars()
+    gti_api_key, gemini_api_key = load_env_vars(gti_api_key, gemini_api_key)
     start_date = f"{days}d"
     
     async with aiohttp.ClientSession() as session:
