@@ -1,6 +1,6 @@
-# VirusTotal
+# VirusTotal / Google Threat Intelligence
 
-Repo for all VT related demos / testing / scripts / etc
+Repo for all VT / Google Threat Intel related demos / testing / scripts / etc
 
 Disclaimer: 
 
