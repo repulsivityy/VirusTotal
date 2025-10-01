@@ -240,6 +240,10 @@ Tell me about the log4j vulnerability. Include the CVE number, CVSS score, and a
 ```
 
 ```
+List all vulnerabilities related to Cisco that are more than CVSS score of 6 or more seen in the past 60 days
+```
+
+```
 Tell me about the cve-2025-31324 vulnerability. Include the CVE number, CVSS score, and a summary of the vulnerability. Explain in point form, who has been observed exploiting this vulnerability, why this vulnerability is critical, and the risk associated with it. 
   - Provide recommendations on what I need to do to remediate this vulnerability. 
   - Check if I have any open cases or alerts based on the file hashes in the report. 
