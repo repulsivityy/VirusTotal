@@ -19,7 +19,7 @@ import json
 
 
 FILTER = input("Enter a filter to apply to the threat list (gti_score:60+): ").strip()
-TYPE = "ip_address"
+TYPE = input("Enter the type of IOCs to filter by (file, url, domain, ip_address) or leave blank for all types: ").strip().lower()
 DEFAULT_LIMIT = 3
 X_TOOL = 'threat_list'
 AVAILABLE_LISTS = ["ransomware", "malicious-network-infrastructure", "malware", "threat-actor", "trending", "mobile", "osx", "linux", "iot", "cryptominer", "phishing", "first-stage-delivery-vectors", "vulnerability-weaponization", "infostealer"]
