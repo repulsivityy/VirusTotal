@@ -1231,40 +1231,36 @@ class ApiManager:
             list[Notification]: list of Notification objects
 
         """
-        # url = get_full_url(self.api_root, "get_notifications", timestamp=timestamp)
-        #
-        # params = {
-        #     "limit": MAX_NOTIFICATIONS_LIMIT,
-        #     "order": "date+",
-        #     "filter": f"date:{timestamp}+",
-        # }
-        #
-        # return self._paginate_results_by_next_page_link(
-        #     full_url=url,
-        #     limit=limit,
-        #     siemplify=siemplify,
-        #     parser_method="build_notification_objects",
-        #     existing_ids=existing_ids,
-        #     params=params,
-        # )
-        # [MODIFIED] - Updated to support ioc_stream endpoint
-        url = get_full_url(self.api_root, "get_notifications")
-        
-        types_filter = " OR ".join([f'entity_type:{ioc_type.strip()}' for ioc_type in ioc_types.split(',')])
-        
-        params = {
-            "limit": MAX_NOTIFICATIONS_LIMIT,
-            "filter": f"date:{timestamp}+ ({types_filter})",
-        }
+        # [MODIFIED] - Updated to support ioc_stream endpoint by iterating through IOC types
+        all_notifications = []
+        ioc_type_list = [ioc_type.strip() for ioc_type in ioc_types.split(',')]
 
-        return self._paginate_results_by_next_page_link(
-            full_url=url,
-            limit=limit,
-            siemplify=siemplify,
-            parser_method="build_notification_objects",
-            existing_ids=existing_ids,
-            params=params,
-        )
+        for ioc_type in ioc_type_list:
+            self.logger.info(f"Fetching notifications for IOC type: {ioc_type}")
+            url = get_full_url(self.api_root, "get_notifications")
+            
+            filter_str = f"date:{timestamp}+ entity_type:{ioc_type}"
+            
+            params = {
+                "limit": MAX_NOTIFICATIONS_LIMIT,
+                "filter": filter_str,
+            }
+
+            notifications_for_type = self._paginate_results_by_next_page_link(
+                full_url=url,
+                limit=limit,
+                siemplify=siemplify,
+                parser_method="build_notification_objects",
+                existing_ids=existing_ids,
+                params=params,
+            )
+            all_notifications.extend(notifications_for_type)
+            
+            if existing_ids:
+                existing_ids.extend([n.alert_id for n in notifications_for_type])
+
+        all_notifications.sort(key=lambda n: n.timestamp)
+        return all_notifications[:limit]
 
 
     def _paginate_results_by_next_page_link(
@@ -1295,11 +1291,11 @@ class ApiManager:
 
         while True:
             if response:
-                # [MODIFIED] - Use cursor for pagination
-                cursor = response.json().get("meta", {}).get("cursor")
-                if not cursor or (limit is not None and len(results) >= limit):
+                if not next_page_link or (limit is not None and len(results) >= limit):
                     break
-                params["cursor"] = cursor
+
+                full_url = next_page_link
+                params = {}
 
             response = self.session.get(full_url, params=params)
             validate_response(response)
