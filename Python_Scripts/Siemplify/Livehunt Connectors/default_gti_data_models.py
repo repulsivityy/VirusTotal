@@ -453,11 +453,7 @@ class ThreatActor(IOC):
                 for alias in self.aliases
                 if alias.get("value") is not None
             ]),
-            "industries": ", ".join([
-                industry.get("value", "")
-                for industry in self.industries
-                if industry.get("value") is not None
-            ]),
+            "industries": ", ".join(self.industries),
             "malware": ", ".join([
                 malware.get("name", "")
                 for malware in self.malware

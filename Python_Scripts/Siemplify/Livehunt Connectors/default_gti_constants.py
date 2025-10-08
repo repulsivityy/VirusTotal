@@ -21,6 +21,9 @@ ADD_VOTE_TO_ENTITY_SCRIPT_NAME = f"{INTEGRATION_IDENTIFIER} - Add Vote To Entity
 SEARCH_ASM_ISSUES_SCRIPT_NAME = f"{INTEGRATION_IDENTIFIER} - Search ASM Issues"
 SEARCH_ASM_ENTITIES_SCRIPT_NAME = f"{INTEGRATION_IDENTIFIER} - Search ASM Entities"
 UPDATE_ASM_ISSUE_SCRIPT_NAME = f"{INTEGRATION_IDENTIFIER} - Update ASM Issue"
+SET_DTM_ALERT_ANALYSIS_SCRIPT_NAME = (
+    f"{INTEGRATION_IDENTIFIER} - Set DTM Alert Analysis"
+)
 GET_RELATED_IOCS_SCRIPT_NAME = f"{INTEGRATION_IDENTIFIER} - Get Related IOCs"
 ENRICH_ENTITIES_SCRIPT_NAME = f"{INTEGRATION_IDENTIFIER} - Enrich Entities"
 EXECUTE_IOC_SEARCH_SCRIPT_NAME = f"{INTEGRATION_IDENTIFIER} - Execute IOC Search"
@@ -29,10 +32,13 @@ ENRICH_IOCS_SCRIPT_NAME = f"{INTEGRATION_IDENTIFIER} - Enrich IOCs"
 SUBMIT_FILE_SCRIPT_NAME = f"{INTEGRATION_IDENTIFIER} - Submit File"
 
 ENDPOINTS = {
-    "ping": "api/v3/asm/projects",
+    "ping": "api/v3/ip_addresses/8.8.4.4",
+    "asm_ping": "api/v3/asm/projects",
     "get_graph_details": "api/v3/graphs/{graph_id}",
     "search_graphs": "api/v3/graphs",
     "update_dtm_alert": "api/v3/dtm/alerts/{alert_id}",
+    "set_dtm_alert_analysis": "api/v3/dtm/alerts/{alert_id}/analysis",
+    "upload_file_to_alerts_analysis": "api/v3/dtm/alerts/{alert_id}/attachments",
     "add_comment_address": "api/v3/ip_addresses/{identifier}/comments",
     "add_comment_url": "api/v3/urls/{identifier}/comments",
     "add_comment_filehash": "api/v3/files/{identifier}/comments",
@@ -57,7 +63,7 @@ ENDPOINTS = {
     "get_ioc_details": "api/v3/{ioc_type}/{ioc}",
     "private_get_ioc_details": "api/v3/private/{ioc_type}/{ioc}",
     "vulnerability_details": "api/v3/collections/vulnerability--{vulnerability}",
-    "get_widget": "api/v3/widget/url",
+    "get_widget": "api/v3/gtiwidget",
     "get_sandbox_data": "api/v3/file_behaviours/{hash}_{sandbox}",
     "get_mitre": "api/v3/files/{entity}/behaviour_mitre_trees",
     "urls": "api/v3/urls",
@@ -125,7 +131,6 @@ VOTE_ENDPOINTS_MAPPING = {
     EntityTypes.HOSTNAME: "add_vote_hostname",
     EntityTypes.DOMAIN: "add_vote_domain",
 }
-
 
 POSSIBLE_IOC_TYPES = ["IP", "Hash", "URL", "Domain"]
 
@@ -198,6 +203,9 @@ ASM_ISSUE_SEVERITY_MAPPING = {
 ASM_ISSUE_STATUS_MAPPING = {"Open": "open", "Closed": "closed"}
 DEFAULT_PAGE_SIZE = 100
 
+DEFAULT_ISSUE_STATUS_FILTER: str = "open"
+ISSUE_STATUS_LIST: list[str, str] = [DEFAULT_ISSUE_STATUS_FILTER, "closed"]
+
 ISSUE_STATUS_MAPPING = {
     "New": "open_new",
     "Triaged": "open_triaged",
@@ -230,7 +238,6 @@ COMPLETED = "completed"
 MD5_LENGTH = 32
 SHA1_LENGTH = 40
 SHA256_LENGTH = 64
-
 
 # DTM Alerts connector
 DTM_ALERTS_CONNECTOR = "Google Threat Intelligence - DTM Alerts Connector"
@@ -272,3 +279,10 @@ MAX_NOTIFICATIONS_LIMIT = 40
 LIVEHUNT_CONNECTOR_DEFAULT_DEVICE_PRODUCT = "Livehunt"
 NOTIFICATION_ALLOWED_VERDICTS = ["VERDICT_MALICIOUS", "VERDICT_SUSPICIOUS"]
 SUSPICIOUS_VERDICTS = ["VERDICT_SUSPICIOUS", "VERDICT_MALICIOUS"]
+
+# Widget theme
+WIDGET_CHRONICLE_THEME_COLORS = {
+    "theme": "dark",
+    "bg1": "212c44",
+    "bg2": "3a4a6c"
+}
