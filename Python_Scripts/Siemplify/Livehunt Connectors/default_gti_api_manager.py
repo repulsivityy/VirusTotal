@@ -1,10 +1,19 @@
 from __future__ import annotations
 
+import contextlib
+import os
+
 from typing import Any
 
-import parser
-import data_models
+import api_data_parser as parser
 import requests
+from requests import Session
+import data_models
+from SiemplifyConnectors import SiemplifyConnectorExecution
+from TIPCommon.base.utils import NewLineLogger
+from TIPCommon.filters import filter_old_alerts
+from TIPCommon.smp_time import is_approaching_timeout
+from TIPCommon.types import Entity
 from api_utils import (
     build_asm_entity_query_string,
     build_query_for_single_params,
@@ -12,6 +21,7 @@ from api_utils import (
     get_full_url,
     get_project_id,
     validate_response,
+    validate_gti_response,
 )
 from constants import (
     ALERT_STATUSES,
@@ -24,6 +34,7 @@ from constants import (
     MAX_NOTIFICATIONS_LIMIT,
     SEVERITIES,
     VOTE_ENDPOINTS_MAPPING,
+    WIDGET_CHRONICLE_THEME_COLORS,
 )
 from data_models import (
     ASMEntity,
@@ -39,17 +50,11 @@ from exceptions import (
     GoogleThreatIntelligenceExceptions,
     ProjectNotFoundError,
 )
-from requests import Session
-from SiemplifyConnectors import SiemplifyConnectorExecution
-from TIPCommon.base.utils import NewLineLogger
-from TIPCommon.filters import filter_old_alerts
-from TIPCommon.smp_time import is_approaching_timeout
-from TIPCommon.types import Entity
 from utils import (
+    WidgetComponentPreprocessor,
     adjust_time,
     fetch_mitre_data,
     get_next_page_url,
-    prepare_cached_widget,
     prepare_entity_for_manager,
     prepare_hash_identifier,
 )
@@ -84,7 +89,7 @@ class ApiManager:
             response = self.session.get(
                 get_full_url(
                     self.api_root,
-                    "ping",
+                    "asm_ping" if self.asm_project_name else "ping",
                 )
             )
         except UnicodeEncodeError as exc:
@@ -240,6 +245,69 @@ class ApiManager:
         validate_response(response)
 
         return parser.build_dtm_alert_object(response.json())
+
+    def update_analysis_text_on_alert(self, alert_id: str, text: str) -> None:
+        """Updates the analysis text on an alert object
+
+        Args:
+            alert_id (str): Alert id
+            text (str): Text of the analysis
+
+        Returns:
+            None
+
+        """
+        response = self.session.put(
+            url=get_full_url(
+                api_root=self.api_root,
+                endpoint_id="set_dtm_alert_analysis",
+                alert_id=alert_id
+            ),
+            json={"analysis": text}
+        )
+        validate_response(response)
+
+    def upload_file_to_alerts_analysis(
+        self,
+        alert_id: str,
+        file_paths: list[str]
+    ) -> None:
+        """Uploads files to alert`s analysis
+
+        Uses `contextlib.ExitStack` to guarantee that a dynamic number of
+        successfully opened files are all properly closed.
+
+        Args:
+            alert_id (str): Alert id
+            file_paths (list): List of the absolute file paths
+
+        Returns:
+            None
+        """
+        if not file_paths:
+            return
+
+        with contextlib.ExitStack() as stack:
+            files = tuple(
+                (
+                    "files",
+                    (
+                        os.path.basename(file_path),
+                        stack.enter_context(open(file_path, "rb")),
+                        "application/octet-stream"
+                    )
+                ) for file_path in file_paths
+            )
+
+            response = self.session.post(
+                get_full_url(
+                    api_root=self.api_root,
+                    endpoint_id="upload_file_to_alerts_analysis",
+                    alert_id=alert_id
+                ),
+                files=files
+            )
+            validate_gti_response(response)
 
     def add_comment_to_entity(self, entity: Entity, comment: str):
         """Add vote to entity
@@ -592,6 +660,7 @@ class ApiManager:
         severity: int,
         limit: int,
         last_seen_after: str,
+        status_filter: list[str],
         siemplify: SiemplifyConnectorExecution = None,
         existing_ids: list[str] | None = None,
     ) -> list[ASMIssue]:
@@ -601,8 +670,10 @@ class ApiManager:
             severity: lowest severity to fetch
             limit: max issues to fetch
             last_seen_after: reference time to fetch events
+            status_filter (list[str]): Statuses to filter by.
             siemplify (SiemplifyConnectorExecution): SiemplifyConnectorExecution object
             existing_ids (list[str] | None): list of ids to filter
+
         Returns:
             List of ASMIssue objects
 
@@ -615,9 +686,11 @@ class ApiManager:
         query_string = build_query_for_single_params(
             last_seen_after=last_seen_after,
             last_seen_before=last_seen_before_str,
-            status_new="open",
             severity_lte=severity,
         )
+        status_query_list = (f"status_new:{status.lower()}" for status in status_filter)
+        query_string += " ".join(status_query_list)
+
         url = get_full_url(
             api_root=self.api_root,
             endpoint_id="search_issues",
@@ -860,25 +933,18 @@ class ApiManager:
             {str}: widget for given entity
         """
         url = get_full_url(self.api_root, "get_widget")
-        params = {"query": entity}
+        params = {"query": entity, **WIDGET_CHRONICLE_THEME_COLORS}
 
         response = self.session.get(url, params=params)
         validate_response(response, show_entity_status=show_entity_status)
         response_json = response.json()
 
         widget_link = response_json.get("data", {}).get("url")
+        widget_link += "/summary"
         if response_json.get("data", {}).get("found"):
-            html_response = self.session.get(
-                widget_link,
-                verify=self.session.verify,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/46.0.2490.80 Safari/537.36",
-                    "Content-Type": "text/html",
-                },
-            )
-            return widget_link, prepare_cached_widget(html_response.text)
+            return widget_link, WidgetComponentPreprocessor(
+                widget_link, self.session
+            ).prepare_cached_widget()
         return None, None
 
     def get_sandbox_data(

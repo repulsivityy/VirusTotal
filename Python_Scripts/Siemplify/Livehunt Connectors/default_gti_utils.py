@@ -1,18 +1,27 @@
 from __future__ import annotations
 
 import base64
+import contextlib
+import html
 import os
 import re
+from collections import defaultdict
 from datetime import datetime, timedelta
+from urllib.parse import ParseResult, urlparse
+
+from bs4 import BeautifulSoup, Tag
+from requests import Response, Session
+from requests.structures import CaseInsensitiveDict
+from SiemplifyDataModel import EntityTypes
+from TIPCommon.base.interfaces import Logger
+from TIPCommon.types import Entity
+from TIPCommon.utils import get_entity_original_identifier
 
 import data_models
 from constants import EMAIL_ENTITY_TYPE, EMAIL_REGEX
 from data_models import ThreatActor
 from exceptions import GoogleThreatIntelligenceExceptions, PathNotExistException
-from requests.structures import CaseInsensitiveDict
-from SiemplifyDataModel import EntityTypes
-from TIPCommon.types import Entity
-from TIPCommon.utils import get_entity_original_identifier
+
 
 SEVERITY_DICT = {"INFO": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3, "UNKNOWN": 0}
 
@@ -154,27 +163,124 @@ def get_threat_actor_by_origin(threat_actors: list[ThreatActor]) -> ThreatActor:
     return community if community is not None else from_gti
 
 
-def prepare_cached_widget(html_content: str) -> str:
-    """Stripping the excessive data from html.
+class WidgetComponentPreprocessor:
+    def __init__(self, widget_url: str, session: Session) -> None:
+        """
+        Fetches and prepares widget from GoogleThreatIntelligence service
+        Args:
+            widget_url (str) Base: url to fetch widget
+            session (Session): call request session
+        Returns:
+            GoogleThreatIntelligenceWidget
+        """
+        self.widget_url = widget_url
+        api_root: ParseResult = urlparse(widget_url)
+        self.api_root: str = f"{api_root.scheme}://{api_root.netloc}"
+        self.session = session
+        self.css_url_regexp = re.compile(r"url\((.*?\.woff2?)\)")
 
-    Args:
-        html_content: the widget content to be stripped
+    def prepare_cached_widget(self) -> str:
+        """Fetching widget and tripping the excessive data from html.
 
-    Returns:
-        str: Modified html content
+        Args:
+        Returns:
+            str: Modified html widget html content
+        """
 
-    """
-    tags_to_strip = [
-        r"<nav>.*?</nav>",
-        r"<section rel=\"iocs\".*?</section>",
-        r"<section rel=\"graph\".*?</section>",
-        r"<section rel=\"attribution\".*?</section>",
-        r"<script.*?</script>",
-    ]
-    for tag in tags_to_strip:
-        html_content = re.sub(tag, "", html_content, flags=re.DOTALL)
+        root_html = self._fetch_from_url(self.widget_url).text.replace(
+            "Enriched by", "Cached Widget"
+        )
+        parsed_html = BeautifulSoup(root_html, "html.parser")
+        self._inline_stylesheet(parsed_html)
+        self._inline_scripts(parsed_html)
+        self._inline_images(parsed_html)
+        self._remove_redundant_components(parsed_html)
+        return html.escape(str(parsed_html))
 
-    return "".join(html_content.replace("VT Augment by", "Cached Widget").splitlines())
+    def _inline_stylesheet(self, parsed_html: BeautifulSoup):
+        """
+        Finds stylesheet links in html and replaces them with fetched stylesheets
+        Args:
+            parsed_html: Input DOM
+        """
+
+        for node in parsed_html.find_all("link", rel="stylesheet"):
+            url = f"{self.api_root}{node.get('href')}"
+            stylesheet_content = self._fetch_from_url(url).text
+
+            # replace css font relative links to absolute
+            stylesheet_content = self.css_url_regexp.sub(
+                rf"url({self.api_root}\1)", stylesheet_content
+            )
+
+            inlined = f"<style>\n{stylesheet_content}\n</style>"
+            inlined = BeautifulSoup(inlined, "html.parser")
+            node.replace_with(inlined)
+
+    def _inline_scripts(self, parsed_html: BeautifulSoup):
+        """
+        Finds JS script links in html and replaces them with fetched scripts
+        Args:
+            parsed_html: Input DOM
+        """
+        for node in parsed_html.find_all("script"):
+            if not node.get("src"):
+                continue
+            url = f"{self.api_root}{node.get('src')}"
+            script_content = self._fetch_from_url(url).text
+            inlined = f"<script>\n{script_content}\n</script>"
+            inlined = BeautifulSoup(inlined, "html.parser")
+            node.replace_with(inlined)
+
+    def _inline_images(self, parsed_html: BeautifulSoup):
+        """
+        Finds images in html and replaces them with fetched images converted to base64
+        Args:
+            parsed_html: Input DOM
+        """
+        for node in parsed_html.find_all("img"):
+            if node.get("src").startswith("http"):
+                continue
+            url = f"{self.api_root}{node.get('src')}"
+            image = self._fetch_from_url(url).content
+            image = base64.b64encode(image)
+            image = image.decode()
+            inlined = f'<img src="data:image/png;base64,{image}" />'
+            inlined = BeautifulSoup(inlined, "html.parser")
+            node.replace_with(inlined)
+
+    @staticmethod
+    def _remove_redundant_components(parsed_html: BeautifulSoup):
+        """
+        Removes parts that does not need to be presented in output widget;
+        - navbar
+        - base tag
+        - favicon
+        Args:
+            parsed_html: Input DOM
+        """
+
+        def decompose_if_present(component: Tag) -> None:
+            if component:
+                component.decompose()
+
+        decompose_if_present(parsed_html.find("ul", {"class": "nav-tabs"}))
+        decompose_if_present(parsed_html.find("base"))
+        decompose_if_present(parsed_html.find("link", rel="icon"))
+
+    def _fetch_from_url(self, url: str) -> Response:
+        """Fetch contents from given url
+        Args:
+            url (str): url to fetch
+        Returns:
+            requests.Response
+        """
+        return self.session.get(
+            url,
+            headers={
+                "Content-Type": "text/html",
+            },
+        )
 
 
 def get_highest_severity(signature_list) -> str:
@@ -300,6 +406,59 @@ def convert_days_to_milliseconds(days: int) -> int:
 
     """
     return days * 24 * 60 * 60 * 1000
+
+
+def verify_paths_accessibility(file_paths: list[str], logger: Logger) -> None:
+    """
+    Verifies file accessibility by attempting to open them.
+
+    Uses `contextlib.ExitStack` to guarantee that a dynamic number of
+    successfully opened files are all properly closed.
+    Raises an exception on failure.
+
+    Args:
+      file_paths: A list of file paths to check.
+      logger: A logger for recording I/O errors.
+
+    Returns:
+      None
+
+    """
+    with contextlib.ExitStack() as stack:
+        error_report = defaultdict(list)
+        for file_path in file_paths:
+            try:
+                stack.enter_context(open(file_path, "rb"))
+            except FileNotFoundError as e:
+                logger.error(e, exc_info=True)
+                msg = (
+                    "The following files were not found: {paths}. "
+                    "Please check the spelling."
+                )
+                error_report[msg].append(file_path)
+            except OSError as e:
+                logger.error(e, exc_info=True)
+                msg = (
+                    "Error reading files at {paths}. Please check the spelling "
+                    "and the application has permissions to access it."
+                )
+                error_report[msg].append(file_path)
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                logger.error(e, exc_info=True)
+                msg = (
+                    "An unexpected error occurred during reading files at: {paths}"
+                )
+                error_report[msg].append(file_path)
+
+        if error_report:
+            msg = "\n".join(
+                [
+                    msg.format(paths=", ".join(file_paths))
+                    for msg, file_paths
+                    in error_report.items()
+                ]
+            )
+            raise GoogleThreatIntelligenceExceptions(msg)
 
 
 def save_file(path, name: str, content: str) -> str:

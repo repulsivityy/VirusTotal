@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import urllib.parse
+from json import JSONDecodeError
 
 import requests
 from constants import EMAIL_ENTITY_TYPE, ENDPOINTS, QUERY_JOIN_PARAMETER
@@ -31,6 +32,11 @@ NOT_FOUND_STATUS_CODE = 404
 UNAUTHORIZED_STATUS_CODE = 401
 BAD_REQUEST = 400
 
+GTI_HTTP_EXCEPTION_MAPPING = {
+    BAD_REQUEST: GoogleThreatIntelligenceBadRequestException,
+    FORBIDDEN_STATUS_CODE: GoogleThreatIntelligencePermissionException,
+    NOT_FOUND_STATUS_CODE: GoogleThreatIntelligenceNotFoundException,
+}
 
 def get_full_url(
     api_root: str, endpoint_id: str, endpoints: dict[str, str] = None, **kwargs
@@ -93,6 +99,45 @@ def validate_response(
             f"{error_msg}: {error} {error.response.content}",
             status_code=error.response.status_code,
         ) from error
+
+
+def validate_gti_response(
+    response: requests.Response,
+    error_msg: str = "An error occurred",
+) -> None:
+    """Checks a requests.Response for HTTP errors and raises a custom GTI exception
+    based on common errors mapping.
+
+    Args:
+        response: The requests.Response object to validate.
+        error_msg: A generic error message to use if a detailed one cannot be found.
+
+    Raises:
+        GoogleThreatIntelligenceBadRequestException: On 400 Bad Request errors.
+        GoogleThreatIntelligencePermissionException: On 403 Forbidden errors.
+        GoogleThreatIntelligenceNotFoundException: On 404 Not Found errors.
+        GoogleThreatIntelligenceHTTPException: For any other unmapped HTTP error.
+    """
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as error:
+        detail = str(error)
+        # Safely parse the detailed error message from the JSON body.
+        try:
+            # Try to get the specific message from the API.
+            detail = error.response.json().get(
+                "message",
+                error.response.text or detail
+            )
+        except JSONDecodeError:
+            if error.response.text:
+                detail = error.response.text
+
+        exception_class = GTI_HTTP_EXCEPTION_MAPPING.get(
+            error.response.status_code, GoogleThreatIntelligenceHTTPException
+        )
+
+        raise exception_class(f"{error_msg}: {detail}") from error
 
 
 def get_project_id(projects, project_name) -> (str, None):
