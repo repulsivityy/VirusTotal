@@ -1234,10 +1234,8 @@ class ApiManager:
         # [MODIFIED] - Updated to support ioc_stream endpoint by iterating through IOC types
         all_notifications = []
         ioc_type_list = [ioc_type.strip() for ioc_type in ioc_types.split(',')]
-        # Create a copy to avoid modifying the list while iterating
         current_existing_ids = existing_ids.copy() if existing_ids else []
 
-        # [MODIFIED] - Convert timestamp to ISO 8601 format for the API filter
         from datetime import datetime, timezone
         iso_timestamp = datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
 
@@ -1263,7 +1261,6 @@ class ApiManager:
             )
             all_notifications.extend(notifications_for_type)
             
-            # Add newly fetched ids to the list for the next iteration
             current_existing_ids.extend([n.alert_id for n in notifications_for_type])
 
         all_notifications.sort(key=lambda n: n.timestamp)
@@ -1293,21 +1290,19 @@ class ApiManager:
             list[Any]: list of any dataclasses
 
         """
-        results, response = [], None
+        # [MODIFIED] - Reverted to original pagination logic
+        results, next_page_link, response = [], None, None
         existing_ids_set = set(existing_ids) if existing_ids else set()
-        next_page_link = full_url
 
         while True:
-            if not next_page_link or (limit is not None and len(results) >= limit):
-                break
+            if response:
+                if not next_page_link or (limit is not None and len(results) >= limit):
+                    break
 
-            # Use the full URL from the 'next' link on subsequent requests
-            current_url = next_page_link if response else full_url
-            
-            # Params are only used for the first request
-            current_params = {} if response else params
+                full_url = next_page_link
+                params = {}
 
-            response = self.session.get(current_url, params=current_params)
+            response = self.session.get(full_url, params=params)
             validate_response(response)
             
             response_json = response.json()
@@ -1328,7 +1323,6 @@ class ApiManager:
             )
             results.extend(new_alerts)
             existing_ids_set.update([alert.alert_id for alert in new_alerts])
-
 
         return results[:limit] if limit else results
 
