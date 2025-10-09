@@ -221,27 +221,6 @@ class LivehuntConnector(Connector):
             AlertInfo: AlertInfo object
 
         """
-        # alert_info = AlertInfo()
-        #
-        # alert_info.ticket_id = alert.alert_id
-        # alert_info.display_id = alert.alert_id
-        # alert_info.name = (
-        #     alert.meaningful_name if alert.meaningful_name else alert.rule_name
-        # )
-        # alert_info.device_vendor = DEFAULT_DEVICE_VENDOR
-        # alert_info.device_product = (
-        #     alert.raw_flat_data.get(self.params.device_product_field)
-        #     or LIVEHUNT_CONNECTOR_DEFAULT_DEVICE_PRODUCT
-        # )
-        # alert_info.priority = alert.get_severity()
-        # alert_info.rule_generator = alert.rule_name
-        # alert_info.source_grouping_identifier = alert.rule_name
-        # alert_info.start_time = alert.timestamp
-        # alert_info.end_time = alert.timestamp
-        # alert_info.environment = self.env_common.get_environment(alert.raw_flat_data)
-        # alert_info.events = self.build_events_data(alert=alert)
-        #
-        # return alert_info
         # [MODIFIED] - Dynamically create alert info based on IOC type
         alert_info = AlertInfo()
 
@@ -249,7 +228,11 @@ class LivehuntConnector(Connector):
         alert_info.display_id = alert.alert_id
         alert_info.name = alert.id
         alert_info.device_vendor = DEFAULT_DEVICE_VENDOR
-        alert_info.device_product = f"{LIVEHUNT_CONNECTOR_DEFAULT_DEVICE_PRODUCT} - {alert.type.capitalize()}"
+        
+        # [MODIFIED] - Add defensive check for alert.type
+        ioc_type = alert.type.capitalize() if alert.type else "Unknown"
+        alert_info.device_product = f"{LIVEHUNT_CONNECTOR_DEFAULT_DEVICE_PRODUCT} - {ioc_type}"
+        
         alert_info.priority = alert.get_severity()
         alert_info.rule_generator = alert.rule_name
         alert_info.source_grouping_identifier = alert.rule_name
