@@ -1237,11 +1237,15 @@ class ApiManager:
         # Create a copy to avoid modifying the list while iterating
         current_existing_ids = existing_ids.copy() if existing_ids else []
 
+        # [MODIFIED] - Convert timestamp to ISO 8601 format for the API filter
+        from datetime import datetime, timezone
+        iso_timestamp = datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
+
         for ioc_type in ioc_type_list:
             self.logger.info(f"Fetching notifications for IOC type: {ioc_type}")
             url = get_full_url(self.api_root, "get_notifications")
             
-            filter_str = f"date:{timestamp}+ entity_type:{ioc_type}"
+            filter_str = f"date:{iso_timestamp}+ entity_type:{ioc_type}"
             
             params = {
                 "limit": MAX_NOTIFICATIONS_LIMIT,
