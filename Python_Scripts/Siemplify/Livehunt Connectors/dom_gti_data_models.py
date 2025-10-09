@@ -1299,6 +1299,8 @@ class Notification(BaseModel):
         """
         context_attributes = raw_data.get("context_attributes", {})
         attributes = raw_data.get("attributes", {})
+        # [MODIFIED] - Safely access hunting_info
+        hunting_info = context_attributes.get("hunting_info")
 
         return cls(
             raw_data=raw_data,
@@ -1306,7 +1308,8 @@ class Notification(BaseModel):
             alert_id=context_attributes.get("notification_id", ""),
             id=raw_data.get("id"),
             type=raw_data.get("type"),
-            rule_name=context_attributes.get("hunting_info", {}).get("rule_name", ""),
+            # [MODIFIED] - Check if hunting_info exists before getting rule_name
+            rule_name=hunting_info.get("rule_name", "") if hunting_info else "",
             timestamp=context_attributes.get("notification_date", 0) * 1000,
             verdict=(
                 attributes.get("gti_assessment", {}).get("verdict", {}).get("value")
@@ -1317,8 +1320,9 @@ class Notification(BaseModel):
             origin=context_attributes.get("origin"),
             sources=context_attributes.get("sources", []),
             tags=context_attributes.get("tags", []),
-            file_size=attributes.get("size"),
-            file_type=attributes.get("type_description"),
+            # [MODIFIED] - Provide default values for file-specific fields
+            file_size=attributes.get("size", 0),
+            file_type=attributes.get("type_description", ""),
         )
 
     def get_severity(self):
@@ -1328,7 +1332,10 @@ class Notification(BaseModel):
             int: severity value
 
         """
-        return SEVERITY_GTI_MAPPING.get(self.severity, -1)
+        # [MODIFIED] - Add check for None before dictionary lookup
+        if self.severity:
+            return SEVERITY_GTI_MAPPING.get(self.severity, -1)
+        return -1
 
     def pass_filter(self):
         """Check if filtering is passed

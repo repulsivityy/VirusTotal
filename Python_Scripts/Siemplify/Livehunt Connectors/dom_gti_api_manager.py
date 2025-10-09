@@ -1250,7 +1250,7 @@ class ApiManager:
             params = {
                 "limit": MAX_NOTIFICATIONS_LIMIT,
                 "filter": filter_str,
-                "descriptors_only": "false"
+                "descriptors_only": False
             }
 
             notifications_for_type = self._paginate_results_by_next_page_link(
