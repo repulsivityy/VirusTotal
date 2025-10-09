@@ -1234,6 +1234,8 @@ class ApiManager:
         # [MODIFIED] - Updated to support ioc_stream endpoint by iterating through IOC types
         all_notifications = []
         ioc_type_list = [ioc_type.strip() for ioc_type in ioc_types.split(',')]
+        # Create a copy to avoid modifying the list while iterating
+        current_existing_ids = existing_ids.copy() if existing_ids else []
 
         for ioc_type in ioc_type_list:
             self.logger.info(f"Fetching notifications for IOC type: {ioc_type}")
@@ -1244,6 +1246,7 @@ class ApiManager:
             params = {
                 "limit": MAX_NOTIFICATIONS_LIMIT,
                 "filter": filter_str,
+                "descriptors_only": "false"
             }
 
             notifications_for_type = self._paginate_results_by_next_page_link(
@@ -1251,13 +1254,13 @@ class ApiManager:
                 limit=limit,
                 siemplify=siemplify,
                 parser_method="build_notification_objects",
-                existing_ids=existing_ids,
+                existing_ids=current_existing_ids,
                 params=params,
             )
             all_notifications.extend(notifications_for_type)
             
-            if existing_ids:
-                existing_ids.extend([n.alert_id for n in notifications_for_type])
+            # Add newly fetched ids to the list for the next iteration
+            current_existing_ids.extend([n.alert_id for n in notifications_for_type])
 
         all_notifications.sort(key=lambda n: n.timestamp)
         return all_notifications[:limit]
@@ -1286,35 +1289,42 @@ class ApiManager:
             list[Any]: list of any dataclasses
 
         """
-        results, next_page_link, response = [], None, None
+        results, response = [], None
         existing_ids_set = set(existing_ids) if existing_ids else set()
+        next_page_link = full_url
 
         while True:
-            if response:
-                if not next_page_link or (limit is not None and len(results) >= limit):
-                    break
+            if not next_page_link or (limit is not None and len(results) >= limit):
+                break
 
-                full_url = next_page_link
-                params = {}
+            # Use the full URL from the 'next' link on subsequent requests
+            current_url = next_page_link if response else full_url
+            
+            # Params are only used for the first request
+            current_params = {} if response else params
 
-            response = self.session.get(full_url, params=params)
+            response = self.session.get(current_url, params=current_params)
             validate_response(response)
-            next_page_link = response.json().get("links", {}).get("next", "")
-            alerts = getattr(parser, parser_method)(response.json())
+            
+            response_json = response.json()
+            next_page_link = response_json.get("links", {}).get("next", "")
+            
+            alerts = getattr(parser, parser_method)(response_json)
             filtered_alerts = [
                 alert
                 for alert in alerts
                 if not hasattr(alert, "pass_filter") or alert.pass_filter()
             ]
 
-            results.extend(
-                filter_old_alerts(
-                    siemplify,
-                    alerts=filtered_alerts,
-                    existing_ids=existing_ids_set,
-                    id_key="alert_id",
-                )
+            new_alerts = filter_old_alerts(
+                siemplify,
+                alerts=filtered_alerts,
+                existing_ids=existing_ids_set,
+                id_key="alert_id",
             )
+            results.extend(new_alerts)
+            existing_ids_set.update([alert.alert_id for alert in new_alerts])
+
 
         return results[:limit] if limit else results
 
