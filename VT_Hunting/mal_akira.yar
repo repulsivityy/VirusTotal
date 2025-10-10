@@ -1,8 +1,11 @@
 rule Akira_Behaviour {
 meta:
-  description = "New Akira Files"
+  description = "Akira Ransomware"
   author = "dominicchua@"
   samples = "89f5f29cf6b5bcfc85b506fb916da66cb7fd398cf6011d58e9409c7813e1a6f3, d8903520a4635595e78c4815dbf2937e766edbc1f8dd7d32e2309acdfbbf598b"
+strings:
+    $s1 = ".akira"
+	  $s2 = "akira_readme.txt"
 condition:
     for 3 engine, signature in vt.metadata.signatures: (  // At least 3 ransom detections
         signature icontains "akira"
@@ -24,4 +27,5 @@ condition:
         vt.metadata.gti_assessment.threat_score.value >= 60
     ) and
     vt.metadata.new_file // new file to GTI
+    and 1 of ($s*)
 }
