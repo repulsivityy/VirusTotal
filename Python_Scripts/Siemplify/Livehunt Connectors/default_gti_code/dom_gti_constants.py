@@ -73,8 +73,8 @@ ENDPOINTS = {
     "analyses-private": "api/v3/private/analyses/{analysis_id}",
     "search_ioc": "api/v3/intelligence/search",
     # "get_notifications": "api/v3/intelligence/hunting_notification_files",
-    # [MODIFIED] - Updated endpoint to ioc_stream
-    "get_notifications": "api/v3/ioc_stream",
+    # [MODIFIED] - Changed endpoint to support IOC Stream API
+    "get_ioc_stream": "api/v3/ioc_stream",
     "get_file": "api/v3/files/{entity_hash}/download",
     "file-upload-url": "api/v3/files/upload_url",
     "file-upload-url-private": "api/v3/private/files/upload_url",

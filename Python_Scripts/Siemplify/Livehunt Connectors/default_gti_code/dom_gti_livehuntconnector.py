@@ -3,7 +3,6 @@ from __future__ import annotations
 import copy
 import sys
 
-# [MODIFIED] - Imports updated to use new dom_gti modules
 from dom_gti_api_manager import ApiManager
 from dom_gti_auth_manager import AuthManager, AuthManagerParams
 from dom_gti_constants import (
@@ -14,7 +13,8 @@ from dom_gti_constants import (
     LIVEHUNT_CONNECTOR_DEFAULT_DEVICE_PRODUCT,
     STORED_IDS_LIMIT,
 )
-from dom_gti_data_models import Notification
+# [MODIFIED] - Import IOCStreamObject instead of Notification
+from dom_gti_data_models import IOCStreamObject
 from SiemplifyConnectorsDataModel import AlertInfo
 from TIPCommon.base.connector import Connector
 from TIPCommon.consts import TIMEOUT_THRESHOLD, UNIX_FORMAT
@@ -55,15 +55,6 @@ class LivehuntConnector(Connector):
             default_value=DEFAULT_NOTIFICATIONS_LIMIT,
         )
 
-        # [MODIFIED] - Add new parameter for IOC Types to Fetch
-        self.params.ioc_types_to_fetch = self.param_validator.validate_string(
-            param_name="IOC Types to Fetch",
-            value=self.params.ioc_types_to_fetch,
-            is_mandatory=False,
-            default_value="file,url,domain,ip_address"
-        )
-
-
     def init_managers(self) -> None:
         """Create manager instance objects"""
         auth_manager = AuthManager(params=self.params.auth_params)
@@ -92,11 +83,11 @@ class LivehuntConnector(Connector):
         self.logger.info("Reading already existing alerts ids...")
         self.context.existing_ids = list(read_ids(self.siemplify))
 
-    def store_alert_in_cache(self, alert: Notification) -> None:
+    def store_alert_in_cache(self, alert: IOCStreamObject) -> None:
         """Store alert id in connector IDs cache
 
         Args:
-            alert (Notification): Notification dataclass
+            alert (IOCStreamObject): IOCStreamObject dataclass
 
         """
         self.context.existing_ids.append(alert.alert_id)
@@ -115,20 +106,20 @@ class LivehuntConnector(Connector):
             alert_info
         )
 
-    def set_last_success_time(self, all_alerts: list[Notification], *_) -> None:
+    def set_last_success_time(self, all_alerts: list[IOCStreamObject], *_) -> None:
         """Save last_success_time into DB (or FileStorage)
 
         Args:
-            all_alerts (list[Notification]): list of all Notification dataclasses
+            all_alerts (list[IOCStreamObject]): list of all IOCStreamObject dataclasses
 
         """
         super().set_last_success_time(alerts=all_alerts, timestamp_key="timestamp")
 
-    def write_context_data(self, all_alerts: list[Notification]) -> None:
+    def write_context_data(self, all_alerts: list[IOCStreamObject]) -> None:
         """Save connector context data into DB (or FileStorage)
 
         Args:
-            all_alerts (list[Notification]): list of all Notification dataclasses
+            all_alerts (list[IOCStreamObject]): list of all IOCStreamObject dataclasses
 
         """
         if all_alerts:
@@ -140,36 +131,28 @@ class LivehuntConnector(Connector):
                 stored_ids_limit=STORED_IDS_LIMIT,
             )
 
-    def get_alerts(self) -> list[Notification]:
+    def get_alerts(self) -> list[IOCStreamObject]:
         """Fetch new alerts
 
         Returns:
-            list[Notification]: List of Notification dataclasses
+            list[IOCStreamObject]: List of IOCStreamObject dataclasses
 
         """
-        # fetched_alerts = self.manager.get_notifications(
-        #     timestamp=self.context.last_success_timestamp,
-        #     limit=self.params.max_notifications_to_fetch,
-        #     siemplify=self.siemplify,
-        #     existing_ids=self.context.existing_ids,
-        # )
-        # [MODIFIED] - Pass ioc_types_to_fetch to get_notifications
-        fetched_alerts = self.manager.get_notifications(
+        # [MODIFIED] - Use get_ioc_stream instead of get_notifications
+        fetched_alerts = self.manager.get_ioc_stream(
             timestamp=self.context.last_success_timestamp,
             limit=self.params.max_notifications_to_fetch,
-            siemplify=self.siemplify,
             existing_ids=self.context.existing_ids,
-            ioc_types=self.params.ioc_types_to_fetch,
         )
 
         self.logger.info(f"Number of fetched alerts: {len(fetched_alerts)}")
         return fetched_alerts
 
-    def pass_filters(self, alert: Notification) -> bool:
+    def pass_filters(self, alert: IOCStreamObject) -> bool:
         """Check if alert passes dynamic list filter
 
         Args:
-            alert (Notification): Notification dataclass
+            alert (IOCStreamObject): IOCStreamObject dataclass
 
         Returns:
             bool: True if passes filter, False otherwise
@@ -185,11 +168,11 @@ class LivehuntConnector(Connector):
 
         return True
 
-    def build_events_data(self, alert: Notification) -> list[dict[str, str]]:
+    def build_events_data(self, alert: IOCStreamObject) -> list[dict[str, str]]:
         """Build events data out of alert
 
         Args:
-            alert (Notification): Notification dataclass
+            alert (IOCStreamObject): IOCStreamObject dataclass
 
         Returns:
             list[dict[str, str]]: list of flattened event dicts
@@ -198,11 +181,11 @@ class LivehuntConnector(Connector):
         return [self.build_main_event(alert)]
 
     @staticmethod
-    def build_main_event(alert: Notification) -> dict[str, str]:
+    def build_main_event(alert: IOCStreamObject) -> dict[str, str]:
         """Build main event data out of alert
 
         Args:
-            alert (Notification): Notification dataclass
+            alert (IOCStreamObject): IOCStreamObject dataclass
 
         Returns:
             dict[str, str]: main event flat dict
@@ -211,28 +194,28 @@ class LivehuntConnector(Connector):
         alert_data = copy.deepcopy(alert.raw_data)
         return dict_to_flat(alert_data)
 
-    def create_alert_info(self, alert: Notification) -> AlertInfo:
+    def create_alert_info(self, alert: IOCStreamObject) -> AlertInfo:
         """Create AlertInfo object out of an alert
 
         Args:
-            alert (Notification): Notification dataclass
+            alert (IOCStreamObject): IOCStreamObject dataclass
 
         Returns:
             AlertInfo: AlertInfo object
 
         """
-        # [MODIFIED] - Dynamically create alert info based on IOC type
         alert_info = AlertInfo()
 
         alert_info.ticket_id = alert.alert_id
         alert_info.display_id = alert.alert_id
-        alert_info.name = alert.id
+        alert_info.name = (
+            alert.meaningful_name if alert.meaningful_name else alert.rule_name
+        )
         alert_info.device_vendor = DEFAULT_DEVICE_VENDOR
-        
-        # [MODIFIED] - Add defensive check for alert.type
-        ioc_type = alert.type.capitalize() if alert.type else "Unknown"
-        alert_info.device_product = f"{LIVEHUNT_CONNECTOR_DEFAULT_DEVICE_PRODUCT} - {ioc_type}"
-        
+        alert_info.device_product = (
+            alert.raw_flat_data.get(self.params.device_product_field)
+            or LIVEHUNT_CONNECTOR_DEFAULT_DEVICE_PRODUCT
+        )
         alert_info.priority = alert.get_severity()
         alert_info.rule_generator = alert.rule_name
         alert_info.source_grouping_identifier = alert.rule_name
@@ -242,7 +225,6 @@ class LivehuntConnector(Connector):
         alert_info.events = self.build_events_data(alert=alert)
 
         return alert_info
-
 
     def process_alerts(
         self,

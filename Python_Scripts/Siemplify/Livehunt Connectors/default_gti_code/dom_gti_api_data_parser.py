@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-# [MODIFIED] - Imports updated to use new dom_gti modules
 import dom_gti_data_models as data_models
 from dom_gti_constants import IOC_MAPPING
 from TIPCommon.types import SingleJson
@@ -44,7 +43,9 @@ def get_next_page_url(raw_data: dict[str, Any]) -> str:
         str: next page url
 
     """
-    return raw_data.get("links", {}).get("next")
+    # return raw_data.get("links", {}).get("next")
+    # [MODIFIED] - Changed to support cursor pagination for IOC Stream API
+    return raw_data.get("meta", {}).get("cursor")
 
 
 def build_graph_details_object(
@@ -285,30 +286,23 @@ def build_ioc_search_result_objects(
 
 # def build_notification_objects(raw_data: dict) -> list[data_models.Notification]:
 #     """Build list of Notification dataclasses
-#
+
 #     Args:
 #         raw_data (dict): raw data dict
-#
+
 #     Returns:
 #         list[data_models.Notification]: list of Notification dataclasses
-#
+
 #     """
 #     return [
 #         data_models.Notification.from_json(raw_data=item)
 #         for item in raw_data.get("data", [])
 #     ]
-# [MODIFIED] - Updated to support ioc_stream endpoint
-def build_notification_objects(raw_data: dict) -> list[data_models.Notification]:
-    """Build list of Notification dataclasses
 
-    Args:
-        raw_data (dict): raw data dict
-
-    Returns:
-        list[data_models.Notification]: list of Notification dataclasses
-
-    """
+# [MODIFIED] - Changed to support IOC Stream API
+def build_ioc_stream_objects(raw_data: dict) -> list[data_models.IOCStreamObject]:
+    """Build list of IOCStreamObject dataclasses"""
     return [
-        data_models.Notification.from_json(raw_data=item)
+        data_models.IOCStreamObject.from_json(raw_data=item)
         for item in raw_data.get("data", [])
     ]
