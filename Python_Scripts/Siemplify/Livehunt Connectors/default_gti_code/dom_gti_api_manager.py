@@ -5,7 +5,6 @@ import os
 
 from typing import Any
 
-# [MODIFIED] - Imports updated to use new dom_gti modules
 import dom_gti_api_data_parser as parser
 import requests
 from requests import Session
@@ -1210,64 +1209,42 @@ class ApiManager:
         validate_response(response)
         return parser.build_ioc_search_result_objects(response.json())
 
-    def get_notifications(
+    def get_ioc_stream(
         self,
         timestamp: int,
         limit: int,
         siemplify: SiemplifyConnectorExecution = None,
         existing_ids: list[str] | None = None,
-        ioc_types: str | None = None,
     ):
-        """Get notifications
+        """Get ioc stream
 
         Args:
             timestamp (int): timestamp filter to get notifications from
             limit (int): limit for results
             siemplify (SiemplifyConnectorExecution): SiemplifyConnectorExecution object
             existing_ids (list[str] | None): list of ids to filter
-            ioc_types (str | None): comma separated ioc types to filter
 
         Returns:
-            list[Notification]: list of Notification objects
+            list[IOCStreamObject]: list of IOCStreamObject objects
 
         """
-        # [MODIFIED] - Updated to support ioc_stream endpoint by iterating through IOC types
-        all_notifications = []
-        ioc_type_list = [ioc_type.strip() for ioc_type in ioc_types.split(',')]
-        current_existing_ids = existing_ids.copy() if existing_ids else []
+        url = get_full_url(self.api_root, "get_ioc_stream")
 
-        from datetime import datetime, timezone
-        iso_timestamp = datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
+        params = {
+            "limit": MAX_NOTIFICATIONS_LIMIT,
+            "filter": f"date:{timestamp}+",
+        }
 
-        for ioc_type in ioc_type_list:
-            self.logger.info(f"Fetching notifications for IOC type: {ioc_type}")
-            url = get_full_url(self.api_root, "get_notifications")
-            
-            filter_str = f"date:{iso_timestamp}+ entity_type:{ioc_type}"
-            
-            params = {
-                "limit": MAX_NOTIFICATIONS_LIMIT,
-                "filter": filter_str,
-                "descriptors_only": False
-            }
+        return self._paginate_results_by_cursor(
+            full_url=url,
+            limit=limit,
+            siemplify=siemplify,
+            parser_method="build_ioc_stream_objects",
+            existing_ids=existing_ids,
+            params=params,
+        )
 
-            notifications_for_type = self._paginate_results_by_next_page_link(
-                full_url=url,
-                limit=limit,
-                siemplify=siemplify,
-                parser_method="build_notification_objects",
-                existing_ids=current_existing_ids,
-                params=params,
-            )
-            all_notifications.extend(notifications_for_type)
-            
-            current_existing_ids.extend([n.alert_id for n in notifications_for_type])
-
-        all_notifications.sort(key=lambda n: n.timestamp)
-        return all_notifications[:limit]
-
-
-    def _paginate_results_by_next_page_link(
+    def _paginate_results_by_cursor(
         self,
         full_url: str,
         limit: int,
@@ -1276,7 +1253,7 @@ class ApiManager:
         existing_ids: list[str] | None = None,
         params: dict | None = None,
     ) -> list[Any]:
-        """Paginate the results
+        """Paginate the results using a cursor.
 
         Args:
             full_url (str): full url to send request to
@@ -1290,23 +1267,18 @@ class ApiManager:
             list[Any]: list of any dataclasses
 
         """
-        # [MODIFIED] - Reverted to original pagination logic
-        results, next_page_link, response = [], None, None
+        results = []
         existing_ids_set = set(existing_ids) if existing_ids else set()
 
         while True:
-            if response:
-                if not next_page_link or (limit is not None and len(results) >= limit):
-                    break
-
-                full_url = next_page_link
-                params = {}
+            if len(results) >= limit:
+                break
 
             response = self.session.get(full_url, params=params)
             validate_response(response)
             
             response_json = response.json()
-            next_page_link = response_json.get("links", {}).get("next", "")
+            cursor = response_json.get("meta", {}).get("cursor")
             
             alerts = getattr(parser, parser_method)(response_json)
             filtered_alerts = [
@@ -1315,14 +1287,20 @@ class ApiManager:
                 if not hasattr(alert, "pass_filter") or alert.pass_filter()
             ]
 
-            new_alerts = filter_old_alerts(
-                siemplify,
-                alerts=filtered_alerts,
-                existing_ids=existing_ids_set,
-                id_key="alert_id",
+            results.extend(
+                filter_old_alerts(
+                    siemplify,
+                    alerts=filtered_alerts,
+                    existing_ids=existing_ids_set,
+                    id_key="alert_id",
+                )
             )
-            results.extend(new_alerts)
-            existing_ids_set.update([alert.alert_id for alert in new_alerts])
+            
+            if not cursor:
+                break
+
+            params = {"cursor": cursor}
+
 
         return results[:limit] if limit else results
 

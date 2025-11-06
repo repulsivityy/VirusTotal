@@ -3,7 +3,6 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, Optional
 
-# [MODIFIED] - Imports updated to use new dom_gti modules
 from dom_gti_constants import (
     CASE_WALL_LINK,
     COLLECTIONS_CASE_WALL_LINK,
@@ -1206,7 +1205,7 @@ class IOCSearchResult(BaseModel):
 # @dataclasses.dataclass(frozen=True)
 # class Notification(BaseModel):
 #     """Class to create data model for Notification object"""
-#
+
 #     raw_flat_data: dict
 #     alert_id: str
 #     meaningful_name: str
@@ -1216,21 +1215,21 @@ class IOCSearchResult(BaseModel):
 #     timestamp: int
 #     verdict: str
 #     severity: str
-#
+
 #     @classmethod
 #     def from_json(cls, raw_data: dict) -> Notification:
 #         """Create Notification object from raw json data
-#
+
 #         Args:
 #             raw_data (dict): raw data of notification
-#
+
 #         Returns:
 #             Notification: Notification object
-#
+
 #         """
 #         context_attributes = raw_data.get("context_attributes", {})
 #         attributes = raw_data.get("attributes", {})
-#
+
 #         return cls(
 #             raw_data=raw_data,
 #             raw_flat_data=dict_to_flat(raw_data),
@@ -1247,104 +1246,88 @@ class IOCSearchResult(BaseModel):
 #                 attributes.get("gti_assessment", {}).get("severity", {}).get("value")
 #             ),
 #         )
-#
+
 #     def get_severity(self):
 #         """Get the severity value based on gti_assessment severity values
-#
+
 #         Returns:
 #             int: severity value
-#
+
 #         """
 #         return SEVERITY_GTI_MAPPING.get(self.severity, -1)
-#
+
 #     def pass_filter(self):
 #         """Check if filtering is passed
-#
+
 #         Returns:
 #             bool: True if filtering is passed, False otherwise
-#
+
 #         """
 #         return self.verdict in NOTIFICATION_ALLOWED_VERDICTS
 
-# [MODIFIED] - Generalized Notification model for ioc_stream
+# [MODIFIED] - Changed Notification to IOCStreamObject to support IOC Stream API
 @dataclasses.dataclass(frozen=True)
-class Notification(BaseModel):
-    """Class to create data model for Notification object"""
+class IOCStreamObject(BaseModel):
+    """Class to create data model for IOC Stream object"""
 
     raw_flat_data: dict
-    alert_id: str
-    id: str
-    type: str
+    notification_id: str
     rule_name: str
     timestamp: int
-    verdict: str
-    severity: str
-    origin: str
-    sources: list
-    tags: list
-    file_size: int
-    file_type: str
+    entity_type: str
+    entity_id: str
 
+    # Attributes from the entity itself
+    meaningful_name: str | None
+    malicious: int
+    suspicious: int
+    reputation: int
+    tags: list[str]
 
     @classmethod
-    def from_json(cls, raw_data: dict) -> Notification:
-        """Create Notification object from raw json data
-
-        Args:
-            raw_data (dict): raw data of notification
-
-        Returns:
-            Notification: Notification object
-
-        """
+    def from_json(cls, raw_data: dict) -> IOCStreamObject:
+        """Create IOCStreamObject from raw json data"""
         context_attributes = raw_data.get("context_attributes", {})
         attributes = raw_data.get("attributes", {})
-        # [MODIFIED] - Safely access hunting_info
-        hunting_info = context_attributes.get("hunting_info")
+        hunting_info = context_attributes.get("hunting_info", {}) or {}
 
         return cls(
             raw_data=raw_data,
             raw_flat_data=dict_to_flat(raw_data),
-            alert_id=context_attributes.get("notification_id", ""),
-            id=raw_data.get("id"),
-            type=raw_data.get("type"),
-            # [MODIFIED] - Check if hunting_info exists before getting rule_name
-            rule_name=hunting_info.get("rule_name", "") if hunting_info else "",
+            notification_id=context_attributes.get("notification_id"),
+            rule_name=hunting_info.get("rule_name"),
             timestamp=context_attributes.get("notification_date", 0) * 1000,
-            verdict=(
-                attributes.get("gti_assessment", {}).get("verdict", {}).get("value")
-            ),
-            severity=(
-                attributes.get("gti_assessment", {}).get("severity", {}).get("value")
-            ),
-            origin=context_attributes.get("origin"),
-            sources=context_attributes.get("sources", []),
-            tags=context_attributes.get("tags", []),
-            # [MODIFIED] - Provide default values for file-specific fields
-            file_size=attributes.get("size", 0),
-            file_type=attributes.get("type_description", ""),
+            entity_type=raw_data.get("type"),
+            entity_id=raw_data.get("id"),
+            meaningful_name=attributes.get("meaningful_name"),
+            malicious=attributes.get("last_analysis_stats", {}).get("malicious", 0),
+            suspicious=attributes.get("last_analysis_stats", {}).get("suspicious", 0),
+            reputation=attributes.get("reputation"),
+            tags=attributes.get("tags", []),
         )
 
-    def get_severity(self):
-        """Get the severity value based on gti_assessment severity values
+    @property
+    def alert_id(self) -> str:
+        return self.notification_id
 
-        Returns:
-            int: severity value
-
+    def get_severity(self) -> int:
         """
-        # [MODIFIED] - Add check for None before dictionary lookup
-        if self.severity:
-            return SEVERITY_GTI_MAPPING.get(self.severity, -1)
-        return -1
-
-    def pass_filter(self):
-        """Check if filtering is passed
-
-        Returns:
-            bool: True if filtering is passed, False otherwise
-
+        Get the severity value based on malicious, suspicious counts and reputation.
+        This is a simple heuristic.
+        - High: malicious > 0
+        - Medium: suspicious > 0 or reputation < 25
+        - Low: otherwise
         """
-        return self.verdict in NOTIFICATION_ALLOWED_VERDICTS
+        if self.malicious > 5:
+            return 80  # High
+        if self.suspicious > 5 or (self.reputation is not None and self.reputation < 25):
+            return 60  # Medium
+        return 40  # Low
+
+    def pass_filter(self) -> bool:
+        # All objects from the stream are considered for processing for now.
+        # Filtering can be added here based on connector parameters.
+        return True
 
 
 @dataclasses.dataclass(frozen=True)
