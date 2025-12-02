@@ -29,7 +29,7 @@ def get_api_key() -> str:
     Retrieves the Google Threat Intelligence API Key from the GTI_APIKEY environment variable.
     Validates that the API key is not empty.
     """
-    api_key = "e95b32dbc09cf1453500956464707030e8b7b9100daad74c134ebab80249ac45"
+    api_key = os.getenv("GTI_APIKEY")
     if not api_key:
         print("Error: GTI_APIKEY environment variable not set.")
         print("Please set the GTI_APIKEY environment variable with your Google Threat Intelligence API Key.")
