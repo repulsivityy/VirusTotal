@@ -29,6 +29,7 @@ def get_api_key() -> str:
     Retrieves the Google Threat Intelligence API Key from the GTI_APIKEY environment variable.
     Validates that the API key is not empty.
     """
+    #api_key = os.getenv("VT_API_KEY") #for testing...
     api_key = os.getenv("GTI_APIKEY")
     if not api_key:
         print("Error: GTI_APIKEY environment variable not set.")
@@ -127,7 +128,8 @@ def get_all_projects(api_key: str) -> Optional[List[Dict[str, str]]]:
         
         for project in data["result"]:
             projects.append({
-                "id": project["uuid"],
+                "uuid": project["uuid"],
+                "id": project["id"], # Numeric ID needed for collections
                 "name": project["name"]
             })
         
@@ -224,9 +226,9 @@ def add_user_to_projects(emails: List[str], role: str, projects: List[Dict[str, 
     session = get_session()
 
     for project in projects:
-        project_id = project["id"]
+        project_uuid = project["uuid"]
         project_name = project["name"]
-        url = f"{ASM_PROJECTS_URL}/{project_id}/users/bulk"
+        url = f"{ASM_PROJECTS_URL}/{project_uuid}/users/bulk"
         
         payload = {
             "emails": emails,
@@ -234,7 +236,7 @@ def add_user_to_projects(emails: List[str], role: str, projects: List[Dict[str, 
             "project_group_uuid": None
         }
 
-        print(f"Attempting to add users to project: {project_name} (ID: {project_id})...")
+        print(f"Attempting to add users to project: {project_name} (ID: {project_uuid})...")
         try:
             response = session.post(url, headers=headers, json=payload)
             response.raise_for_status()
@@ -243,7 +245,12 @@ def add_user_to_projects(emails: List[str], role: str, projects: List[Dict[str, 
             data = response.json()
             if data.get("success") is True:
                 print(f"Successfully added users to {project_name}.")
-                results.append({"project": project_name, "status": "success"})
+                results.append({
+                    "project": project_name, 
+                    "status": "success",
+                    "added_users": data.get("result", []),
+                    "project_data": project
+                })
             else:
                 print(f"Unexpected response format from {project_name}: {data}")
                 results.append({"project": project_name, "status": "unknown", "response": data})
@@ -262,46 +269,237 @@ def add_user_to_projects(emails: List[str], role: str, projects: List[Dict[str, 
             
     return results
 
+def get_project_users(project_id: str, api_key: str) -> Optional[List[Dict]]:
+    """
+    Retrieves all users for a specific ASM project.
+    """
+    url = f"{ASM_PROJECTS_URL}/{project_id}/users"
+    headers = {
+        "x-apikey": api_key,
+        "Accept": "application/json"
+    }
+    
+    session = get_session()
+    try:
+        response = session.get(url, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        return data.get("result", [])
+    except requests.exceptions.RequestException as e:
+        print(f"Error retrieving users for project {project_id}: {e}")
+        return None
+
+def display_project_users(project_name: str, users: List[Dict]):
+    """
+    Formats and prints the list of users for a project.
+    """
+    print(f"\n--- Users in Project: {project_name} ---")
+    if not users:
+        print("No users found.")
+        return
+        
+    print(f"{'Email':<40} {'Role':<15} {'Name':<30}")
+    print("-" * 85)
+    for user in users:
+        email = user.get('email', 'N/A')
+        role = user.get('role', 'N/A')
+        first = user.get('first_name', '')
+        last = user.get('last_name', '')
+        name = f"{first} {last}".strip()
+        if not name:
+            name = user.get('name', 'N/A')
+            
+        print(f"{email:<40} {role:<15} {name:<30}")
+
+def get_project_collections(project_numeric_id: int, api_key: str) -> List[Dict]:
+    """
+    Retrieves all collections for a specific ASM project using its numeric ID.
+    """
+    url = "https://www.virustotal.com/api/v3/asm/user_collections"
+    headers = {
+        "x-apikey": api_key,
+        "PROJECT-ID": str(project_numeric_id),
+        "Accept": "application/json"
+    }
+    
+    session = get_session()
+    try:
+        response = session.get(url, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        return data.get("result", [])
+    except requests.exceptions.RequestException as e:
+        print(f"Error retrieving collections for project ID {project_numeric_id}: {e}")
+        return []
+
+def add_user_to_collection(collection_uuid: str, user_id: int, role: str, api_key: str) -> bool:
+    """
+    Adds a user (by numeric user_id) to a collection (by UUID).
+    """
+    url = f"https://www.virustotal.com/api/v3/asm/user_collections/{collection_uuid}/collection_project_users"
+    headers = {
+        "x-apikey": api_key,
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+    }
+    payload = {
+        "project_user_id": user_id,
+        "role": role
+    }
+    
+    session = get_session()
+    try:
+        response = session.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        return response.json().get("success", False)
+    except requests.exceptions.RequestException as e:
+        print(f"Error adding user {user_id} to collection {collection_id}: {e}")
+        try:
+            print(f"Response: {response.text}")
+        except:
+            pass
+        return False
+
+def select_collections(collections: List[Dict]) -> List[Dict]:
+    """
+    Prompts user to select collections from a list.
+    """
+    if not collections:
+        return []
+        
+    print("\nAvailable Collections:")
+    for i, col in enumerate(collections):
+        print(f" {i+1}. {col.get('name', 'Unnamed')} (ID: {col.get('id')})")
+        
+    while True:
+        selection = input("Enter collection numbers (e.g. '1,3'), 'all', or 'none': ").lower().strip()
+        if selection == 'none':
+            return []
+        if selection == 'all':
+            return collections
+            
+        selected = []
+        try:
+            indices = [int(x.strip()) - 1 for x in selection.split(',')]
+            for idx in indices:
+                if 0 <= idx < len(collections):
+                    selected.append(collections[idx])
+            if selected:
+                return selected
+            print("No valid collections selected.")
+        except ValueError:
+            print("Invalid input.")
+
 def main():
     print("--- GTI ASM User Manager ---")
     
-    # Step 1: Input Collection
     api_key = get_api_key()
-    target_emails = get_target_emails()
-    user_role = get_user_role()
     
-    print("\n--- Verification ---")
-    print(f"API Key captured: {'*' * (len(api_key) - 4) + api_key[-4:] if len(api_key) > 4 else '****'}")
-    print(f"Target Emails: {', '.join(target_emails)}")
-    print(f"User Role: {user_role}")
+    print("\nSelect Mode:")
+    print("1. Add Users to Projects")
+    print("2. List Users in Projects")
+    mode = input("Enter choice (1 or 2): ").strip()
+    
+    if mode == '1':
+        # Step 1: Input Collection
+        target_emails = get_target_emails()
+        user_role = get_user_role()
+        
+        print(f"\n--- Verification ---")
+        print(f"API Key captured: {'*' * (len(api_key) - 4) + api_key[-4:] if len(api_key) > 4 else '****'}")
+        print(f"Target Emails: {', '.join(target_emails)}")
+        print(f"User Role: {user_role}")
 
-    # Step 2: Retrieve ASM Projects
-    project_list = get_all_projects(api_key)
-    if project_list:
-        print("\n--- Retrieved Projects ---")
-        for i, project in enumerate(project_list):
-            print(f" {i+1}. {project['name']}, ID: {project['id']}")
+        # Step 2: Retrieve ASM Projects
+        project_list = get_all_projects(api_key)
+        if project_list:
+            print("\n--- Retrieved Projects ---")
+            for i, project in enumerate(project_list):
+                print(f" {i+1}. {project['name']}, ID: {project['uuid']}")
 
-        # Step 3: Project Selection Logic
-        selected_projects = select_projects(project_list)
-        if selected_projects:
-            print("\nProceeding with selected projects...")
-            # Step 4: Execution Loop
-            results = add_user_to_projects(target_emails, user_role, selected_projects, api_key)
-            
-            # Step 5: Reporting
-            print("\n--- Execution Summary ---")
-            print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            print("-" * 30)
-            for res in results:
-                status = res['status'].upper()
-                print(f"Project: {res['project']}")
-                print(f"Status:  {status}")
-                if status != 'SUCCESS' and 'error' in res:
-                    print(f"Error:   {res['error']}")
+            # Step 3: Project Selection Logic
+            selected_projects = select_projects(project_list)
+            if selected_projects:
+                print("\nProceeding with selected projects...")
+                # Step 4: Execution Loop
+                results = add_user_to_projects(target_emails, user_role, selected_projects, api_key)
+                
+                # Step 5: Reporting & Collection Assignment
+                print("\n--- Execution Summary ---")
+                print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
                 print("-" * 30)
-        else:
-            print("No projects selected. Exiting.")
+                
+                for res in results:
+                    status = res['status'].upper()
+                    project_name = res['project']
+                    print(f"Project: {project_name}")
+                    print(f"Status:  {status}")
+                    
+                    if status == 'SUCCESS':
+                        # Handle Collection Assignment if Role is Member
+                        if user_role == 'member':
+                            added_users = res.get('added_users', [])
+                            project_data = res.get('project_data')
+                            
+                            if added_users and project_data:
+                                print(f"\n[Collection Setup] for {project_name}")
+                                collections = get_project_collections(project_data['id'], api_key)
+                                
+                                if collections:
+                                    selected_cols = select_collections(collections)
+                                    if selected_cols:
+                                        col_role = input("Enter role for collections (viewer/analyst/admin) [default: viewer]: ").lower().strip() or 'viewer'
+                                        
+                                        print(f"Adding {len(added_users)} users to {len(selected_cols)} collections...")
+                                        for user in added_users:
+                                            user_id = user.get('id') # Numeric ID
+                                            user_email = user.get('email')
+                                            
+                                            for col in selected_cols:
+                                                success = add_user_to_collection(col['uuid'], user_id, col_role, api_key)
+                                                if success:
+                                                    print(f" + Added {user_email} to {col.get('name')}")
+                                                else:
+                                                    print(f" ! Failed to add {user_email} to {col.get('name')}")
+                                    else:
+                                        print("Skipping collection assignment (none selected).")
+                                else:
+                                    print("No collections found in this project.")
+                        else:
+                            print("Skipping collection assignment (User is Owner).")
+                            
+                    elif 'error' in res:
+                        print(f"Error:   {res['error']}")
+                    print("-" * 30)
+                
+                # Step 6: Optional Listing
+                list_now = input("\nDo you want to list users for these projects now? (y/n): ").lower().strip()
+                if list_now == 'y':
+                    for project in selected_projects:
+                        users = get_project_users(project['uuid'], api_key)
+                        if users is not None:
+                            display_project_users(project['name'], users)
+            else:
+                print("No projects selected. Exiting.")
+                
+    elif mode == '2':
+        # List Users Mode
+        project_list = get_all_projects(api_key)
+        if project_list:
+            print("\n--- Retrieved Projects ---")
+            for i, project in enumerate(project_list):
+                print(f" {i+1}. {project['name']}, ID: {project['uuid']}")
+
+            selected_projects = select_projects(project_list)
+            if selected_projects:
+                for project in selected_projects:
+                    users = get_project_users(project['uuid'], api_key)
+                    if users is not None:
+                        display_project_users(project['name'], users)
+            else:
+                print("No projects selected. Exiting.")
+    else:
+        print("Invalid selection. Exiting.")
 
 if __name__ == "__main__":
     main()
