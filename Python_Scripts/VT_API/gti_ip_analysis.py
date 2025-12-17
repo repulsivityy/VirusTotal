@@ -136,9 +136,13 @@ def process_single_ip(ip):
     except requests.RequestException as e:
         print(f"  Re-analysis request failed for {ip}: {e}")
         return {'id': ip, 'status': f'Request failed: {e}'}
+
+    # 2. Poll for completion
     if not analysis_id or not poll_analysis_completion(analysis_id, ip):
         print(f"  Skipping report fetch for {ip} due to analysis issue.")
         return {'id': ip, 'status': 'Analysis did not complete or timed out'}
+
+    # 3. Fetch the full, updated report
     try:
         time.sleep(1) 
         

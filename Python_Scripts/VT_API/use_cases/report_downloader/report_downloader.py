@@ -8,7 +8,6 @@ API_KEY = os.getenv("GTI_APIKEY")
 SAVE_DIRECTORY = input("Enter the directory to save reports: ")
 SEARCH_QUERY = input("Enter the search query (eg, APT42, Scattered Spider, etc): ")
 
-
 FILTER_COLLECTION_TYPE = "report"
 
 print("\nSelect Filter Origin:")
@@ -33,6 +32,7 @@ else:
         print(f"Invalid input '{date_input}'. Defaulting to last 7 days.")
         days_ago = 7
 
+# Calculate the date string
 cutoff_date = datetime.date.today() - datetime.timedelta(days=days_ago)
 FILTER_CREATION_DATE = f"{cutoff_date.strftime('%Y-%m-%d')}+"
 ORDER_BY = "creation_date-"
@@ -122,25 +122,34 @@ def main():
             pdf_response = requests.get(actual_download_url, timeout=60)
             pdf_response.raise_for_status()
 
+            # Verify that the response is actually a PDF before saving.
             if 'application/pdf' not in pdf_response.headers.get('Content-Type', ''):
                 print(f"[ERROR] Failed to download a valid PDF for report {collection_id}.")
                 print(f"[*] The server returned a non-PDF file. Content-Type: {pdf_response.headers.get('Content-Type')}")
                 continue
 
+            # Create a safe filename (remove invalid characters).
             sanitized_name = re.sub(r'[<>:"/\\|?*]', '_', report_name)
+            
+            # Create the final filename using the required format.
             filename_base = f"{collection_id}_{sanitized_name}"
+            
+            # Truncate the filename if it's too long and add the .pdf extension.
             final_filename = (filename_base[:200] if len(filename_base) > 200 else filename_base) + ".pdf"
+            
+            # Create the full path for saving the file.
             file_path = os.path.join(SAVE_DIRECTORY, final_filename)
             
+            # Write the downloaded content into the new file.
             with open(file_path, 'wb') as f:
                 f.write(pdf_response.content)
             
             print(f"[+] Successfully saved to: {file_path}")
 
         except requests.exceptions.RequestException as err:
+            # This will catch any network-related errors from either request
             print(f"[ERROR] A network error occurred while processing report {collection_id}. Error: {err}")
 
-        
         print("-" * 20)
         
     print("\n[+] All tasks completed.")
