@@ -3,11 +3,10 @@ import csv
 import time
 import os
 import json
-import re  # Import regex library
-import concurrent.futures  # <-- FIX 1: Added the missing import
+import re
+import ipaddress
+import concurrent.futures
 
-# --- Configuration ---
-# Set your API key as an environment variable named 'GTI_APIKEY' for security
 GTI_APIKEY = os.getenv('GTI_APIKEY')
 
 if not GTI_APIKEY:
@@ -25,34 +24,52 @@ while True:
     else:
         print("File not found. Please try again.")
 
-OUTPUT_CSV = 'output.csv'
-MAX_WORKERS = 15  # Number of concurrent analyses
+base_name = os.path.splitext(os.path.basename(INPUT_CSV))[0]
+output_dir = os.path.dirname(INPUT_CSV) if os.path.dirname(INPUT_CSV) else '.'
+OUTPUT_CSV = os.path.join(output_dir, f"{base_name}_output.csv")
+MAX_WORKERS = 15
 
-# API Endpoints
 REANALYSE_URL = 'https://www.virustotal.com/api/v3/ip_addresses/{}/analyse'
 REPORT_URL = 'https://www.virustotal.com/api/v3/ip_addresses/{}'
-ANALYSIS_URL = 'https://www.virustotal.com/api/v3/analyses/{}'  # For polling
+ANALYSIS_URL = 'https://www.virustotal.com/api/v3/analyses/{}'
 
-# Headers including the required 'x-tool' to get gti_assessment
 HEADERS = {
     'x-apikey': GTI_APIKEY,
     'Accept': 'application/json',
-    'x-tool': 'gti-ip-enrichment-script'  # Name of your tool
+    'x-tool': 'gti-ip-enrichment-script'
 }
 
-# --- Helper Functions ---
+def is_valid_ip(ip_string):
+    """Validates if a string is a valid IPv4 or IPv6 address."""
+    try:
+        ipaddress.ip_address(ip_string)
+        return True
+    except ValueError:
+        return False
 
 def read_ips_from_csv(filename):
-    """Reads a list of IP addresses from a one-column CSV file."""
+    """Reads and validates IP addresses from a one-column CSV file."""
     ips = []
+    invalid_ips = []
     try:
         with open(filename, mode='r', encoding='utf-8') as f:
             reader = csv.reader(f)
-            next(reader, None)  # Skip header row
-            for row in reader:
-                if row:  # Ensure row is not empty
-                    ips.append(row[0].strip())
-        print(f"Read {len(ips)} IPs from {filename}")
+            next(reader, None)
+            for row_num, row in enumerate(reader, start=2):
+                if row:
+                    ip = row[0].strip()
+                    if is_valid_ip(ip):
+                        ips.append(ip)
+                    else:
+                        invalid_ips.append((row_num, ip))
+        
+        print(f"Read {len(ips)} valid IPs from {filename}")
+        if invalid_ips:
+            print(f"Warning: Skipped {len(invalid_ips)} invalid IP(s):")
+            for row_num, ip in invalid_ips[:5]:
+                print(f"  Row {row_num}: '{ip}'")
+            if len(invalid_ips) > 5:
+                print(f"  ... and {len(invalid_ips) - 5} more")
         return ips
     except FileNotFoundError:
         print(f"ERROR: Input file '{filename}' not found.")
@@ -62,10 +79,7 @@ def read_ips_from_csv(filename):
         return []
 
 def parse_whois_netname(whois_text):
-    """
-    Parses the 'NetName:' field from a raw whois text block.
-    This is a fallback for when rdap.name is not available.
-    """
+    """Parses the 'NetName:' field from a raw whois text block."""
     if not whois_text:
         return None
     match = re.search(r'^NetName:\s*(.*)', whois_text, re.MULTILINE)
@@ -77,8 +91,8 @@ def poll_analysis_completion(analysis_id, ip):
     """Polls the analysis endpoint until it's 'completed'."""
     poll_url = ANALYSIS_URL.format(analysis_id)
     poll_start_time = time.time()
-    poll_interval = 15  # Wait 15 seconds between checks
-    poll_timeout = 300  # Give up after 5 minutes
+    poll_interval = 15
+    poll_timeout = 300
 
     print(f"  Polling analysis for {ip} (ID: {analysis_id})...", end='', flush=True)
     
@@ -107,17 +121,10 @@ def poll_analysis_completion(analysis_id, ip):
         
         time.sleep(poll_interval)
 
-# --- Unit of Work Function (for concurrency) ---
-
 def process_single_ip(ip):
-    """
-    Processes a single IP: triggers analysis, polls, fetches report, 
-    and returns a dictionary for the CSV row.
-    """
+    """Processes a single IP: triggers analysis, polls, fetches report, and returns a dictionary for the CSV row."""
     print(f"Processing {ip}...")
     analysis_id = None
-    
-    # 1. Trigger Re-analysis
     try:
         post_response = requests.post(REANALYSE_URL.format(ip), headers=HEADERS)
         if post_response.status_code == 200:
@@ -125,22 +132,14 @@ def process_single_ip(ip):
             print(f"  Successfully requested re-analysis for {ip}.")
         else:
             print(f"  Failed to request re-analysis for {ip}: {post_response.status_code} {post_response.text}")
-            # IMPROVEMENT: Use 'status' column for errors
             return {'id': ip, 'status': 'Re-analysis trigger failed'}
     except requests.RequestException as e:
         print(f"  Re-analysis request failed for {ip}: {e}")
-        # IMPROVEMENT: Use 'status' column for errors
         return {'id': ip, 'status': f'Request failed: {e}'}
-
-    # 2. Poll for completion
     if not analysis_id or not poll_analysis_completion(analysis_id, ip):
         print(f"  Skipping report fetch for {ip} due to analysis issue.")
-        # IMPROVEMENT: Use 'status' column for errors
         return {'id': ip, 'status': 'Analysis did not complete or timed out'}
-
-    # 3. Fetch the full, updated report
     try:
-        # Short pause to respect rate limits and allow data to sync post-analysis
         time.sleep(1) 
         
         response = requests.get(REPORT_URL.format(ip), headers=HEADERS)
@@ -150,19 +149,16 @@ def process_single_ip(ip):
             attributes = data.get('attributes', {})
             last_analysis = attributes.get('last_analysis_results', {})
             
-            # Extract target fields
             gcp_abuse = last_analysis.get('GCP Abuse Intelligence')
             google_sb = last_analysis.get('Google Safebrowsing')
             
-            # Robust Netname Extraction
             whois_raw = attributes.get('whois')
             rdap_name = attributes.get('rdap', {}).get('name')
             netname = rdap_name or parse_whois_netname(whois_raw)
             
-            # Prepare row for CSV
             output_row = {
                 'id': data.get('id', ip),
-                'status': 'Success',  # IMPROVEMENT: Add success status
+                'status': 'Success',
                 'gti_assessment': json.dumps(attributes.get('gti_assessment')),
                 'GCP_Abuse_Intelligence': json.dumps(gcp_abuse),
                 'Google_Safebrowsing': json.dumps(google_sb),
@@ -175,38 +171,26 @@ def process_single_ip(ip):
 
         elif response.status_code == 404:
             print(f"  No report found for {ip}. Writing empty row.")
-            # IMPROVEMENT: Use 'status' column
             return {'id': ip, 'status': 'Report not found (404)'}
         else:
             print(f"  Failed to get report for {ip}: {response.status_code} {response.text}")
-            # IMPROVEMENT: Use 'status' column
             return {'id': ip, 'status': f'Report fetch failed: {response.status_code}'}
 
     except requests.RequestException as e:
         print(f"  Report request failed for {ip}: {e}")
-        # IMPROVEMENT: Use 'status' column
         return {'id': ip, 'status': f'Report request failed: {e}'}
     except json.JSONDecodeError:
         print(f"  Failed to decode JSON response for {ip}")
-        # IMPROVEMENT: Use 'status' column
         return {'id': ip, 'status': 'Failed to decode JSON response'}
 
-# --- Main Workflow ---
-
 def main_workflow():
-    """
-    Main workflow: 
-    1. Read IPs from CSV.
-    2. Create a ThreadPoolExecutor to process IPs concurrently.
-    3. Write all results to the output CSV.
-    """
+    """Main workflow: Read IPs, process concurrently, and write results to output CSV."""
     ip_list = read_ips_from_csv(INPUT_CSV)
     if not ip_list:
         return
 
     print(f"\n--- Starting Concurrent IP Processing ({MAX_WORKERS} workers) ---")
     
-    # IMPROVEMENT: Added 'status' column
     fieldnames = [
         'id',
         'status',
@@ -223,19 +207,14 @@ def main_workflow():
         
         results = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-            # 'map' runs 'process_single_ip' for each item in 'ip_list'
-            # It collects all results in order before proceeding.
             results = list(executor.map(process_single_ip, ip_list))
             
-        # Now, safely write all collected results to the CSV
         for row in results:
             if row:
                 writer.writerow(row)
 
     print(f"\n--- Process Complete ---")
-    # FIX 2: Corrected the variable name typo
     print(f"Results written to {OUTPUT_CSV}")
 
-# --- Run the script ---
 if __name__ == "__main__":
-    main_workflow()  # Call the correct main function
+    main_workflow()
