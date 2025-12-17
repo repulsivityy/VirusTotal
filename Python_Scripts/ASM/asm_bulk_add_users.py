@@ -3,7 +3,9 @@ from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 import os
 from datetime import datetime
-from typing import List, Dict, Optional, Union
+import csv
+from collections import defaultdict
+from typing import List, Dict, Optional, Union, Tuple
 
 # Global Constants
 ASM_PROJECTS_URL = "https://www.virustotal.com/api/v3/asm/projects"
@@ -29,8 +31,8 @@ def get_api_key() -> str:
     Retrieves the Google Threat Intelligence API Key from the GTI_APIKEY environment variable.
     Validates that the API key is not empty.
     """
-    #api_key = os.getenv("VT_API_KEY") #for testing...
-    api_key = os.getenv("GTI_APIKEY")
+    api_key = os.getenv("VT_API_KEY") #for testing...
+    #api_key = os.getenv("GTI_APIKEY")
     if not api_key:
         print("Error: GTI_APIKEY environment variable not set.")
         print("Please set the GTI_APIKEY environment variable with your Google Threat Intelligence API Key.")
@@ -390,6 +392,94 @@ def select_collections(collections: List[Dict]) -> List[Dict]:
         except ValueError:
             print("Invalid input.")
 
+def process_csv_file(file_path: str, api_key: str):
+    """
+    Reads a CSV file and processes bulk updates.
+    Expected CSV columns: email, project_uuid, project_role, collection_uuid, collection_role
+    """
+    if not os.path.exists(file_path):
+        print(f"Error: File not found: {file_path}")
+        return
+
+    # Data structures to batch operations
+    # (project_uuid, project_role) -> set(emails)
+    project_batches = defaultdict(set)
+    
+    # (project_uuid, email) -> list of (collection_uuid, collection_role)
+    collection_actions = defaultdict(list)
+    
+    print("\nReading CSV file...")
+    try:
+        with open(file_path, mode='r', encoding='utf-8-sig') as csvfile:
+            reader = csv.DictReader(csvfile)
+            
+            # Normalize headers to lowercase to be forgiving
+            reader.fieldnames = [name.lower().strip() for name in reader.fieldnames]
+            required_cols = {'email', 'project_uuid', 'project_role'}
+            if not required_cols.issubset(set(reader.fieldnames)):
+                print(f"Error: CSV missing required columns. Found: {reader.fieldnames}")
+                print(f"Required: {required_cols}")
+                return
+
+            row_count = 0
+            for row in reader:
+                email = row.get('email', '').strip()
+                p_uuid = row.get('project_uuid', '').strip()
+                p_role = row.get('project_role', '').strip().lower()
+                c_uuid = row.get('collection_uuid', '').strip()
+                c_role = row.get('collection_role', '').strip().lower() or 'viewer'
+
+                if not email or not p_uuid or not p_role:
+                    print(f"Skipping invalid row: {row}")
+                    continue
+
+                project_batches[(p_uuid, p_role)].add(email)
+                
+                if c_uuid:
+                    collection_actions[(p_uuid, email)].append((c_uuid, c_role))
+                
+                row_count += 1
+            
+            print(f"Processed {row_count} rows.")
+            print(f"Found {len(project_batches)} unique project/role batches to process.")
+
+    except Exception as e:
+        print(f"Error reading CSV: {e}")
+        return
+
+    # Execution Phase
+    print("\n--- Starting Bulk Execution ---")
+    
+    for (p_uuid, p_role), emails in project_batches.items():
+        email_list = list(emails)
+        # Construct a dummy project dict for compatibility with existing function
+        # We assume the UUID is the only thing strictly needed for the API call in add_user_to_projects
+        dummy_project_list = [{"uuid": p_uuid, "name": f"Project {p_uuid}", "id": "unknown"}]
+        
+        results = add_user_to_projects(email_list, p_role, dummy_project_list, api_key)
+        
+        for res in results:
+            if res['status'] == 'success':
+                added_users = res.get('added_users', [])
+                print(f"Processing collection additions for {len(added_users)} users...")
+                
+                for user in added_users:
+                    user_id = user.get('id')
+                    user_email = user.get('email')
+                    
+                    # Check if this specific user has collections to be added to
+                    actions = collection_actions.get((p_uuid, user_email))
+                    if actions:
+                        print(f" -> Adding {user_email} to {len(actions)} collections...")
+                        for c_uuid, c_role in actions:
+                             success = add_user_to_collection(c_uuid, user_id, c_role, api_key)
+                             if success:
+                                 print(f"   + Added to collection {c_uuid}")
+                             else:
+                                 print(f"   ! Failed to add to collection {c_uuid}")
+            else:
+                print(f"Failed to add batch to project {p_uuid}. Details: {res.get('error')}")
+
 def main():
     print("--- GTI ASM User Manager ---")
     
@@ -398,7 +488,8 @@ def main():
     print("\nSelect Mode:")
     print("1. Add Users to Projects")
     print("2. List Users in Projects")
-    mode = input("Enter choice (1 or 2): ").strip()
+    print("3. Bulk Add from CSV")
+    mode = input("Enter choice (1-3): ").strip()
     
     if mode == '1':
         # Step 1: Input Collection
@@ -498,6 +589,16 @@ def main():
                         display_project_users(project['name'], users)
             else:
                 print("No projects selected. Exiting.")
+                
+    elif mode == '3':
+        # CSV Mode
+        csv_path = input("Enter the full path to the CSV file: ").strip()
+        # Remove quotes if user dragged and dropped file
+        if (csv_path.startswith('"') and csv_path.endswith('"')) or (csv_path.startswith("'") and csv_path.endswith("'")):
+            csv_path = csv_path[1:-1]
+            
+        process_csv_file(csv_path, api_key)
+        
     else:
         print("Invalid selection. Exiting.")
 

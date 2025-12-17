@@ -49,3 +49,7 @@ The connector uses the following API endpoint to fetch Livehunt notifications:
 - **`dom_gti_api_manager.py`**:
     - Replaced the `get_notifications` method with `get_ioc_stream`, updating its endpoint, parameters, and parser to align with the new IOC stream.
     - Renamed and updated `_paginate_results_by_next_page_link` to `_paginate_results_by_cursor` to implement cursor-based pagination using the `meta.cursor` field.
+- **`dom_gti_livehuntconnector.py`**:
+    - Updated the connector to use the new `get_ioc_stream` method from the API manager.
+    - Replaced the `Notification` data model with `IOCStreamObject` for handling alerts.
+    - Modified alert processing logic to align with the new data structure and API response.
