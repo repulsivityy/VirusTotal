@@ -1,9 +1,9 @@
 # Mandiant Advantage Vulnerability Explorer (MAVE) Integration
-Developed By: 	Mandiant
-Latest Version: 	1.22
-Last Released: 	August 2023
-Key Contact: 	Support
-Download: 	MAVE-lite.v1.22.zip (md5: 487b8f4d23584210a26a433843b82db8)
+>Developed By: 	Mandiant<br>
+Latest Version: 	1.22<br>
+Last Released: 	August 2023<br>
+Key Contact: 	Support<br> 
+Download: 	MAVE-lite.v1.22.zip (md5: 487b8f4d23584210a26a433843b82db8). 
 
 ### MAVE Technical Acceleration
 Mandiant Advantage Vulnerability Explorer (MAVE) is a proprietary python3 script that lets you interact directly with the Mandiant Advantage Threat Intelligence (MATI) API. You can correlate your Common Vulnerability & Exposures IDs (CVE-IDs) against the vulnerability intelligence it provides.
@@ -34,5 +34,11 @@ Hyperlinks in the HTML output file let you quickly pivot to explore each vulnera
 
 2. python3 MAVE_lite.py -i <file_name>
 
+3. You will find the HTML file in the output folder
+```
+Execution completed, please check the output file output/official.MAVE.demo.html!
+```
 
+### Roadmap
+One of my future projects will be to migrate this from the Mandiant Advantage API to the Google Threat Intelligence API. Stay Tuned. 
 
