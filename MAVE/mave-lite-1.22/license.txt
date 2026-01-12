@@ -1,0 +1,33 @@
+﻿MANDIANT END USER LICENSE AGREEMENT
+FOR MANDIANT SOFTWARE INTEL API SCRIPTS
+License Version 2.3 – 4 October 2022
+Copyright © 2022 Mandiant, Inc. All rights reserved.
+
+BY DOWNLOADING, INSTALLING OR USING (WHICHEVER COMES FIRST) THIS SOFTWARE AND ANY RELATED DOCUMENTATION (THE "SOFTWARE"), THE RECIPIENT (“LICENSEE”) IS UNCONDITIONALLY AGREEING WITH MANDIANT, INC. AND ITS AFFILIATES (COLLECTIVELY, “MANDIANT”) TO BE BOUND BY THIS MANDIANT END USER LICENSE AGREEMENT (THE "AGREEMENT"). IF LICENSEE DOES NOT UNCONDITIONALLY AGREE TO THESE TERMS AND CONDITIONS, LICENSEE MUST NOT USE THIS SOFTWARE.
+
+1.	LICENSE GRANT
+Mandiant grants the Licensee a personal, non-exclusive, non-sublicensable, non-transferable, non-assignable, restricted license under Mandiant copyrights to copy, use modify and make derivative works based on the Software solely for internal business purposes, subject to the conditions of this License. No rights or licenses, express or implied, are granted to the Software or to any Mandiant intellectual property, other than as expressly and unambiguously set forth herein. Mandiant retains ownership of the Software. Licensee shall maintain, in the Software, all copyright and other legal notices and a copy of this Agreement. 
+
+2.	CONDITIONS ON LICENSE GRANT
+a.	Licensee shall take commercially reasonable precautions to protect confidentiality of the Software and any human-readable scripts and trade secrets contained therein and shall not disclose the Software to any third party.
+b.	Licensee shall not sell, resell, rent, lease, transfer, assign, distribute, time share, operate as a service bureau or managed service, or make the Software available to any third party. 
+c.	Licensee shall only use the Software for the primary and direct benefit of the Licensee and any benefit to a third party must be incidental to the Licensee’s benefit. Licensee must not use the Software (a) in, with, or by a product or service offered for sale by Licensee or third parties; (b) in developing, operating or supporting a product or service offered by or on behalf of Licensee to third parties, (c) in performing consulting or other services for any third party. 
+d.	Use of the Software may require or facilitate access to certain Application Programming Interfaces (“APIs”). Licensee is solely responsible for all activity associated with its use of the APIs and any associated credentials (“API Key”). Licensee shall comply with any terms and conditions applicable to the APIs and use of the APIs or API Key to access to any data or intellectual property. 
+
+3.	LICENSE TERMINATION
+This Agreement shall terminate immediately upon failure of the Licensee to comply with any of the terms and conditions of this License Agreement, or upon Licensee asserting any legal claim against Mandiant, upon either of which the Licensee is no longer authorized to exercise any of the rights granted herein and shall delete all copies of the Software.
+
+4.	THIRD PARTY SOFTWARE
+Licensee acknowledges that the Software may contain or use open source software whose copyrights are owned by third-parties. Licensee agrees to be legally bound to any and all licenses applicable to such open source software. Licensee shall indemnify and hold Mandiant harmless with respect to Licensee's use of such open source software. Mandiant makes no representations or warranties with respect to such open source software.
+
+5.	UPGRADES
+Mandiant shall be under no obligation to Support the Software, though may elect, in its sole discretion, to provide Support in which case Mandiant does so without liability or obligation. Licensee assumes sole responsibility to fully test the Software and its use in Licensee's application on an on-going basis. As used in this Section, "Support" includes, without limitation, providing maintenance, updates, new versions, documentation, and/or assistance as to the Software's use, modification, integration and application.
+
+6.	WARRANTY
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, SATISFACTORY QUALITY, TITLE, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. 
+
+7.	LIABILITY
+IN NO EVENT SHALL MANDIANT BE LIABLE FOR (A) ANY SUPPORT OF THE SOFTWARE, AND ANY MODIFICATIONS OR DERIVATIVE WORKS BASED ON THE SOFTWARE MADE BY OR ON BEHALF OF LICENSEE OR THIRD PARTIES, (B) USE, INTEGRATION, APPLICATION OR COMPATIBILITY OF THE SOFTWARE WITH OTHER PRODUCTS, SOFTWARE OR SERVICES, (C) ANY ERROR, DEFECT OR VULNERABILITY IN THE SOFTWARE, (D) ANY CLAIM OR DAMAGES (INCLUDING BUT NOT LIMITED TO DIRECT, INDIRECT, SPECIAL, EXEMPLARY, INCIDENTAL, OR CONSEQUENTIAL DAMAGES OF ANY CHARACTER) RELATING TO  THE SOFTWARE,(E) USE OF ANY APIs or API KEYS, AND (F) OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OF OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE POSSBILITY OF SUCH DAMAGES. LICENSEE IS SOLELY RESPONSIBLE FOR DETERMINING THE APPROPRIATENESS OF USING THE SOFTWARE, AND ASSUMES ANY RISKS ASSOCIATED WITH THE PRACTICE OF THIS LICENSE. 
+
+8.	GENERAL 
+This Agreement shall be deemed to have been made in, and shall be governed by, the laws of the State of Delaware and the United States without regard to conflicts of laws provisions thereof, and without regard to the United Nations Convention on the International Sale of Goods. This Agreement is not assignable by the Licensee and is fully assignable by Mandiant. In the event of a conflict between the terms of this Agreement and the terms and conditions of a prior agreement between Mandiant and the Licensee, the terms of this Agreement shall govern with respect to the Software. 
