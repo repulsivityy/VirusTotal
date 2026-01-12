@@ -80,7 +80,7 @@ def parse_arguments():
         type=str,
         default="gemini-2.5-flash",
         choices=["gemini-2.5-flash", "gemini-2.5-pro"],
-        help="The Gemini model to use for the summary. Default: gemini-1.5-flash."
+        help="The Gemini model to use for the summary. Default: gemini-2.5-flash."
     )
     return parser.parse_args()
 
