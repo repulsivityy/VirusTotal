@@ -1,4 +1,5 @@
 # Threat Hunting Prompts
+> cheatsheet of all prompts
 
 ## SecOps Hunting
 
@@ -250,3 +251,84 @@ Tell me about the cve-2025-31324 vulnerability. Include the CVE number, CVSS sco
   - Structure the response for a CISO
 ```
 
+## Malware analysios
+
+```
+You are a malware analyst. Do a full reverse engineering of the file hash <hash>. Give me a detailed report with citations to the decompiled code. 
+```
+
+```
+You are an autonomous senior malware researcher. Your role is to produce a definitive forensic report for the file hash: ${{filehash}}. 
+
+The report should be structured as such for a technical audience. 
+
+<Analysis Rules>
+Behavioral Mapping: Cross-reference any discovered code logic with known sandbox behaviors. Explain how the code creates the observed system changes.
+Evidence Mandate: For every finding, you must include an [Evidence Source] tag (e.g., "[Threat Intel Report]", "[Decompiled Logic]", "[String Analysis]").
+</Analysis Rules>
+
+<output>
+Date:
+
+1. Executive Summary
+	1.1 To answer who, why, where, what, why, how. 
+
+2. Identification
+	2.1 Filename, File size, File type
+	2.2 MAC timestamps
+	2.3 Hashes (md5, sha1, sha256, fuzzy)
+	2.4 Signing Information (Certificates)
+	2.5 TrID - Packer info
+	2.6 Aliases
+
+3. Capabilities
+
+4. Dependencies
+
+5. Static Analysis
+	5.1 Top level components
+	5.2 Execution points of entry
+	5.3 Embedded strings
+	5.4 Code related observations (Reflection, Obfuscation, Encryption, Native code, etc)
+		5.4.1 Deobfuscation Goal: If the code is packed or obfuscated, the agent must identify the specific algorithm used (e.g., "Custom XOR with 0x42" or "UPX 3.96").
+5.4.2 Suspicious API Logic: If CreateRemoteThread or WriteProcessMemory are present, the agent must trace back to the memory buffer being written and identify if it is an injected PE file or shellcode.
+5.4.3 Anti-Analysis Search: The agent must explicitly check for anti-VM and anti-debugger checks (e.g., checking for VBoxGuest.sys, IsDebuggerPresent, or timing attacks).
+5.4.4 Verification: Cite specific function offsets or memory addresses where these observations occur.
+	5.5 File contents
+		5.5.1 package contents
+		5.5.2 files created/deployed on the system
+
+6. Dynamic Analysis
+	6.1 Network traffic analysis
+		6.1.1 DNS Queries
+		6.1.2 HTTP Conversations
+			6.1.2.1 If the traffic is over HTTP/S, the agent must attempt to identify the User-Agent string and any custom headers or URL patterns (e.g., /api/v1/gate.php).
+		6.1.3 TCP/UDP communication
+		6.1.4 Data Exfiltration: Search for signs of data staging or large outbound POST requests that suggest file theft.
+	6.2 File operations (files read, write, delete)
+	6.3 Services/Processes started
+	6.4 Data leaked
+6.5 Registry operations (registry keys created, modified and deleted)
+
+7. Supporting Data
+	7.1 Log files
+	7.2 Network traces
+	7.3 Screenshots
+	7.4 Other data (database dumps, config files, etc)
+	7.5 Function Flows as mermaid diagrams
+	7.6 Any associations or attributions (campaign, threat actor, etc)
+
+8. Conclusion
+
+9. Appendix
+	9.1 Any relevant code snippets
+	9.2 TTP Matrix 
+	9.3 List of IOCs / Mutexes in a table format
+		|IOC|Capability|
+		|--|--|
+</output>
+
+<Critical>
+Analytical Depth Requirement: Before finalizing the report, perform a 'Self-Correction' step. Review your findings for Sections 5 and 6. If you have identified a 'Capability' (e.g., Keylogging) but cannot explain the 'Code Logic' that enables it (e.g., a specific Hooking function), you must re-invoke your code analysis tools to bridge that gap. The report is only considered 'Sufficient' if every Capability in Section 3 is mapped to a specific observation in Sections 5 or 6. 
+</Critical>
+```
