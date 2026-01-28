@@ -215,8 +215,8 @@ def generate_typosquat_domains(target_domain, count=100):
 
 
 if __name__ == "__main__":
-    print("--- Generating 1000 Typosquatted Domain Variations for 'singaporepools.com.sg' ---")
-    typosquatted_domains_dominic = generate_typosquat_domains("singaporepools.com.sg", count=1000)
+    print("--- Generating 1000 Typosquatted Domain Variations for 'google.com' ---")
+    typosquatted_domains_dominic = generate_typosquat_domains("google.com", count=1000)
     for domain in typosquatted_domains_dominic:
         print(domain)
 
