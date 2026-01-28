@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link href="static/css/jquery.dataTables.min.css" rel="stylesheet" type="text/css" media="screen">
+    <link href="static/css/maveCustom.css" rel="stylesheet" type="text/css" media="screen">
+    <title>AVER</title>
+    <script>
+        // Declare a global constant with the URL from Python
+        const BASE_VULN_URL = "{{ base_vuln_url }}";
+    </script>
+    </head>
+    <body>
+        <div class="obvious-report-header">
+            <img src="{{ logo_file_path }}" alt="Google Threat Intelligence Logo" class="gti-logo">
+
+            <div class="report-body-container">
+        
+                <div id="gridContainer" class="grid-container" style="display: none;">
+                    <div class="grid-hdr">Wide</div>
+                    <div class="grid grid-red"></div>
+                    <div class="grid grid-red"></div>
+                    <div class="grid grid-dark-red"></div>
+                    <div class="grid grid-dark-red"></div>
+                    <div class="grid-hdr">Confirmed</div>
+                    <div class="grid grid-yellow"></div>
+                    <div class="grid grid-red"></div>
+                    <div class="grid grid-dark-red"></div>
+                    <div class="grid grid-dark-red"></div>
+                    <div class="grid-hdr">Available</div>
+                    <div class="grid grid-yellow"></div>
+                    <div class="grid grid-yellow"></div>
+                    <div class="grid grid-red"></div>
+                    <div class="grid grid-red"></div>
+                    <div class="grid-hdr">No Known</div>
+                    <div class="grid grid-green"></div>
+                    <div class="grid grid-green"></div>
+                    <div class="grid grid-yellow"></div>
+                    <div class="grid grid-yellow"></div>
+                    <div class="grid-hdr"></div>
+                    <div class="grid-hdr">Low</div>
+                    <div class="grid-hdr">Medium</div>
+                    <div class="grid-hdr">High</div>
+                    <div class="grid-hdr">Critical</div>
+                    <div class="grid-hdr-logo">
+                        <svg>
+                            <path d="M16.7601 3.45758L16.7161 3.45202C16.2947 3.39448 15.8657 3.45739 15.4786 3.6335C14.9337 3.91683 14.4393 4.28836 14.0156 4.73303L13.9944 4.75387C13.6635 5.08034 13.3597 5.4332 13.086 5.80895L8.9129 11.5469H7.32125L2.73794 5.2446V14.8232H0V0.23584H2.1435L8.10689 8.45801L14.0911 0.23584H16.7601V3.45758Z"></path>
+                            <path d="M16.76 5.55322C16.4059 5.55298 16.0551 5.62253 15.7278 5.7579C15.4005 5.89327 15.1031 6.0918 14.8526 6.34215C14.6021 6.59251 14.4034 6.88977 14.2678 7.21697C14.1322 7.54416 14.0624 7.89486 14.0624 8.24904V14.8231H16.76V5.55322Z"></path>
+                            <path d="M36.8526 14.8223H34.1401L32.8253 11.5459H25.7091L24.3943 14.8223H21.6605L27.5035 0.235352H31.0294L36.8526 14.8223ZM31.8443 9.10428L29.2568 2.65571L26.6897 9.10428H31.8443Z"></path>
+                            <path d="M55.0071 14.8223H53.0455L44.4266 4.80523V14.8223H41.7345V0.235352H43.6965L52.315 10.2311V0.235352H55.0071V14.8223Z"></path>
+                            <path d="M75.1287 7.51818C75.1441 9.43835 74.3967 11.2861 73.0507 12.6557C71.7047 14.0252 69.8702 14.8044 67.95 14.8223H61.6686V0.235352H67.95C68.8997 0.241772 69.8388 0.43529 70.7136 0.80484C71.5885 1.17439 72.3819 1.71273 73.0486 2.38909C73.7153 3.06544 74.2422 3.86656 74.5991 4.74664C74.956 5.62672 75.1359 6.56851 75.1287 7.51818ZM72.4574 7.51818C72.4683 6.28757 71.9914 5.10274 71.131 4.22283C70.2706 3.34292 69.0968 2.83956 67.8662 2.82284H64.3625V12.2135H67.8681C69.0983 12.1963 70.2717 11.6927 71.1316 10.8129C71.9916 9.93302 72.4683 8.74846 72.4574 7.51818Z"></path>
+                            <path d="M80.7615 14.8223V0.235352H83.4536V14.8223H80.7615Z"></path>
+                            <path d="M103.469 14.8223H100.756L99.4415 11.5459H92.3253L91.0105 14.8223H88.2767L94.1198 0.235352H97.6466L103.469 14.8223ZM98.4605 9.10428L95.873 2.65571L93.3063 9.10428H98.4605Z"></path>
+                            <path d="M121.642 14.8223H119.68L111.062 4.80523V14.8223H108.37V0.235352H110.331L118.95 10.2311V0.235352H121.642V14.8223Z"></path>
+                            <path d="M139.142 0.235352H128.568C127.938 0.266932 127.347 0.545239 126.922 1.00993C126.496 1.47462 126.271 2.08824 126.295 2.71774L126.245 2.7395H131.298V14.8769C132.213 14.8552 133.079 14.9084 133.983 14.8366V14.8223H134.03V2.73904H137.413C138.033 2.68793 138.609 2.39864 139.021 1.93186C139.432 1.46508 139.647 0.857063 139.62 0.235352H139.142Z"></path>
+                        </svg>
+                    </div>
+                </div>
+    
+                <div id="reportDetails">
+                    <h3>Attack Surface Management Vulnerability Enrichment</h3>
+                    <p><strong>Project:</strong> {{ project_name }} ({{ project_id }})</p>
+                    <p><strong>Collection Name:</strong> {{ report_collection_name }}</p>
+                    <p><strong>Data Type:</strong> {{ report_data_type }}</p>
+                    <p><strong>Report Date:</strong> {{ report_date }}</p>
+                    <p><strong>Scan Filter:</strong> {{ last_scan_info }}</p>
+                    <p><strong>Description:</strong> {{ report_description }}</p>
+                </div>
+            
+            </div>
+
+        </div>
+    </div>
+    <div class="error-msg" id="msgDisplayStage"></div>
+    <div id="dataTableStage">
+        <div id="divShowTblHdr">
+            Showing columns:
+            <a id="UserInteraction" colCount="1" data-column="7">User Interaction</a> -
+            <a id="AssociatedActors" colCount="1" data-column="8">Associated Actors</a> -
+            <a id="AssociatedMalware" colCount="1" data-column="9">Associated Malware</a> -
+            <a id="ExploitationVector" colCount="1" data-column="11">Exploitation Vectors</a> -
+            <a id="PublishedDate" colCount="1" data-column="12">Published Date </a> -
+            <a id="DateOfDisclosure" colCount="1" data-column="13">Date of Disclosure</a> -
+            <a id="WasZeroDay" colCount="1" data-column="14">Was Zero Day</a> -
+            <a id="Score_v3" colCount="2" data-column="15-16">Score (3.x)</a> -
+            <a id="Score_v2" colCount="2" data-column="17-18">Score (2.0)</a>
+        </div>
+        <table id='tblCveData' class="display no-footer dataTable">
+            <thead>
+                <tr class="tblCenterText" style="height: 0px;">
+                    <th rowspan="2">CVE-ID</th>
+                    <th rowspan="2">Exploit Rating</th>
+                    <th rowspan="2">Risk Rating</th>
+                    <th rowspan="2">Issue Name</th>
+                    <th rowspan="2">Entity Name</th>
+                    <th rowspan="2">Issue Severity</th>
+                    <th rowspan="2">Issue Confidence</th>
+                    <th rowspan="2">User Interaction</th>
+                    <th rowspan="2">Associated Actors</th>
+                    <th rowspan="2">Associated Malware</th>
+                    <th rowspan="2">Title</th>
+                    <th rowspan="2">Exploitation Vector(s)</th>
+                    <th rowspan="2">Published Date</th>
+                    <th rowspan="2">Date Of Disclosure</th>
+                    <th rowspan="2">Was Zero Day</th>
+                    <th colspan="2" class="tblCenterText">Score (3.x)</th>
+                    <th colspan="2" class="tblCenterText">Score (2.0)</th>
+                </tr>
+                <tr class="tblCenterText" style="height: 0px;">
+                    <th>Base</th>
+                    <th>Temporal</th>
+                    <th>Base</th>
+                    <th>Temporal</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
+    
+    <script src="static/js/jquery.js" type="text/javascript"></script>
+    <script src="static/js/jquery.dataTables.min.js" type="text/javascript"></script>
+    <script src="static/js/maveVarInit.js" type="text/javascript"></script>
+    <script src="static/js/maveFunctions.js" type="text/javascript"></script>
+
+    <script type="text/javascript">
+
+        $(document).ready(function() {
+            var allReports = {{cve_data|tojson}};
+            $.fn.dataTable.ext.classes.sPageButton = 'mave_paginate_button';
+
+            // Define a new rule for the first column (CVE-ID) to render it as a link
+            var cveColumnDef = {
+                "targets": 0, // Target the first column (index 0)
+                "render": function(data, type, row) {
+                    // 'data' is the CveId (for display text)
+                    // 'row.UrlSuffixId' is our new field for the link
+                    return `<a href="${BASE_VULN_URL}${row.UrlSuffixId}" target="_blank">${data}</a>`;
+                }
+            };
+
+            // Combine our new rule with the existing column definitions from the external file
+            var allColumnDefs = [cveColumnDef].concat(createColumnDefs());
+
+            datatable = $('#tblCveData').DataTable(
+            {
+                "data": allReports,
+                "columns": [
+                    { "data": "CveId" },
+                    { "data": "ExploitRating" },
+                    { "data": "RiskRating" },
+                    { "data": "IssueName" },
+                    { "data": "EntityName" },
+                    { "data": "IssueSeverity" },
+                    { "data": "IssueConfidence" },
+                    { "data": "UserInteraction" },
+                    { "data": "AssociatedActors" },
+                    { "data": "AssociatedMalware" },
+                    { "data": "Title" },
+                    { "data": "ExploitationVector" },
+                    { "data": "PublishedDate" },
+                    { "data": "DateOfDisclosure" },
+                    { "data": "WasZeroDay" },
+                    { "data": "V3_BaseScore" },
+                    { "data": "V3_TemporalScore" },
+                    { "data": "V2_BaseScore" },
+                    { "data": "V2_TemporalScore" }
+                ],
+                "lengthMenu": [[25, 50, 100, 250, -1], [25, 50, 100, 250, "All"]],
+                "pageLength": 100,
+                "destroy": true,
+                "columnDefs": allColumnDefs, // Use our new combined set of rules
+                "autoWidth": false,
+                "language": { "emptyTable": "No CVE(s) to show" },
+                "order": [[ 2, "desc" ]]
+            });
+
+            // jQuery('.dataTable').wrap('<div class="dataTables_scroll" />');
+            resetIntelligenceMatrix();
+            buildIntelligenceMatrix(allReports);
+            strikeInvisibleColumns();
+
+            // Map grid cell indexes to their corresponding filter text
+            const exploitMap = [
+                'Wide', 'Wide', 'Wide', 'Wide',
+                'Confirmed', 'Confirmed', 'Confirmed', 'Confirmed',
+                'Available', 'Available', 'Available', 'Available',
+                'No Known', 'No Known', 'No Known', 'No Known'
+            ];
+            const riskMap = [
+                'Low', 'Medium', 'High', 'Critical',
+                'Low', 'Medium', 'High', 'Critical',
+                'Low', 'Medium', 'High', 'Critical',
+                'Low', 'Medium', 'High', 'Critical'
+            ];
+
+            // Add click event listener to all grid cells with data
+            $('#gridContainer .grid').on('click', function() {
+                // Make the grid cells look clickable
+                $('#gridContainer .grid').css('cursor', 'pointer');
+                
+                const cellIndex = $(this).index('#gridContainer .grid'); // Get the index (0-15) of the clicked cell
+                
+                // Get the filter terms from our maps
+                const exploitFilter = exploitMap[cellIndex];
+                const riskFilter = riskMap[cellIndex];
+
+                // Apply the filters to the datatable
+                // Column 1 is 'ExploitRating', Column 2 is 'RiskRating'
+                datatable
+                    .column(1).search(exploitFilter ? '^' + exploitFilter + '$' : '', true, false) // Use regex for exact match
+                    .column(2).search(riskFilter ? '^' + riskFilter + '$' : '', true, false)     // Use regex for exact match
+                    .draw();
+            });
+
+            // Add a click event to the logo in the grid header to clear the filters
+            $('#gridContainer .grid-hdr-logo').on('click', function() {
+                datatable
+                    .column(1).search('')
+                    .column(2).search('')
+                    .draw();
+            });
+
+            // Also make the logo and grid cells clickable
+            $('#gridContainer .grid-hdr-logo').css('cursor', 'pointer');
+            $('#gridContainer .grid').css('cursor', 'pointer');
+
+            // Add a click event to the main report logo to clear the filters
+            $('img.gti-logo').on('click', function() {
+                datatable
+                    .column(1).search('')
+                    .column(2).search('')
+                    .draw();
+            });
+
+            // Make the main logo and grid cells appear clickable
+            $('img.gti-logo').css('cursor', 'pointer');
+            $('#gridContainer .grid').css('cursor', 'pointer');
+
+        });
+    </script>
+</body>
+</html>
