@@ -1,0 +1,7 @@
+pandas
+requests
+jinja2
+aiohttp
+tqdm
+google-cloud-storage
+urllib3
