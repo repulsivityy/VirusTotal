@@ -14,12 +14,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
 COPY report_generator.py .
 
-# Expose the default port that Streamlit runs on
-EXPOSE 8501
+# Expose the port that Cloud Run expects (8080)
+EXPOSE 8080
 
 # Define the healthcheck to ensure the app is running
 HEALTHCHECK CMD streamlit hello
 
 # Define the command to run when the container starts
-# This makes the app accessible on the network
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+# This makes the app accessible on the network at port 8080
+CMD ["streamlit", "run", "app.py", "--server.port=8080", "--server.address=0.0.0.0"]
