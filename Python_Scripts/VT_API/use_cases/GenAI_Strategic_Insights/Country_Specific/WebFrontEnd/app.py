@@ -28,8 +28,11 @@ with st.sidebar:
         help="Filter reports by their origin. 'Crowdsourced' excludes GTI, 'GTI' is only Google Threat Intelligence, 'Both' includes all sources."
     )
 
-    model = st.selectbox("Gemini Model", ["gemini-2.5-flash", "gemini-2.5-pro"])
+    model = st.selectbox("Gemini Model", ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-pro"])
     enrich_cve = st.toggle("Enrich CVEs?", value=True, help="If enabled, extracts CVEs from the summary and adds a details table.")
+    
+    st.markdown("### Optional Filters")
+    topic = st.text_input("Topic", "", help="Filter reports by a specific topic (e.g., 'Ransomware', 'Phishing'). Leaves empty for all.")
 
     st.header("🔑 API Keys")
     gti_api_key_input = st.text_input("GTI API Key", type="password", help="Enter your GTI API Key")
@@ -38,7 +41,7 @@ with st.sidebar:
 
 # --- Main Application Logic ---
 if st.button("Generate Report", type="primary", use_container_width=True):
-    with st.spinner(f"🔍 Fetching reports and generating summary for **{country}**... This may take a moment."):
+    with st.spinner(f"🔍 Fetching reports and generating summary for **{country}**" + (f" on **{topic}**" if topic else "") + "... This may take a moment."):
         try:
             source_for_api = source_option.lower()
 
@@ -50,6 +53,7 @@ if st.button("Generate Report", type="primary", use_container_width=True):
                     model=model,
                     enrich_cve=enrich_cve,
                     source=source_for_api,
+                    topic=topic,
                     gti_api_key=gti_api_key_input,
                     gemini_api_key=gemini_api_key_input
                 )

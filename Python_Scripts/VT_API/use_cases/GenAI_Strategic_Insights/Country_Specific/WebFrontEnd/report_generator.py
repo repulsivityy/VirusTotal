@@ -92,14 +92,17 @@ async def fetch_vulnerability_details(session, gti_api_key, cves):
     results = [result for result in await asyncio.gather(*tasks) if result]
     return results
 
-async def fetch_reports(session, gti_api_key, country, source, start_date='5d', limit=450):
+async def fetch_reports(session, gti_api_key, country, source, topic=None, start_date='5d', limit=450):
     """Fetches intelligence reports from the GTI API."""
-    print(f"Fetching reports for {country} (Source: {source})...")
+    print(f"Fetching reports for {country} (Topic: {topic}, Source: {source})...")
     base_url = 'https://www.virustotal.com/api/v3/collections'
     headers = {'x-apikey': gti_api_key, 'x-tool': 'WebAppGTI'}
 
     # Dynamically build the filter string based on the source selection
     base_filter = f"collection_type:report target_country:{country} creation_date:{start_date}+"
+    
+    if topic:
+        base_filter += f" (name:\"{topic}\" OR description:\"{topic}\")"
     
     origin_filter = ""
     if source == "crowdsource":
@@ -130,8 +133,12 @@ async def fetch_reports(session, gti_api_key, country, source, start_date='5d', 
     print(f"✅ Fetched {len(collections)} reports.")
     return collections
 
-def get_system_instruction(output_country, output_language):
+def get_system_instruction(output_country, output_language, topic=None):
     """Creates the detailed system instruction prompt for the Gemini model."""
+    topic_context = ""
+    if topic:
+        topic_context = f"Specifically, the newsletter must focus on developments related to **{topic}** within {output_country}."
+
     return f"""
     <PROMPT>
         <ROLE>
@@ -139,7 +146,7 @@ def get_system_instruction(output_country, output_language):
         </ROLE>
 
         <TASK>
-            Generate a **compelling, concise, and engaging weekly threat intelligence newsletter** focused on the most important landscape developments relevant to the specified {output_country}. You must filter provided reports for relevance, select the top stories, and summarize them accurately in {output_language}. The output format must be followed precisely.
+            Generate a **compelling, concise, and engaging weekly threat intelligence newsletter** focused on the most important landscape developments relevant to the specified {output_country}. {topic_context} You must filter provided reports for relevance, select the top stories, and summarize them accurately in {output_language}. The output format must be followed precisely.
         </TASK>
 
         <CONTEXT>
@@ -157,9 +164,10 @@ def get_system_instruction(output_country, output_language):
         </INPUT_FORMAT>
 
         <PROCESSING_INSTRUCTIONS>
-           1.  **Read & Filter for Country Relevance:**
+           1.  **Read & Filter for Country Relevance{(" AND Topic Relevance" if topic else "")}:**
             * Analyze all provided `REPORT_OBJECTS`.
             * Create a shortlist of reports that have **direct relevance** to organizations, government entities, or individuals in {output_country}. This includes threats originating from, targeting, or having specific industry or geopolitical implications for that country.
+            * {f"Ensure all selected reports also relate to the topic: **{topic}**." if topic else ""}
 
         2.  **Select & Synthesize for the Newsletter:**
             * From your country-relevant shortlist, select the **top 8-10 most significant stories**, such as:
@@ -189,7 +197,7 @@ def get_system_instruction(output_country, output_language):
             Generate the briefing in Markdown, adhering strictly to the following structure and translating all static text (headings, greetings) into the **`TARGET_LANGUAGE`**.
 
             1.  **Date:** Start with the full date (e.g., `Tuesday, April 15, 2025`).
-            2.  **Title:** Add a bold title on the next line: `**Google Threat Intelligence Update for {output_language}**` (Translated).
+            2.  **Title:** Add a bold title on the next line: `**Google Threat Intelligence Update for {output_language}**` (Translated). {f"Add a subtitle: **Topic: {topic}**" if topic else ""}
             3.  **Greeting:** Add a simple, professional greeting (Translated).
             4.  **Summary Paragraph:** Write a brief (2-4 sentence) introductory paragraph highlighting the 1-2 most important developments covered below, based *only* on selected items. If a broader trend or connection between multiple items was identified, mention it here.
             5.  **Section:** Include a single main section, for example: `**Key Threat Landscape Developments**` (Translated).
@@ -213,7 +221,7 @@ def get_system_instruction(output_country, output_language):
     </PROMPT>
     """
 
-def get_user_prompt(collections, output_country):
+def get_user_prompt(collections, output_country, topic=None):
     """Creates the user-facing prompt for the Gemini model."""
     today_str = datetime.date.today().strftime("%A, %B %d, %Y")
     
@@ -221,7 +229,7 @@ def get_user_prompt(collections, output_country):
     collections_subset = collections[:450]
     
     return f"""
-    Create a concise, engaging newsletter for cyber threat intelligence professionals protecting organizations and interests based in {output_country}.
+    Create a concise, engaging newsletter for cyber threat intelligence professionals protecting organizations and interests based in {output_country}{f" and related to the topic '{topic}'" if topic else ""}.
     Use the following reports as source material.
     Begin each item in the newsletter summary (before the bold title) with a thematically appropriate emoji, following the bullet point. No duplicates; each item must have a unique emoji.
     Use Bold text for the section headers; do not use H2 headers.
@@ -269,7 +277,7 @@ def create_vulnerability_table(cve_details, output_language):
 #  Main Callable Function
 # ==============================================================================
 
-async def generate_full_report(country, language, days, model, enrich_cve, source, gti_api_key=None, gemini_api_key=None):
+async def generate_full_report(country, language, days, model, enrich_cve, source, topic=None, gti_api_key=None, gemini_api_key=None):
     """
     Main logic to generate the full threat intelligence report.
     This function is called by the Streamlit front-end.
@@ -278,12 +286,12 @@ async def generate_full_report(country, language, days, model, enrich_cve, sourc
     start_date = f"{days}d"
     
     async with aiohttp.ClientSession() as session:
-        collections = await fetch_reports(session, gti_api_key, country, source, start_date=start_date)
+        collections = await fetch_reports(session, gti_api_key, country, source, topic=topic, start_date=start_date)
         if not collections:
             return "No reports found for the specified period."
 
-        system_instruction = get_system_instruction(country, language)
-        user_prompt = get_user_prompt(collections, country)
+        system_instruction = get_system_instruction(country, language, topic=topic)
+        user_prompt = get_user_prompt(collections, country, topic=topic)
         
         summary_text = await generate_summary(session, gemini_api_key, model, system_instruction, user_prompt)
         final_report = summary_text
