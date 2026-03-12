@@ -1,0 +1,135 @@
+[
+    { "name": "id", "type": "STRING", "mode": "NULLABLE", "description": "The SHA256 of the file, used as the unique identifier." },
+    {
+        "name": "submitter_id",
+        "type": "STRING",
+        "mode": "NULLABLE"
+    },
+    {
+        "name": "submitter_interface",
+        "type": "STRING",
+        "mode": "NULLABLE"
+    },
+    {
+        "name": "submitter_city",
+        "type": "STRING",
+        "mode": "NULLABLE"
+    },
+    {
+        "name": "submitter_region",
+        "type": "STRING",
+        "mode": "NULLABLE"
+    },
+    {
+        "name": "submitter_country",
+        "type": "STRING",
+        "mode": "NULLABLE"
+    },
+    {
+        "name": "download_url",
+        "type": "STRING",
+        "mode": "NULLABLE"
+    },
+    {
+        "name": "attributes",
+        "type": "RECORD",
+        "mode": "NULLABLE",
+        "fields": [
+            { "name": "size", "type": "INTEGER", "mode": "NULLABLE" },
+            { "name": "type_description", "type": "STRING", "mode": "NULLABLE" },
+            { "name": "type_tag", "type": "STRING", "mode": "NULLABLE" },
+            { "name": "type_tags", "type": "STRING", "mode": "REPEATED" },
+            { "name": "type_extension", "type": "STRING", "mode": "NULLABLE" },
+            { "name": "meaningful_name", "type": "STRING", "mode": "NULLABLE" },
+            { "name": "names", "type": "STRING", "mode": "REPEATED" },
+            { "name": "magic", "type": "STRING", "mode": "NULLABLE" },
+            { "name": "magika", "type": "STRING", "mode": "NULLABLE" },
+            { "name": "downloadable", "type": "BOOLEAN", "mode": "NULLABLE" },
+            { "name": "last_analysis_date", "type": "TIMESTAMP", "mode": "NULLABLE" },
+            { "name": "first_seen_itw_date", "type": "TIMESTAMP", "mode": "NULLABLE" },
+            { "name": "last_modification_date", "type": "TIMESTAMP", "mode": "NULLABLE" },
+            { "name": "creation_date", "type": "TIMESTAMP", "mode": "NULLABLE" },
+            { "name": "first_submission_date", "type": "TIMESTAMP", "mode": "NULLABLE" },
+            { "name": "last_submission_date", "type": "TIMESTAMP", "mode": "NULLABLE" },
+            { "name": "times_submitted", "type": "INTEGER", "mode": "NULLABLE" },
+            { "name": "unique_sources", "type": "INTEGER", "mode": "NULLABLE" },
+            { "name": "reputation", "type": "INTEGER", "mode": "NULLABLE" },
+            { "name": "sha256", "type": "STRING", "mode": "NULLABLE" },
+            { "name": "sha1", "type": "STRING", "mode": "NULLABLE" },
+            { "name": "md5", "type": "STRING", "mode": "NULLABLE" },
+            { "name": "vhash", "type": "STRING", "mode": "NULLABLE" },
+            { "name": "authentihash", "type": "STRING", "mode": "NULLABLE" },
+            { "name": "permhash", "type": "STRING", "mode": "NULLABLE" },
+            { "name": "ssdeep", "type": "STRING", "mode": "NULLABLE" },
+            { "name": "tlsh", "type": "STRING", "mode": "NULLABLE" },
+            { "name": "tags", "type": "STRING", "mode": "REPEATED" },
+            { "name": "last_analysis_results", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "filecondis", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "exiftool", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "androguard", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "threat_severity", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "popular_threat_classification", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "bundle_info", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "main_icon", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "trid", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "available_tools", "type": "JSON", "mode": "NULLABLE" },
+            {
+                "name": "total_votes",
+                "type": "RECORD",
+                "mode": "NULLABLE",
+                "fields": [
+                    { "name": "harmless", "type": "INTEGER", "mode": "NULLABLE" },
+                    { "name": "malicious", "type": "INTEGER", "mode": "NULLABLE" }
+                ]
+            },
+            {
+                "name": "last_analysis_stats",
+                "type": "RECORD",
+                "mode": "NULLABLE",
+                "fields": [
+                    { "name": "harmless", "type": "INTEGER", "mode": "NULLABLE" },
+                    { "name": "malicious", "type": "INTEGER", "mode": "NULLABLE" },
+                    { "name": "suspicious", "type": "INTEGER", "mode": "NULLABLE" },
+                    { "name": "undetected", "type": "INTEGER", "mode": "NULLABLE" },
+                    { "name": "timeout", "type": "INTEGER", "mode": "NULLABLE" },
+                    { "name": "failure", "type": "INTEGER", "mode": "NULLABLE" },
+                    { "name": "type-unsupported", "type": "INTEGER", "mode": "NULLABLE" }
+                ]
+            },
+            {
+                "name": "gti_assessment",
+                "type": "RECORD",
+                "mode": "NULLABLE",
+                "fields": [
+                    { "name": "verdict", "type": "JSON", "mode": "NULLABLE" },
+                    { "name": "severity", "type": "JSON", "mode": "NULLABLE" },
+                    { "name": "threat_score", "type": "JSON", "mode": "NULLABLE" },
+                    { "name": "contributing_factors", "type": "JSON", "mode": "NULLABLE" },
+                    { "name": "description", "type": "STRING", "mode": "NULLABLE" }
+                ]
+            }
+        ]
+    },
+    {
+        "name": "relationships",
+        "type": "RECORD",
+        "mode": "NULLABLE",
+        "fields": [
+            { "name": "itw_urls", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "contacted_domains", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "contacted_ips", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "contacted_urls", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "dropped_files", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "execution_parents", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "bundled_files", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "compressed_parents", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "pcap_parents", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "similar_files", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "associations", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "embedded_ips", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "embedded_domains", "type": "JSON", "mode": "NULLABLE" },
+            { "name": "embedded_urls", "type": "JSON", "mode": "NULLABLE" }
+        ]
+    },
+    { "name": "ingestion_timestamp", "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Timestamp when the record was added to BigQuery." }
+]
