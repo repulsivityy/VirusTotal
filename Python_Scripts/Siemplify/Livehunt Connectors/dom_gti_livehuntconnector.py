@@ -142,6 +142,7 @@ class LivehuntConnector(Connector):
         fetched_alerts = self.manager.get_ioc_stream(
             timestamp=self.context.last_success_timestamp,
             limit=self.params.max_notifications_to_fetch,
+            siemplify=self.siemplify,
             existing_ids=self.context.existing_ids,
         )
 
