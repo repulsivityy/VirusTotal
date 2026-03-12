@@ -1,0 +1,5 @@
+requests
+google-cloud-storage
+google-cloud-secret-manager
+pytz
+urllib3
