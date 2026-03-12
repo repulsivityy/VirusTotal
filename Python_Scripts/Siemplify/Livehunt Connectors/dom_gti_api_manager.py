@@ -1209,6 +1209,43 @@ class ApiManager:
         validate_response(response)
         return parser.build_ioc_search_result_objects(response.json())
 
+    # def get_notifications(
+    #     self,
+    #     timestamp: int,
+    #     limit: int,
+    #     siemplify: SiemplifyConnectorExecution = None,
+    #     existing_ids: list[str] | None = None,
+    # ):
+    #     """Get notifications
+    # 
+    #     Args:
+    #         timestamp (int): timestamp filter to get notifications from
+    #         limit (int): limit for results
+    #         siemplify (SiemplifyConnectorExecution): SiemplifyConnectorExecution object
+    #         existing_ids (list[str] | None): list of ids to filter
+    # 
+    #     Returns:
+    #         list[Notification]: list of Notification objects
+    # 
+    #     """
+    #     url = get_full_url(self.api_root, "get_notifications", timestamp=timestamp)
+    # 
+    #     params = {
+    #         "limit": MAX_NOTIFICATIONS_LIMIT,
+    #         "order": "date+",
+    #         "filter": f"date:{timestamp}+",
+    #     }
+    # 
+    #     return self._paginate_results_by_next_page_link(
+    #         full_url=url,
+    #         limit=limit,
+    #         siemplify=siemplify,
+    #         parser_method="build_notification_objects",
+    #         existing_ids=existing_ids,
+    #         params=params,
+    #     )
+
+    # [MODIFIED] - Changed to get_ioc_stream to support IOC Stream API endpoint
     def get_ioc_stream(
         self,
         timestamp: int,
@@ -1244,6 +1281,62 @@ class ApiManager:
             params=params,
         )
 
+    # def _paginate_results_by_next_page_link(
+    #     self,
+    #     full_url: str,
+    #     limit: int,
+    #     siemplify: SiemplifyConnectorExecution,
+    #     parser_method: str,
+    #     existing_ids: list[str] | None = None,
+    #     params: dict | None = None,
+    # ) -> list[Any]:
+    #     """Paginate the results
+    # 
+    #     Args:
+    #         full_url (str): full url to send request to
+    #         limit (int): limit for the results to fetch
+    #         siemplify (SiemplifyConnectorExecution): SiemplifyConnectorExecution object
+    #         parser_method (str): parser method to convert json to dataclass
+    #         existing_ids (list[str] | None): list of ids to filter
+    #         params (dict | None): request params dict
+    # 
+    #     Returns:
+    #         list[Any]: list of any dataclasses
+    # 
+    #     """
+    #     results, next_page_link, response = [], None, None
+    #     existing_ids_set = set(existing_ids) if existing_ids else set()
+    # 
+    #     while True:
+    #         if response:
+    #             if not next_page_link or (limit is not None and len(results) >= limit):
+    #                 break
+    # 
+    #             full_url = next_page_link
+    #             params = {}
+    # 
+    #         response = self.session.get(full_url, params=params)
+    #         validate_response(response)
+    #         next_page_link = response.json().get("links", {}).get("next", "")
+    #         alerts = getattr(parser, parser_method)(response.json())
+    #         filtered_alerts = [
+    #             alert
+    #             for alert in alerts
+    #             if not hasattr(alert, "pass_filter") or alert.pass_filter()
+    #         ]
+    # 
+    #         results.extend(
+    #             filter_old_alerts(
+    #                 siemplify,
+    #                 alerts=filtered_alerts,
+    #                 existing_ids=existing_ids_set,
+    #                 id_key="alert_id",
+    #             )
+    #         )
+    # 
+    #     return results[:limit] if limit else results
+
+    # [MODIFIED] - Changed to _paginate_results_by_cursor to implement cursor-based pagination for IOC Stream API
     def _paginate_results_by_cursor(
         self,
         full_url: str,
