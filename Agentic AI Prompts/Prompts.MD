@@ -18,7 +18,12 @@ Identify unusual network traffic patterns, such as spikes in data transfer or co
 Show me all processes launched from temp directories, user profile AppData in the last 7 days. Inlcude the process name, associated username, full commandline, and timestamp. Examine any suspicious behaviours - such as command line utilities - and enrich these indicators with gti. Provide the child processes should gti returns a verdict of suspicious or malicious. 
 ```
 
+***
+
 ## Threat Intelligence
+
+### Threat Hunt
+
 * Understanding Malware
 ```
 Tell me more about Ransomhub Ransomware. Include their TTPs, threat actors observed to have used them, and any known IOCs first seen in the past 30 days. 
@@ -26,17 +31,31 @@ Tell me more about Ransomhub Ransomware. Include their TTPs, threat actors obser
 
 * Understanding Campaigns (Strategic) 
 ```
-Based on this report <insert link>, summarise the report for a CISO. Include their TTPs
+Based on this report ${{report_link}}, summarise the report for a CISO. Include their TTPs
 ```
 
-* Understanding Vulnerabilities
+* Understanding Techniques
 ```
-You are a cybersecurity analyst focusing on vulnerability management, and you are expected to update your CISO on the latest vulnerability trends. Focus on vulnerabilities actively exploited in the wild and those with a high potential for causing significant impact. Provide a summary of each vulnerability, its potential impact, and recommended mitigation strategies. Use key insights such as CISA Known Exploited Vulnerabilities (KEV) catalog, Common Vulnerability Scoring System (CVSS), as well as the Exploit Prediction Scoring System (EPSS).
+What is etherhiding and how do I detect it?
+```
+
+* Understanding Tactics
+```
+What are some novel initial access tactics observed in the past year? 
+```
+
+```
+Explain the concept of ‘living off the land’ attacks and how they are designed to deliberately bypass endpoint detection mechanisms by using built-in system tools.
 ```
 
 * Understanding Campaigns + Hunting Packages (Operational / Tactical)
 ```
-Based on this report <insert link>, summarise the report for a threat intelligence analyst. Please output the following: - any ttps/behaviours in the report - any indicators / iocs in the report in a table format. If there are any TTPs that we can use, convert them into a cyber threat hunting package based on YARA-L. Leverage Sysmon event data primarily when creating YARA-L rules
+Based on this report ${{report_link}}, summarise the report for a threat intelligence analyst. 
+Please output the following: 
+- any ttps/behaviours in the report 
+- any indicators / iocs in the report in a table format. 
+
+If there are any TTPs that we can use, convert them into a cyber threat hunting package based on Sigma rules. Leverage Sysmon event data primarily when creating Sigma rules
 ```
 
 * Understanding campaigns for hypothesis
@@ -60,9 +79,10 @@ For each hypothesis, provide a list of data sources that we can use to test the 
 
 * Understanding reports, and pulling IOCs and any rules
 ```
-You are a threat hunter. Based on this report <insert link>, summarise the report for a threat intelligence analyst. Please output the following: 
+You are a threat hunter. Based on this report ${{report_link}}, summarise the report for a threat intelligence analyst. Please output the following: 
   - any ttps/behaviours in the report 
   - any indicators / iocs in the report in a table format. 
+
 If there are any rules such as YARA rules, automatically push them to my Livehunt rule on GTI 
 ```
 
@@ -74,10 +94,12 @@ Analyse Akira Ransomware Victims and Tactics.
 Based on what was provided, provide some threat hunting hypotheses.
 ```
 
+### Strategic / Risk Focused
 
 * Cyber Threat Actor Research Prompt
 ```
-**Research Target:** [INSERT THREAT ACTOR NAME/APT GROUP]
+ **Research Target:** ${{threat_actor}}
+Time-frame: ${{time_frame}}
 
 ## Research Objectives
 
@@ -147,6 +169,7 @@ Provide 3-5 actionable recommendations:
 5. **Intelligence Sharing:** Relevant information sharing initiatives
 
 ## Research Sources
+- Prioritise Google Threat Intelligence data from the platform first. 
 - Open source intelligence (OSINT)
 - Threat intelligence platforms
 - Security vendor reports
@@ -167,6 +190,7 @@ Provide 3-5 actionable recommendations:
 - Provide confidence levels for key judgments
 - Include source attribution and publication dates
 - Highlight any information gaps or limitations
+
 ```
 
 * OSINT Daily Summary / BLUF
@@ -232,29 +256,145 @@ Provide 3-5 actionable recommendations:
 </PROMPT>
 ```
 
-## Vulnerabilities
+* Threat Landscape for Country
+```
+**You are a senior geopolitical and cyber threat intelligence analyst.**
+
+Your mission is to generate a comprehensive, structured analysis of the national risk and cyber threat landscape for ${{country}}. The report must be objective, analytical, and based on the most recent, credible open-source information.
+
+Produce a report that follows this exact structure:
+
+---
+
+## **Threat & Risk Analysis: ${{country}}**
+
+### **Executive Summary**
+* Provide a high-level summary (3-4 bullet points) of the most critical findings.
+* State the primary geopolitical risks.
+* State the dominant cyber threats and key targeted sectors.
+* Give an overall assessment of the country's cyber defense posture (e.g., Robust, Developing, Lacking).
+
+---
+
+### **Part 1: Geopolitical & National Risk Profile**
+This section assesses the broad, non-cyber risks that create the operating environment.
+
+* **Political Stability & Governance:**
+    * Current state of government stability (e.g., unified, coalition, internal conflict).
+    * Rule of law, corruption levels, and institutional effectiveness.
+    * Any significant social unrest or protest movements.
+* **Geopolitical & Regional Standing:**
+    * Key international alliances (e.g., NATO, EU, ASEAN, etc.).
+    * Active conflicts, border disputes, or significant tensions with neighboring states.
+    * Exposure to international sanctions or trade disputes.
+* **Economic Environment:**
+    * Key economic indicators (e.g., GDP growth, inflation, currency stability).
+    * Primary national industries and economic dependencies (e.g., energy, technology, tourism).
+    * Sovereign credit rating and investor confidence.
+
+---
+
+### **Part 2: Cyber Threat Landscape**
+This section details the specific cyber threats facing the nation.
+
+* **Key Threat Actors (Internal & External):**
+    * **State-Sponsored (APTs):** Identify known Advanced Persistent Threat groups (from nations like Russia, China, North Korea, Iran, etc.) actively targeting ${{country}} and their typical motivations (e.g., espionage, sabotage).
+    * **Cybercriminal Groups:** Detail the prevalence of ransomware-as-a-service (RaaS) gangs, financial fraudsters, and data thieves.
+    * **Hacktivists & Insiders:** Note any significant activity from ideologically motivated hackers or risks from internal threats.
+* **Primary Targets & Victimized Sectors:**
+    * **Critical Infrastructure:** Assess the risk to energy, water, transportation, and healthcare systems.
+    * **Government & Defense:** Detail threats against ministries, military, and intelligence services.
+    * **Key Economic Sectors:** Analyze threats to finance, technology, manufacturing, and other sectors vital to ${{country}}'s economy.
+* **Common Tactics, Techniques & Procedures (TTPs):**
+    * Identify the most common attack vectors (e.t., ransomware, sophisticated phishing/social engineering, DDoS attacks, supply chain compromises, zero-day exploits).
+
+---
+
+### **Part 3: National Cyber Defense & Posture**
+This section analyzes the country's resilience and response capabilities.
+
+* **Government Strategy & Key Agencies:**
+    * Identify the primary national cybersecurity agency (e.g., CISA in the US, NCSC in the UK, CSA in Singapore).
+    * Summarize the country's official national cybersecurity strategy.
+* **Legal & Regulatory Framework:**
+    * Detail key legislation regarding data privacy (e.g., GDPR-equivalents), breach notification requirements, and law enforcement's cyber capabilities.
+* **International Cooperation & Alliances:**
+    * Mention participation in international cyber defense agreements, intelligence sharing pacts, or capacity-building programs.
+
+---
+
+### **Part 4: Strategic Outlook & Key Vulnerabilities**
+This is the forward-looking "so what?" analysis.
+
+* **Key National Vulnerabilities:**
+    * Identify specific weaknesses (e.g., reliance on legacy IT systems, high levels of software piracy, digital literacy gaps in the populace, dependence on a single foreign technology provider).
+* **Future Forecast & Trends:**
+    * Provide a 12-24 month outlook. Are threats likely to increase or change?
+    * How might upcoming elections, geopolitical events, or new technologies (like AI-enhanced attacks) impact the landscape?
+
+---
+
+**(End of Report)**
+```
+
+* Threat Prediction
+```
+Role: You are a Lead Cyber Threat Intelligence (CTI) Researcher specializing in strategic forecasting.
+
+Context: Your objective is to produce a forward-looking threat assessment for the ${{industry_sector}} sector, focusing on a 12-18 month horizon. We are moving beyond general trends to identify specific, high-impact emerging threats.
+
+Task: Identify 5 distinct emerging threats. For each threat, provide a structured analysis including:
+
+Threat Vector & Technical Basis: Describe the specific vulnerability, misconfiguration, or novel exploit method. Reference relevant MITRE ATT&CK® techniques where applicable.
+
+Adversary Profile: Identify the likely threat actors (e.g., specific APT groups, initial access brokers, or ransomware-as-a-service affiliates) and their probable motivations (espionage, disruption, or financial gain).
+
+Business Impact: Explain the "so what?"—how this threat specifically cripples the ${{industry_sector}} (e.g., supply chain contagion, data exfiltration of proprietary IP, or regulatory non-compliance).
+
+Strategic Recommendations: Provide 3 pre-emptive defensive measures. These must be split into:
+
+Detection: (e.g., specific YARA-L rules for Google SecOps, Sigma rules, or telemetry to monitor).
+
+Prevention/Hardening: (e.g., architectural changes or policy enforcements).
+
+Resilience: (e.g., specific tabletop exercise scenarios).
+
+Constraint: Avoid "evergreen" threats like basic phishing or weak passwords unless there is a significant new technical evolution in how they are being executed. 
+```
+
+### Vulnerabilities
 
 * Understanding specific vulnerabilities
 
 ```
-Tell me about the log4j vulnerability. Include the CVE number, CVSS score, and a summary of the vulnerability. Provide recommendations on what I need to do to remediate this vulnerability. Check if I have any open cases or if my scc shows any alerts related to it
+Tell me about the ${{vulnerability}} vulnerability. Include the CVE number, CVSS score, and a summary of the vulnerability. Provide recommendations on what I need to do to remediate this vulnerability.```
+
+```
+List all vulnerabilities related to ${{vendor}} that are more than CVSS score of 6 or more seen in the past ${{time_frame}} days
 ```
 
 ```
-List all vulnerabilities related to Cisco that are more than CVSS score of 6 or more seen in the past 60 days
-```
-
-```
-Tell me about the cve-2025-31324 vulnerability. Include the CVE number, CVSS score, and a summary of the vulnerability. Explain in point form, who has been observed exploiting this vulnerability, why this vulnerability is critical, and the risk associated with it. 
+Tell me about the ${{cve}} vulnerability. Include the CVE number, CVSS score, and a summary of the vulnerability. Explain in point form, who has been observed exploiting this vulnerability, why this vulnerability is critical, and the risk associated with it. 
   - Provide recommendations on what I need to do to remediate this vulnerability. 
-  - Check if I have any open cases or alerts based on the file hashes in the report. 
   - Structure the response for a CISO
 ```
 
-## Malware analysios
+```
+Explain ${{cve}}}$$ in simple terms and list the most affected systems and potential mitigation steps.
+```
+
+* Vulnerabilities Trends
+```
+You are a cybersecurity analyst focusing on vulnerability management, and you are expected to update your CISO on the latest vulnerability trends for the past ${{time_frame}}. 
+
+Focus on vulnerabilities actively exploited in the wild and those with a high potential for causing significant impact. Provide a summary of each vulnerability, its potential impact, and recommended mitigation strategies. Use key insights such as CISA Known Exploited Vulnerabilities (KEV) catalog, Common Vulnerability Scoring System (CVSS), as well as the Exploit Prediction Scoring System (EPSS).
+```
+
+
+### DFIR / IOC Investigation
 
 ```
-You are a malware analyst. Do a full reverse engineering of the file hash <hash>. Give me a detailed report with citations to the decompiled code. 
+You are a malware analyst. Do a full reverse engineering of the file hash ${{filehash}}. Give me a detailed report with citations to the decompiled code. 
 ```
 
 ```
