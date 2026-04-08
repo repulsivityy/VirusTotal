@@ -333,8 +333,54 @@ This is the forward-looking "so what?" analysis.
     * How might upcoming elections, geopolitical events, or new technologies (like AI-enhanced attacks) impact the landscape?
 
 ---
-
 **(End of Report)**
+
+**[PRE-INSTRUCTION: CRITICAL RESEARCH STEP]**
+Before generating the report, use your search tools to identify at least 3-5 specific cyber incidents, data breaches, or state-sponsored campaigns that targeted ${{country}} or the ${{sector}} sector specifically within the last 12 months. Cross-reference these with geopolitical events from the same period (e.g., elections, trade disputes, regional conflicts). Use these real-world findings as the primary evidence for the report below.
+You research should primarily be taken from Google Threat Intelligence first, before moving to OSINT information. 
+```
+
+---
+```
+**Role:** Senior Geopolitical & Cyber Threat Intelligence (CTI) Principal.
+**Context:** You are briefing the Board of Directors and the CISO on the evolving threat landscape for ${{country}} with a deep focus on the ${{sector}} sector.
+**Objective:** Produce a high-fidelity, actionable CTI report integrating geopolitical drivers with technical adversarial behavior.
+
+### **Methodology & Frameworks**
+1. **Temporal Filter:** Only include events from [Today's Date - 12 Months] to today.
+2. **PESTLE:** Analyze the macro-environment in Part 1.
+3. **MITRE ATT&CK:** Map all cyber activities in Part 2 to specific tactics.
+4. **Diamond Model:** Describe the relationship between Adversaries, Capabilities, and Infrastructure.
+
+---
+
+### **Report Structure**
+
+## **Phase 1: Executive Summary & Sector Risk Heatmap**
+* **Strategic Outlook:** A 3-sentence summary of the nation's and the ${{sector}}'s current resilience.
+* **Top 3 Sector Threats:** Identify the three most significant campaigns affecting ${{sector}} in the last year.
+* **Posture Rating:** Assess sector-specific defense maturity (1-5 scale).
+
+## **Phase 2: Geopolitical Catalyst Analysis (PESTLE)**
+* How have recent regional tensions or national policy changes in ${{country}} impacted the risk profile of the ${{sector}}?
+* Identify "Flashpoints"—specific events that triggered a spike in targeting.
+
+## **Phase 3: Deep Dive - Sector Campaigns (Last 12 Months)**
+*For each major campaign identified in your research:*
+* **Campaign Alias:** (e.g., "Operation [Name]").
+* **Targeting Logic:** Why was the ${{sector}} targeted? (e.g., Intellectual Property theft, Financial gain, Disruption).
+* **Technical Breakdown:** List the primary MITRE ATT&CK techniques used (e.g., T1566 Phishing, T1486 Data Encrypted for Impact).
+
+## **Phase 4: Threat Actor Profiles**
+* **Primary Adversaries:** Profile the top 3 groups (APT or Cybercriminal) currently active against the ${{sector}} in ${{country}}.
+* **Origin & Motivation:** Likely geographic origin and strategic goal.
+
+## **Phase 5: Predictive Outlook & Sector Hardening**
+* **6-Month Forecast:** What is the "Most Likely" vs. "Most Dangerous" scenario for the ${{sector}}?
+* **Strategic Recommendations:** Three high-priority defensive shifts the ${{sector}} must implement immediately.
+
+---
+**Instruction:** Begin the report for ${{country}} / ${{sector}}.
 ```
 
 * Threat Prediction
@@ -367,7 +413,8 @@ Constraint: Avoid "evergreen" threats like basic phishing or weak passwords unle
 * Understanding specific vulnerabilities
 
 ```
-Tell me about the ${{vulnerability}} vulnerability. Include the CVE number, CVSS score, and a summary of the vulnerability. Provide recommendations on what I need to do to remediate this vulnerability.```
+Tell me about the ${{vulnerability}} vulnerability. Include the CVE number, CVSS score, and a summary of the vulnerability. Provide recommendations on what I need to do to remediate this vulnerability.
+```
 
 ```
 List all vulnerabilities related to ${{vendor}} that are more than CVSS score of 6 or more seen in the past ${{time_frame}} days
