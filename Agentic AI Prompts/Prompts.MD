@@ -29,6 +29,10 @@ Show me all processes launched from temp directories, user profile AppData in th
 Tell me more about Ransomhub Ransomware. Include their TTPs, threat actors observed to have used them, and any known IOCs first seen in the past 30 days. 
 ```
 
+```
+Explain the 'Nitrogen' malware loader execution flow step-by-step. For each stage, list one specific Windows Event ID that could be used for detection. Format your response strictly as a JSON array of objects with keys: 'stage', 'description', and 'event_id'
+```
+
 * Understanding Campaigns (Strategic) 
 ```
 Based on this report ${{report_link}}, summarise the report for a CISO. Include their TTPs
@@ -56,6 +60,10 @@ Please output the following:
 - any indicators / iocs in the report in a table format. 
 
 If there are any TTPs that we can use, convert them into a cyber threat hunting package based on Sigma rules. Leverage Sysmon event data primarily when creating Sigma rules
+```
+
+```
+"Analyze the following TTPs: T1583.003 (Malvertising), T1059 (Command and Scripting Interpreter). Suggest three specific hunt missions for a Windows environment."
 ```
 
 * Understanding campaigns for hypothesis
@@ -92,6 +100,16 @@ Analyse Akira Ransomware Victims and Tactics.
 
 # Follow up prompt if need be
 Based on what was provided, provide some threat hunting hypotheses.
+```
+
+### Threat Modelling 
+* Developing Threat Models
+```
+Act as a Senior Threat Hunter. Develop a STRIDE threat model for a scenario where an attacker gains unauthorized access to a company's cloud storage. Provide a table of threats and mitigations.
+```
+
+```
+Generate a detailed attack tree for a web application that processes user credit card information. Use the Mermaid.js format for the tree structure.
 ```
 
 ### Strategic / Risk Focused
