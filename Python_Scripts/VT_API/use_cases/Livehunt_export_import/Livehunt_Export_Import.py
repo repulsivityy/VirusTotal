@@ -83,11 +83,21 @@ def save_to_csv(data_list, filename, operation_name):
 # ==========================================
 # View Operations
 # ==========================================
-def show_all_rules(api_key):
-    """Fetches and prints a table of ALL Livehunt rules (Enabled & Disabled)."""
-    print("\n[*] Fetching rulesets from Source...")
+def show_all_rules(api_key, role_filter='all'):
+    """Fetches and prints a table of ALL Livehunt rules filtered by role."""
+    print(f"\n[*] Fetching rulesets from Source (Filter: {role_filter})...")
     url = f"{VT_BASE_URL}/intelligence/hunting_rulesets?limit=40"
     
+    # Map role_filter to set of roles to match
+    if role_filter == 'owner':
+        allowed_roles = {'owner'}
+    elif role_filter == 'editor':
+        allowed_roles = {'editor'}
+    elif role_filter == 'viewer':
+        allowed_roles = {'viewer'}
+    else:
+        allowed_roles = None
+        
     try:
         print(f"\n{'-'*95}")
         print(f"{'RULE ID':<15} | {'NAME':<40} | {'ENABLED':<10} | {'ROLE'}")
@@ -105,10 +115,13 @@ def show_all_rules(api_key):
                     attrs = item.get('attributes', {})
                     ctx = item.get('context_attributes', {})
                     
+                    role = ctx.get('role', 'unknown')
+                    if allowed_roles is not None and role not in allowed_roles:
+                        continue
+                        
                     rule_id = item.get('id', 'N/A')
                     name = attrs.get('name', 'Unnamed')[:40]
                     enabled = str(attrs.get('enabled', False))
-                    role = ctx.get('role', 'unknown')
                     
                     print(f"{rule_id:<15} | {name:<40} | {enabled:<10} | {role}")
                     count += 1
@@ -148,12 +161,22 @@ def show_specific_rule(api_key, rule_id):
 # ==========================================
 # Core Export Operations
 # ==========================================
-def export_all_owned_rules(api_key, csv_file):
-    """Fetches ALL rules and applies local filtering for Enabled + Owner."""
-    print("\n[*] Initiating Bulk Export (Filtering for Enabled + Owner)...")
+def export_rules_bulk(api_key, csv_file, role_filter='all', status_filter='all'):
+    """Fetches ALL rules and applies local filtering for export."""
+    print(f"\n[*] Initiating Bulk Export (Role: {role_filter}, Status: {status_filter})...")
     url = f"{VT_BASE_URL}/intelligence/hunting_rulesets?limit=40"
     extracted_data = []
     
+    # Map role_filter to set of roles to match
+    if role_filter == 'owner':
+        allowed_roles = {'owner'}
+    elif role_filter == 'editor':
+        allowed_roles = {'editor'}
+    elif role_filter == 'viewer':
+        allowed_roles = {'viewer'}
+    else:
+        allowed_roles = None
+        
     try:
         with requests.Session() as session:
             session.headers.update(get_headers(api_key, is_post=False))
@@ -166,21 +189,26 @@ def export_all_owned_rules(api_key, csv_file):
                     attrs = item.get('attributes', {})
                     ctx = item.get('context_attributes', {})
                     
-                    # Local enforcement of our constraints
-                    is_enabled = attrs.get('enabled', False)
-                    is_owner = ctx.get('role') == 'owner'
-                    
-                    if is_enabled and is_owner:
-                        extracted_data.append({
-                            'id': item.get('id'),
-                            'name': attrs.get('name', 'Unnamed_Rule'),
-                            'enabled': is_enabled,
-                            'limit': attrs.get('limit', 100),
-                            'match_object_type': attrs.get('match_object_type', 'file'),
-                            'notification_emails': attrs.get('notification_emails', []),
-                            'rules': attrs.get('rules', '')
-                        })
+                    # Filter by role
+                    role = ctx.get('role', 'unknown')
+                    if allowed_roles is not None and role not in allowed_roles:
+                        continue
                         
+                    # Filter by enabled status
+                    is_enabled = attrs.get('enabled', False)
+                    if status_filter == 'enabled' and not is_enabled:
+                        continue
+                        
+                    extracted_data.append({
+                        'id': item.get('id'),
+                        'name': attrs.get('name', 'Unnamed_Rule'),
+                        'enabled': is_enabled,
+                        'limit': attrs.get('limit', 100),
+                        'match_object_type': attrs.get('match_object_type', 'file'),
+                        'notification_emails': attrs.get('notification_emails', []),
+                        'rules': attrs.get('rules', '')
+                    })
+                    
                 url = payload.get('links', {}).get('next')
             
     except requests.exceptions.RequestException as e:
@@ -310,7 +338,7 @@ def main():
         print(" 1) Show ALL Livehunt rules")
         print(" 2) Show a SPECIFIC rule (by ID)")
         print("--- Export ---")
-        print(" 3) Export ALL OWNED & ENABLED rules to CSV")
+        print(" 3) Export rules to CSV (with filters)")
         print(" 4) Export SPECIFIC rules to CSV (by ID)")
         print("--- Import ---")
         print(" 5) Import rules from CSV to Target (GTI)")
@@ -326,7 +354,13 @@ def main():
             if not VT_API_KEY:
                 print("[!] Error: VT_APIKEY environment variable is not set.")
                 continue
-            show_all_rules(VT_API_KEY)
+            role_filter = input("Filter by role (owner/editor/viewer/all) [all]: ").strip().lower()
+            if role_filter not in ('owner', 'editor', 'viewer', 'all', ''):
+                print("[!] Invalid filter choice. Showing all.")
+                role_filter = 'all'
+            if not role_filter:
+                role_filter = 'all'
+            show_all_rules(VT_API_KEY, role_filter)
             
         elif choice == '2':
             if not VT_API_KEY:
@@ -342,7 +376,21 @@ def main():
             if not VT_API_KEY:
                 print("[!] Error: VT_APIKEY environment variable is not set.")
                 continue
-            export_all_owned_rules(VT_API_KEY, CSV_FILENAME)
+            role_filter = input("Filter by role (owner/editor/viewer/all) [all]: ").strip().lower()
+            if role_filter not in ('owner', 'editor', 'viewer', 'all', ''):
+                print("[!] Invalid filter choice. Using all.")
+                role_filter = 'all'
+            if not role_filter:
+                role_filter = 'all'
+                
+            status_filter = input("Filter by status (enabled/all) [all]: ").strip().lower()
+            if status_filter not in ('enabled', 'all', ''):
+                print("[!] Invalid status choice. Using all.")
+                status_filter = 'all'
+            if not status_filter:
+                status_filter = 'all'
+                
+            export_rules_bulk(VT_API_KEY, CSV_FILENAME, role_filter, status_filter)
             
         elif choice == '4':
             if not VT_API_KEY:
@@ -365,7 +413,7 @@ def main():
             if not VT_API_KEY or not GTI_API_KEY:
                 print("[!] Error: Both VT_APIKEY and GTI_APIKEY environment variables must be set.")
                 continue
-            if export_all_owned_rules(VT_API_KEY, CSV_FILENAME):
+            if export_rules_bulk(VT_API_KEY, CSV_FILENAME, role_filter='owner', status_filter='enabled'):
                 import_rules(GTI_API_KEY, CSV_FILENAME)
                 
         elif choice == '7':
