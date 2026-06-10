@@ -1,3 +1,19 @@
+# ==========================================
+# Python code to export Livehunt rules from VT and import into GTI
+# Date: Jun 2026
+# 
+# Usage
+# - Configure API Keys in environment variables
+# -- export VT_APIKEY=YOUR_API_KEY // This is from the original tenant (VT)
+# -- export GTI_APIKEY=YOUR_API_KEY // This is from the target tenant (GTI)
+# - Run the script
+# - Select an option from the Menu:
+#   - View Livehunt rules
+#   - Export Livehunt rules
+#   - Import Livehunt rules
+#   - Workflow (Export and Import at the same time)
+# ==========================================
+
 import requests
 import csv
 import sys
@@ -6,7 +22,7 @@ import os
 from urllib.parse import quote
 
 # ==========================================
-# Configuration
+# Variables
 # ==========================================
 VT_API_KEY = os.getenv("VT_APIKEY")
 GTI_API_KEY = os.getenv("GTI_APIKEY")
@@ -71,7 +87,6 @@ def show_all_rules(api_key):
     """Fetches and prints a table of ALL Livehunt rules (Enabled & Disabled)."""
     print("\n[*] Fetching rulesets from Source...")
     url = f"{VT_BASE_URL}/intelligence/hunting_rulesets?limit=40"
-    headers = get_headers(api_key, is_post=False)
     
     try:
         print(f"\n{'-'*95}")
@@ -79,24 +94,26 @@ def show_all_rules(api_key):
         print(f"{'-'*95}")
         
         count = 0
-        while url:
-            response = requests.get(url, headers=headers)
-            response.raise_for_status()
-            payload = response.json()
-            
-            for item in payload.get('data', []):
-                attrs = item.get('attributes', {})
-                ctx = item.get('context_attributes', {})
+        with requests.Session() as session:
+            session.headers.update(get_headers(api_key, is_post=False))
+            while url:
+                response = session.get(url)
+                response.raise_for_status()
+                payload = response.json()
                 
-                rule_id = item.get('id', 'N/A')
-                name = attrs.get('name', 'Unnamed')[:40]
-                enabled = str(attrs.get('enabled', False))
-                role = ctx.get('role', 'unknown')
-                
-                print(f"{rule_id:<15} | {name:<40} | {enabled:<10} | {role}")
-                count += 1
-                
-            url = payload.get('links', {}).get('next')
+                for item in payload.get('data', []):
+                    attrs = item.get('attributes', {})
+                    ctx = item.get('context_attributes', {})
+                    
+                    rule_id = item.get('id', 'N/A')
+                    name = attrs.get('name', 'Unnamed')[:40]
+                    enabled = str(attrs.get('enabled', False))
+                    role = ctx.get('role', 'unknown')
+                    
+                    print(f"{rule_id:<15} | {name:<40} | {enabled:<10} | {role}")
+                    count += 1
+                    
+                url = payload.get('links', {}).get('next')
             
         print(f"{'-'*95}")
         print(f"Total Rules Displayed: {count}\n")
@@ -135,35 +152,36 @@ def export_all_owned_rules(api_key, csv_file):
     """Fetches ALL rules and applies local filtering for Enabled + Owner."""
     print("\n[*] Initiating Bulk Export (Filtering for Enabled + Owner)...")
     url = f"{VT_BASE_URL}/intelligence/hunting_rulesets?limit=40"
-    headers = get_headers(api_key, is_post=False)
     extracted_data = []
     
     try:
-        while url:
-            response = requests.get(url, headers=headers)
-            response.raise_for_status()
-            payload = response.json()
-            
-            for item in payload.get('data', []):
-                attrs = item.get('attributes', {})
-                ctx = item.get('context_attributes', {})
+        with requests.Session() as session:
+            session.headers.update(get_headers(api_key, is_post=False))
+            while url:
+                response = session.get(url)
+                response.raise_for_status()
+                payload = response.json()
                 
-                # Local enforcement of our constraints
-                is_enabled = attrs.get('enabled', False)
-                is_owner = ctx.get('role') == 'owner'
-                
-                if is_enabled and is_owner:
-                    extracted_data.append({
-                        'id': item.get('id'),
-                        'name': attrs.get('name', 'Unnamed_Rule'),
-                        'enabled': is_enabled,
-                        'limit': attrs.get('limit', 100),
-                        'match_object_type': attrs.get('match_object_type', 'file'),
-                        'notification_emails': attrs.get('notification_emails', []),
-                        'rules': attrs.get('rules', '')
-                    })
+                for item in payload.get('data', []):
+                    attrs = item.get('attributes', {})
+                    ctx = item.get('context_attributes', {})
                     
-            url = payload.get('links', {}).get('next')
+                    # Local enforcement of our constraints
+                    is_enabled = attrs.get('enabled', False)
+                    is_owner = ctx.get('role') == 'owner'
+                    
+                    if is_enabled and is_owner:
+                        extracted_data.append({
+                            'id': item.get('id'),
+                            'name': attrs.get('name', 'Unnamed_Rule'),
+                            'enabled': is_enabled,
+                            'limit': attrs.get('limit', 100),
+                            'match_object_type': attrs.get('match_object_type', 'file'),
+                            'notification_emails': attrs.get('notification_emails', []),
+                            'rules': attrs.get('rules', '')
+                        })
+                        
+                url = payload.get('links', {}).get('next')
             
     except requests.exceptions.RequestException as e:
         print(f"[!] Critical Error fetching from VT: {e}")
@@ -174,34 +192,35 @@ def export_all_owned_rules(api_key, csv_file):
 def export_specific_rules(api_key, csv_file, rule_ids):
     """Fetches specific rules by ID and exports them."""
     print(f"\n[*] Initiating Targeted Export for {len(rule_ids)} rule(s)...")
-    headers = get_headers(api_key, is_post=False)
     extracted_data = []
     failed_count = 0
     errors = []
     
-    for r_id in rule_ids:
-        url = f"{VT_BASE_URL}/intelligence/hunting_rulesets/{quote(r_id)}"
-        try:
-            response = requests.get(url, headers=headers)
-            response.raise_for_status()
-            item = response.json().get('data', {})
-            attrs = item.get('attributes', {})
-            
-            extracted_data.append({
-                'id': item.get('id'),
-                'name': attrs.get('name', 'Unnamed_Rule'),
-                'enabled': attrs.get('enabled', True),
-                'limit': attrs.get('limit', 100),
-                'match_object_type': attrs.get('match_object_type', 'file'),
-                'notification_emails': attrs.get('notification_emails', []),
-                'rules': attrs.get('rules', '')
-            })
-            print(f" [+] Queued Rule ID: {r_id} ({attrs.get('name')})")
-        except requests.exceptions.RequestException as e:
-            failed_count += 1
-            err_msg = f"Failed to fetch {r_id}: {e}"
-            print(f" [!] {err_msg}")
-            errors.append(err_msg)
+    with requests.Session() as session:
+        session.headers.update(get_headers(api_key, is_post=False))
+        for r_id in rule_ids:
+            url = f"{VT_BASE_URL}/intelligence/hunting_rulesets/{quote(r_id)}"
+            try:
+                response = session.get(url)
+                response.raise_for_status()
+                item = response.json().get('data', {})
+                attrs = item.get('attributes', {})
+                
+                extracted_data.append({
+                    'id': item.get('id'),
+                    'name': attrs.get('name', 'Unnamed_Rule'),
+                    'enabled': attrs.get('enabled', True),
+                    'limit': attrs.get('limit', 100),
+                    'match_object_type': attrs.get('match_object_type', 'file'),
+                    'notification_emails': attrs.get('notification_emails', []),
+                    'rules': attrs.get('rules', '')
+                })
+                print(f" [+] Queued Rule ID: {r_id} ({attrs.get('name')})")
+            except requests.exceptions.RequestException as e:
+                failed_count += 1
+                err_msg = f"Failed to fetch {r_id}: {e}"
+                print(f" [!] {err_msg}")
+                errors.append(err_msg)
             
     if failed_count > 0:
         print_insights("Targeted Fetch", len(extracted_data), failed_count, errors)
@@ -215,7 +234,6 @@ def import_rules(api_key, csv_file):
     """Reads rules from CSV and posts them to target API."""
     print(f"\n[*] Initiating Import to Target from {csv_file}...")
     url = f"{GTI_BASE_URL}/intelligence/hunting_rulesets"
-    headers = get_headers(api_key, is_post=True)
     ruleset_data = []
     
     try:
@@ -230,45 +248,47 @@ def import_rules(api_key, csv_file):
     success, fail = 0, 0
     error_log = []
 
-    for ruleset in ruleset_data:
-        try:
+    with requests.Session() as session:
+        session.headers.update(get_headers(api_key, is_post=True))
+        for ruleset in ruleset_data:
             try:
-                emails = ast.literal_eval(ruleset['notification_emails'])
-            except (ValueError, SyntaxError):
-                emails = []
+                try:
+                    emails = ast.literal_eval(ruleset['notification_emails'])
+                except (ValueError, SyntaxError):
+                    emails = []
 
-            is_enabled = str(ruleset['enabled']).strip().lower() == 'true'
+                is_enabled = str(ruleset['enabled']).strip().lower() == 'true'
 
-            payload = {
-                "data": {
-                    "type": "hunting_ruleset",
-                    "attributes": {
-                        "name": ruleset['name'],
-                        "enabled": is_enabled,
-                        "limit": int(ruleset['limit']),
-                        "rules": ruleset['rules'],
-                        "notification_emails": emails,
-                        "match_object_type": ruleset['match_object_type']
+                payload = {
+                    "data": {
+                        "type": "hunting_ruleset",
+                        "attributes": {
+                            "name": ruleset['name'],
+                            "enabled": is_enabled,
+                            "limit": int(ruleset['limit']),
+                            "rules": ruleset['rules'],
+                            "notification_emails": emails,
+                            "match_object_type": ruleset['match_object_type']
+                        }
                     }
                 }
-            }
-            
-            response = requests.post(url, headers=headers, json=payload)
-            response.raise_for_status()
-            
-            new_id = response.json().get('data', {}).get('id', 'Unknown')
-            print(f" [+] Migrated: {ruleset['name']} -> New GTI ID: {new_id}")
-            success += 1
-            
-        except requests.exceptions.RequestException as e:
-            err_msg = f"{ruleset['name']} - API Error: {e}"
-            if e.response is not None:
-                err_msg += f" | {e.response.text}"
-            error_log.append(err_msg)
-            fail += 1
-        except Exception as e:
-            error_log.append(f"{ruleset.get('name', 'Unknown')} - Local Error: {e}")
-            fail += 1
+                
+                response = session.post(url, json=payload)
+                response.raise_for_status()
+                
+                new_id = response.json().get('data', {}).get('id', 'Unknown')
+                print(f" [+] Migrated: {ruleset['name']} -> New GTI ID: {new_id}")
+                success += 1
+                
+            except requests.exceptions.RequestException as e:
+                err_msg = f"{ruleset['name']} - API Error: {e}"
+                if e.response is not None:
+                    err_msg += f" | {e.response.text}"
+                error_log.append(err_msg)
+                fail += 1
+            except Exception as e:
+                error_log.append(f"{ruleset.get('name', 'Unknown')} - Local Error: {e}")
+                fail += 1
 
     print_insights("Import", success, fail, error_log)
     return True
