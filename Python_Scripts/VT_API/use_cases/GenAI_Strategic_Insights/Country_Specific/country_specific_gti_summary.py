@@ -84,9 +84,9 @@ def parse_arguments():
     parser.add_argument(
         "-m", "--model",
         type=str,
-        default="gemini-3-flash-preview",
-        choices=["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-flash-preview"],
-        help="The Gemini model to use for the summary. Default: gemini-2.5-flash."
+        default="gemini-3.5-flash",
+        choices=["gemini-3.5-flash", "gemini-3.1-pro-preview"],
+        help="The Gemini model to use for the summary. Default: gemini-3.5-flash."
     )
     return parser.parse_args()
 
