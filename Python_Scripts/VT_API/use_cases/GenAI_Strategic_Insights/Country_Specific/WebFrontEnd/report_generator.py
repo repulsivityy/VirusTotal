@@ -251,7 +251,7 @@ async def generate_summary(session, api_key, model_name, system_instruction, use
         "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
         "systemInstruction": {"parts": [{"text": system_instruction}]},
         "generationConfig": {
-            "temperature": 0.6,
+            "temperature": 0.35,
             "topP": 0.95,
             "topK": 64,
             "candidateCount": 1,
@@ -263,11 +263,9 @@ async def generate_summary(session, api_key, model_name, system_instruction, use
         result = await response.json()
         return result['candidates'][0]['content']['parts'][0]['text']
 
-def create_vulnerability_table(cve_details, output_language):
+def create_vulnerability_table(cve_details):
     """Creates a Markdown table from enriched CVE details."""
-    title = "Vulnerability Spotlight"
-    if output_language.lower() == 'german': title = "Schwachstellen-Spotlight"
-    table_lines = [f"\n### {title}\n", "| CVE | Name | Vendor | CVSSv4 Score | Risk Rating | CWE Title | CISA KEV |", "|---|---|---|---|---|---|---|"]
+    table_lines = ["\n### Vulnerability Spotlight\n", "| CVE | Name | Vendor | CVSSv4 Score | Risk Rating | CWE Title | CISA KEV |", "|---|---|---|---|---|---|---|"]
     for cve in cve_details:
         row = (f"| {cve.get('cve_id', 'N/A')} | {cve.get('name', 'N/A')} | TBD | {cve.get('cvss_v4_score', 'N/A')} | {cve.get('risk_rating', 'N/A')} | {cve.get('cwe_title', 'N/A')} | {cve.get('cisa_kev', 'N/A')} |")
         table_lines.append(row)
@@ -302,7 +300,7 @@ async def generate_full_report(country, language, days, model, enrich_cve, sourc
                 print(f"✅ Extracted {len(cves_from_summary)} CVEs from summary.")
                 cve_details = await fetch_vulnerability_details(session, gti_api_key, cves_from_summary)
                 if cve_details:
-                    vulnerability_table = create_vulnerability_table(cve_details, language)
+                    vulnerability_table = create_vulnerability_table(cve_details)
                     final_report += "\n" + vulnerability_table
             else:
                 print("ℹ️ No CVEs found in the generated summary to enrich.")
