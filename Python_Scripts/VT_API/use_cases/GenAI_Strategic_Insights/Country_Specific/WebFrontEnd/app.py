@@ -28,7 +28,7 @@ with st.sidebar:
         help="Filter reports by their origin. 'Crowdsourced' excludes GTI, 'GTI' is only Google Threat Intelligence, 'Both' includes all sources."
     )
 
-    model = st.selectbox("Gemini Model", ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-pro"])
+    model = st.selectbox("Gemini Model", ["gemini-3.5-flash", "gemini-3.1-pro-preview"])
     enrich_cve = st.toggle("Enrich CVEs?", value=True, help="If enabled, extracts CVEs from the summary and adds a details table.")
     
     st.markdown("### Optional Filters")
