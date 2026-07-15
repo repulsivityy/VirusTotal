@@ -102,6 +102,26 @@ Analyse Akira Ransomware Victims and Tactics.
 Based on what was provided, provide some threat hunting hypotheses.
 ```
 
+* Report analysis 
+```
+<context>
+You are a threat intelligence analyst at a ${{industry}} company in ${{region}}.
+Our environment includes ${{environment}} systems and primarily running on ${{OS}} infrastructure.
+</context>
+
+<task>
+Analyze this report ${{report_link}} and identify IoCs relevant to our environment.
+Focus on initial access vectors and lateral movement techniques.
+</task>
+
+<format>
+Provide output as:
+- Executive summary (2-3 sentences)
+- Relevant IoCs (bulleted list with IP addresses, file hashes, domains)
+- Recommended defensive actions (prioritized list)
+</format>
+```
+
 ### Threat Modelling 
 * Developing Threat Models
 ```
@@ -112,7 +132,134 @@ Act as a Senior Threat Hunter. Develop a STRIDE threat model for a scenario wher
 Generate a detailed attack tree for a web application that processes user credit card information. Use the Mermaid.js format for the tree structure.
 ```
 
+```
+Threat Actor: ${{threat_actor}}
+Campaign Reports: ${{report_link}}
+
+Given the following incidents, identify and summarize the attack vectors the threat actor used to succeed. For each vector, explain: (1) what it was, (2) how it was exploited, and (3) why it worked (e.g., misconfiguration, human error, unpatched vulnerability, weak controls). Present the vectors in chronological order based on when each was exploited. Conclude with a prioritized list of the most critical entry points to address, ranked by severity and likelihood of recurrence.
+```
+
+* Visualisation
+```
+Visualize the attack chain for ${{threat_actor}} for the last ${{time_frame}} days, with the type of attack being ${{attack_type}}. Use a diagram mapping each phase from initial access to impact. Highlight the most common entry points, lateral movement techniques, and end-stage objectives across campaigns.
+```
+
+* Diamond Model 
+>drawing diamond models don't really work well with LLMs. WIP. 
+```
+<variables>
+Job Role: ${{job_role}}
+Industry Name: ${{industry_name}}
+Country/Region: ${{country_region}}
+Stakeholder Team Names: ${{stakeholder_team_names}}
+Product/Service: ${{product_service}}
+Data/Reports: ${{data_reports}}
+
+** Note about default_behavior **
+If no value is provided for a variable (left blank after colon), 
+use these defaults:
+[job role]: Threat Intelligence Analyst
+[Industry name]: cross-industry
+[country/region]: global
+[stakeholder team names]: technical security stakeholders
+[product/service]: Threat intelligence report
+[data/reports]: Access your own dataset
+</variables>
+
+<context>
+I'm a ${{job_role}} in the ${{industry_name}} industry, in ${{country_region}}. My goal is to provide  ${{stakeholder_team_names}} team(s) with ${{product_service}}.
+</context>
+
+<task>
+Conduct a Diamond Model of Intrusion Analysis using all pertinent information from the ${{data_reports}}. Additionally, create an image of the diamond model that depicts the key findings.
+</task>
+
+<output_format>
+## 1. Diamond Model Analysis
+
+### 1.1 Adversary
+1. Threat Actor Name/Alias (if known or attributed)
+2. Suspected Origin/Nation-State Affiliation
+3. Motivation (financial, espionage, hacktivism, destruction)
+4. Confidence Level in Attribution (low/medium/high)
+5. Known Threat Group Associations
+
+### 1.2 Capabilities
+1. Malware Families/Tools Used
+2. Exploits & CVEs Leveraged
+3. MITRE ATT&CK Techniques Observed
+4. Level of Sophistication (commodity, custom, advanced)
+5. Delivery Mechanisms
+
+### 1.3 Infrastructure
+1. Command & Control Domains/IPs
+2. Hosting Providers & ASNs
+3. SSL/TLS Certificate Fingerprints
+4. Email Addresses or Sender Domains
+5. Pivot Points for Further Investigation
+
+### 1.4 Victim
+1. Targeted Sectors/Industries
+2. Geographic Focus
+3. Victimology Patterns (size, technology stack, access value)
+4. Known Compromised Organizations (if public)
+
+## 2. Meta-Features
+1. Timestamps & Campaign Duration
+2. Phase of Attack (initial access, persistence, exfiltration)
+3. Direction of Attack
+4. Methodology Notes
+
+## 3. Analytical Confidence & Intelligence Gaps
+1. What is confirmed vs. assessed
+2. Key unknowns or collection gaps
+3. Recommended pivots for further analysis
+
+## 4. Indicators of Compromise (IOCs)
+Table of actionable IOCs with type, value, and context
+
+## 5. Diamond Model Visualization
+Generate an image of the Diamond Model (e.g., SVG, PNG) with the four vertices (Adversary, Capabilities, Infrastructure, Victim) arranged as a diamond shape. Place key findings from the analysis at each vertex. Use the following specifications:
+- Diamond shape with vertices at top (Adversary), right (Capabilities), bottom (Victim), left (Infrastructure)
+- Connect all four vertices with lines showing relationships
+- Include 2-3 key bullet points at each vertex summarizing critical findings
+- Add a center label with the threat actor name or campaign identifier
+- Use a clean, professional color scheme appropriate for security reporting
+If you cannot produce an image, create an ASCII/text-based diagram of the Diamond Model
+
+## 6. Recommendations
+1. Immediate containment actions
+2. Detection rules to deploy
+3. Hunting hypotheses based on findings
+</output_format>
+
+<guidelines>
+1. Extract detailed technical information from [data/reports]
+2. Ensure all elements (Adversary, Infrastructure, Capabilities,
+Victimology) are addressed. Fill sections with details from the
+provided data/reports ONLY. If information for any element is not available in the source material, explicitly state 'Not available in provided reports' rather than filling gaps with generic knowledge
+3. Provide accurate and actionable intelligence
+4. Include citations and references where applicable using inline citations
+5. Prioritize information relevant to the specified industry and region
+6. VERY IMPORTANT: generate an image AND text in the response 
+</guidelines>
+```
+
 ### Strategic / Risk Focused
+
+* Threat Landscape overview
+```
+Generate a threat landscape overview for ${{region}} and ${{industry}} for the last ${{time_frame}} days. Include the most active threat actors, predominant TTPs, commonly targeted assets, and any clustering in campaign activity that reveals how the threat environment is evolving.
+```
+
+* Report Gen for leadership
+```
+Time scale: ${{time_frame}}
+Region: ${{region}}
+Industry: ${{industry}}
+
+My CISO has been asked about our exposure to the latest wave of attacks in our sector and region. Generate a focused briefing that answers: Are we a likely target? What TTPs should we be watching for, and do we have the controls to detect or stop them? Close with a short, prioritized action list framed around business risk and decision-making, not a full landscape review, just what leadership needs to respond with confidence right now.
+```
 
 * Cyber Threat Actor Research Prompt
 ```
