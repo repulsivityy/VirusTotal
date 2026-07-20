@@ -1,0 +1,1 @@
+{"name":"Threat Intelligence Vulnerability Dashboard","description":"Real-time Google Threat Intelligence and CVE analysis dashboard. Search CVE IDs to view impact severity, active exploit patterns, affected products, and actionable remediation steps grounded in real-time threat data.","requestFramePermissions":[],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}
