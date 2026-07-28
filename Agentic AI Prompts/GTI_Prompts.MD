@@ -1,40 +1,103 @@
-# Threat Hunting Prompts
-> cheatsheet of all prompts
+# 🛡️ GTI Threat Hunting & Intelligence Prompts
+> Master prompt repository and cheatsheet for Google Threat Intelligence (GTI).
 
-## Threat Intelligence
+---
 
-### Threat Hunt
+## 📌 Variables Reference
 
-* Understanding Malware
-```
+Below are the standard variables used throughout these prompt templates. Substitute them with your target values before running:
+
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `${{report_link}}` | URL or ID of the GTI threat report | `https://...` |
+| `${{industry}}` / `${{industry_name}}` | Target industry sector | `Financial Services`, `Healthcare` |
+| `${{region}}` / `${{country_region}}` | Target geographic region | `APAC`, `North America`, `Global` |
+| `${{country}}` | Target country name | `Singapore`, `Japan`, `Germany` |
+| `${{environment}}` | Tech infrastructure / environment | `AWS Cloud`, `Hybrid AD` |
+| `${{OS}}` | Primary operating system | `Windows Server 2022`, `Linux` |
+| `${{threat_actor}}` | Threat actor group or alias | `Akira`, `APT29`, `Ransomhub` |
+| `${{time_frame}}` | Timeframe for analysis | `30 days`, `12 months` |
+| `${{attack_type}}` | Category of attack | `Ransomware`, `Phishing`, `Supply Chain` |
+| `${{job_role}}` | Persona role for prompt | `Threat Intelligence Analyst`, `CISO` |
+| `${{stakeholder_team_names}}` | Receiving team | `SOC Team`, `Executive Board` |
+| `${{product_service}}` | Target deliverable | `Threat intelligence report` |
+| `${{data_reports}}` | Target dataset or reports source | `GTI Reports` |
+| `${{vulnerability}}` / `${{cve}}` | Vulnerability name or CVE ID | `CVE-2024-21412`, `Log4Shell` |
+| `${{vendor}}` | Software/Hardware Vendor | `Microsoft`, `Cisco`, `Palo Alto` |
+| `${{sector}}` | Critical sector | `Energy`, `Banking`, `Defense` |
+| `${{filehash}}` | File Hash for analysis | `MD5 / SHA256 Hash` |
+
+---
+
+## 🧭 Table of Contents
+- [1. Threat Intelligence](#1-threat-intelligence)
+  - [1.1 Threat Hunt](#11-threat-hunt)
+    - [Understanding Malware](#understanding-malware)
+    - [Understanding Campaigns (Strategic)](#understanding-campaigns-strategic)
+    - [Understanding Techniques](#understanding-techniques)
+    - [Understanding Tactics](#understanding-tactics)
+    - [Understanding Campaigns + Hunting Packages (Operational / Tactical)](#understanding-campaigns--hunting-packages-operational--tactical)
+    - [Understanding Campaigns for Hypothesis](#understanding-campaigns-for-hypothesis)
+    - [Understanding Reports & Pulling IOCs / Rules](#understanding-reports--pulling-iocs--rules)
+    - [Ransomware Victims / Affiliates Profile](#ransomware-victims--affiliates-profile)
+    - [Report Analysis](#report-analysis)
+  - [1.2 Threat Modelling](#12-threat-modelling)
+    - [Developing Threat Models](#developing-threat-models)
+    - [Visualisation](#visualisation)
+    - [Diamond Model](#diamond-model)
+  - [1.3 Strategic / Risk Focused](#13-strategic--risk-focused)
+    - [Threat Landscape Overview](#threat-landscape-overview)
+    - [Report Gen for Leadership](#report-gen-for-leadership)
+    - [Cyber Threat Actor Research Prompt](#cyber-threat-actor-research-prompt)
+    - [OSINT Daily Summary / BLUF](#osint-daily-summary--bluf)
+    - [Threat Landscape for Country](#threat-landscape-for-country)
+    - [Threat Prediction](#threat-prediction)
+  - [1.4 Vulnerabilities](#14-vulnerabilities)
+    - [Understanding Specific Vulnerabilities](#understanding-specific-vulnerabilities)
+    - [Vulnerabilities Trends](#vulnerabilities-trends)
+  - [1.5 DFIR / IOC Investigation](#15-dfir--ioc-investigation)
+
+---
+
+## 1. Threat Intelligence
+
+### 1.1 Threat Hunt
+
+#### 🔹 Understanding Malware
+
+```text
 Tell me more about Ransomhub Ransomware. Include their TTPs, threat actors observed to have used them, and any known IOCs first seen in the past 30 days. 
 ```
 
-```
+```text
 Explain the 'Nitrogen' malware loader execution flow step-by-step. For each stage, list one specific Windows Event ID that could be used for detection. Format your response strictly as a JSON array of objects with keys: 'stage', 'description', and 'event_id'
 ```
 
-* Understanding Campaigns (Strategic) 
-```
+#### 🔹 Understanding Campaigns (Strategic)
+
+```text
 Based on this report ${{report_link}}, summarise the report for a CISO. Include their TTPs
 ```
 
-* Understanding Techniques
-```
+#### 🔹 Understanding Techniques
+
+```text
 What is etherhiding and how do I detect it?
 ```
 
-* Understanding Tactics
-```
+#### 🔹 Understanding Tactics
+
+```text
 What are some novel initial access tactics observed in the past year? 
 ```
 
-```
+```text
 Explain the concept of ‘living off the land’ attacks and how they are designed to deliberately bypass endpoint detection mechanisms by using built-in system tools.
 ```
 
-* Understanding Campaigns + Hunting Packages (Operational / Tactical)
-```
+#### 🔹 Understanding Campaigns + Hunting Packages (Operational / Tactical)
+
+```text
 Based on this report ${{report_link}}, summarise the report for a threat intelligence analyst. 
 Please output the following: 
 - any ttps/behaviours in the report 
@@ -43,12 +106,13 @@ Please output the following:
 If there are any TTPs that we can use, convert them into a cyber threat hunting package based on Sigma rules. Leverage Sysmon event data primarily when creating Sigma rules
 ```
 
-```
-"Analyze the following TTPs: T1583.003 (Malvertising), T1059 (Command and Scripting Interpreter). Suggest three specific hunt missions for a Windows environment."
+```text
+Analyze the following TTPs: T1583.003 (Malvertising), T1059 (Command and Scripting Interpreter). Suggest three specific hunt missions for a Windows environment.
 ```
 
-* Understanding campaigns for hypothesis
-``` 
+#### 🔹 Understanding Campaigns for Hypothesis
+
+```text
 You are a threat hunter. Provide a list of hypotheses that we can test based on the following campaign report <insert link>. 
 For each hypothesis, provide a list of data sources that we can use to test the hypothesis. 
 
@@ -66,8 +130,9 @@ For each hypothesis, provide a list of data sources that we can use to test the 
 - Include citations
 ```
 
-* Understanding reports, and pulling IOCs and any rules
-```
+#### 🔹 Understanding Reports & Pulling IOCs / Rules
+
+```text
 You are a threat hunter. Based on this report ${{report_link}}, summarise the report for a threat intelligence analyst. Please output the following: 
   - any ttps/behaviours in the report 
   - any indicators / iocs in the report in a table format. 
@@ -75,16 +140,18 @@ You are a threat hunter. Based on this report ${{report_link}}, summarise the re
 If there are any rules such as YARA rules, automatically push them to my Livehunt rule on GTI 
 ```
 
-* Ransomware Victims / Affliates Profile
-```
+#### 🔹 Ransomware Victims / Affiliates Profile
+
+```text
 Analyse Akira Ransomware Victims and Tactics.
 
 # Follow up prompt if need be
 Based on what was provided, provide some threat hunting hypotheses.
 ```
 
-* Report analysis 
-```
+#### 🔹 Report Analysis
+
+```text
 <context>
 You are a threat intelligence analyst at a ${{industry}} company in ${{region}}.
 Our environment includes ${{environment}} systems and primarily running on ${{OS}} infrastructure.
@@ -103,31 +170,37 @@ Provide output as:
 </format>
 ```
 
-### Threat Modelling 
-* Developing Threat Models
-```
+---
+
+### 1.2 Threat Modelling
+
+#### 🔹 Developing Threat Models
+
+```text
 Act as a Senior Threat Hunter. Develop a STRIDE threat model for a scenario where an attacker gains unauthorized access to a company's cloud storage. Provide a table of threats and mitigations.
 ```
 
-```
+```text
 Generate a detailed attack tree for a web application that processes user credit card information. Use the Mermaid.js format for the tree structure.
 ```
 
-```
+```text
 Threat Actor: ${{threat_actor}}
 Campaign Reports: ${{report_link}}
 
 Given the following incidents, identify and summarize the attack vectors the threat actor used to succeed. For each vector, explain: (1) what it was, (2) how it was exploited, and (3) why it worked (e.g., misconfiguration, human error, unpatched vulnerability, weak controls). Present the vectors in chronological order based on when each was exploited. Conclude with a prioritized list of the most critical entry points to address, ranked by severity and likelihood of recurrence.
 ```
 
-* Visualisation
-```
+#### 🔹 Visualisation
+
+```text
 Visualize the attack chain for ${{threat_actor}} for the last ${{time_frame}} days, with the type of attack being ${{attack_type}}. Use a diagram mapping each phase from initial access to impact. Highlight the most common entry points, lateral movement techniques, and end-stage objectives across campaigns.
 ```
 
-* Diamond Model 
->drawing diamond models don't really work well with LLMs. WIP. 
-```
+#### 🔹 Diamond Model
+> *Note: Drawing diamond models directly inside LLM text output requires specific formatting instructions below.*
+
+```text
 <variables>
 Job Role: ${{job_role}}
 Industry Name: ${{industry_name}}
@@ -226,15 +299,19 @@ provided data/reports ONLY. If information for any element is not available in t
 </guidelines>
 ```
 
-### Strategic / Risk Focused
+---
 
-* Threat Landscape overview
-```
+### 1.3 Strategic / Risk Focused
+
+#### 🔹 Threat Landscape Overview
+
+```text
 Generate a threat landscape overview for ${{region}} and ${{industry}} for the last ${{time_frame}} days. Include the most active threat actors, predominant TTPs, commonly targeted assets, and any clustering in campaign activity that reveals how the threat environment is evolving.
 ```
 
-* Report Gen for leadership
-```
+#### 🔹 Report Gen for Leadership
+
+```text
 Time scale: ${{time_frame}}
 Region: ${{region}}
 Industry: ${{industry}}
@@ -242,8 +319,9 @@ Industry: ${{industry}}
 My CISO has been asked about our exposure to the latest wave of attacks in our sector and region. Generate a focused briefing that answers: Are we a likely target? What TTPs should we be watching for, and do we have the controls to detect or stop them? Close with a short, prioritized action list framed around business risk and decision-making, not a full landscape review, just what leadership needs to respond with confidence right now.
 ```
 
-* Cyber Threat Actor Research Prompt
-```
+#### 🔹 Cyber Threat Actor Research Prompt
+
+```text
  **Research Target:** ${{threat_actor}}
 Time-frame: ${{time_frame}}
 
@@ -336,12 +414,11 @@ Provide 3-5 actionable recommendations:
 - Provide confidence levels for key judgments
 - Include source attribution and publication dates
 - Highlight any information gaps or limitations
-
 ```
 
-* OSINT Daily Summary / BLUF
+#### 🔹 OSINT Daily Summary / BLUF
 
-```
+```text
 <PROMPT>
     <ROLE>
         You are a highly sophisticated AI simulating a skilled writer with the combined expertise of a seasoned Threat Intelligence Analyst and a meticulous News Editor. You excel at synthesizing these findings into an authoritative, concise, accurate, and engaging daily summary designed to make users feel informed. 
@@ -349,61 +426,62 @@ Provide 3-5 actionable recommendations:
 
     <TASK>
         <!-- Optimized Task: Focuses on active, tool-driven discovery within a strict 24-hour window, populating specific sections, and self-review. -->
-        Generate a compelling, concise, and engaging daily threat intelligence summary covering  developments from the last 24 hours, unless you are generating the summary on a Monday; in this case, you must cover developments from the last 72 hours. Your process involves:
-        1.  Discovering recent GTI-originated reports and campaigns (last 24 hours), obtaining their summaries.
-        2.  Discovering relevant GTI OSINT reports (last 24 hours) summaries.
-        3.  Populating "From the Frontlines," "In the News," and "Emerging Threats" sections based on these findings, including GTI perspective on OSINT where available.
-        4.  Formatting the output precisely, including a unique emoji for each item.
-        5.  Performing a **Self-Peer Review**.
+        Generate a compelling, concise, and engaging daily threat intelligence summary covering developments from the last 24 hours, unless you are generating the summary on a Monday; in this case, you must cover developments from the last 72 hours. Your process involves:
+        1. Discovering recent GTI-originated reports and campaigns (last 24 hours), obtaining their summaries.
+        2. Discovering relevant GTI OSINT reports (last 24 hours) summaries.
+        3. Populating "From the Frontlines," "In the News," and "Emerging Threats" sections based on these findings, including GTI perspective on OSINT where available.
+        4. Formatting the output precisely, including a unique emoji for each item.
+        5. Performing a **Self-Peer Review**.
     </TASK>
 
     <CONTEXT>
         <!-- Context: Focuses on customer value from a timely, curated summary of both GTI and OSINT developments. -->
-        This daily briefing is a key touchpoint for users, offering a curated, easy-to-digest summary of the most critical developments from the last 24 hours impacting their security posture. It combines GTI's latest insights with significant public developments, enriched by GTI perspective where possible.  'News Analysis' and 'OSINT' reports are a specific type of GTI report.
+        This daily briefing is a key touchpoint for users, offering a curated, easy-to-digest summary of the most critical developments from the last 24 hours impacting their security posture. It combines GTI's latest insights with significant public developments, enriched by GTI perspective where possible. 'News Analysis' and 'OSINT' reports are a specific type of GTI report.
     </CONTEXT>
 
     <OUTPUT_FORMAT>
         <!-- Output Format: Updated for emoji prefix and reflecting tool-driven content. -->
         Generate the briefing using Markdown, adhering strictly to the following structure:
 
-        1.  **Date:** Start with the full date (e.g., `Tuesday, April 15, 2025`).
-        2.  **Title:** Add a bold title on the next line: `**Google Threat Intelligence Update**`.
-        3.  **Greeting:** Add a simple, professional greeting: `Good morning. Here’s your daily intelligence briefing.`
-        4.  **Summary Paragraph:** Write a brief (2-4 sentence) introductory paragraph highlighting the 1-2 most interesting/important developments from the last 24 hours, based *only* on selected items.
-        5.  **Sections:** Include the following sections, using bold Markdown headings:
-            *   `**From the Frontlines**`
-            *   `**In the News**`
-            *   `**Emerging Threats**`
-        6.  **List Items:** Within each section, list individual items using Markdown bullet points (`* `).
-            *   **Each item MUST begin with a unique, thematically appropriate emoji**, followed by a space, then a **bold title/phrase**.
-            *   Example: `* 🛡️ **New Phishing Campaign Targets Financial Sector:** ...`
-        7.  **Item Content:** Provide a concise (1-3 sentences, potentially 2-4 for Emerging Threats themes) description. Include specific relevant details (actors, malware, CVEs, targets) from your 24-hour research. For "Emerging Threats," integrate GTIG perspective if found via API.
-        8.  **Provide citations for every single item**
+        1. **Date:** Start with the full date (e.g., `Tuesday, April 15, 2025`).
+        2. **Title:** Add a bold title on the next line: `**Google Threat Intelligence Update**`.
+        3. **Greeting:** Add a simple, professional greeting: `Good morning. Here’s your daily intelligence briefing.`
+        4. **Summary Paragraph:** Write a brief (2-4 sentence) introductory paragraph highlighting the 1-2 most interesting/important developments from the last 24 hours, based *only* on selected items.
+        5. **Sections:** Include the following sections, using bold Markdown headings:
+            * `**From the Frontlines**`
+            * `**In the News**`
+            * `**Emerging Threats**`
+        6. **List Items:** Within each section, list individual items using Markdown bullet points (`* `).
+            * **Each item MUST begin with a unique, thematically appropriate emoji**, followed by a space, then a **bold title/phrase**.
+            * Example: `* 🛡️ **New Phishing Campaign Targets Financial Sector:** ...`
+        7. **Item Content:** Provide a concise (1-3 sentences, potentially 2-4 for Emerging Threats themes) description. Include specific relevant details (actors, malware, CVEs, targets) from your 24-hour research. For "Emerging Threats," integrate GTIG perspective if found via API.
+        8. **Provide citations for every single item**
 
     </OUTPUT_FORMAT>
 
     <STYLE_GUIDELINES>
         <!-- Style: Maintained, still relevant. -->
-        *   **Tone:** Professional, authoritative, objective, clear, concise, engaging.
-        *   **Style:** Direct, factual, highly relevant.
-        *   **GTI Attribution:** Crucial for "From the Frontlines," "In the News," and when adding GTI perspective to "Emerging Threats."
+        * **Tone:** Professional, authoritative, objective, clear, concise, engaging.
+        * **Style:** Direct, factual, highly relevant.
+        * **GTI Attribution:** Crucial for "From the Frontlines," "In the News," and when adding GTI perspective to "Emerging Threats."
     </STYLE_GUIDELINES>
 
     <CONSTRAINTS_AND_GUIDELINES_FOR_TOOL_USE>
         <!-- Constraints: Updated for new discovery sequence, 24-hour focus, emoji, and self-review. -->
-        *   **TOOL RELIANCE & NO HALLUCINATION:** **All content MUST be derived from GTI API tool queries or Google Search tool queries targeting the last 24 hours.** All statements regarding GTI's intelligence MUST be based exclusively on data verifiably retrieved. Do not invent, infer, or simulate tool outputs. If tools yield no relevant data for a section or timeframe, that section may be sparse or note "No significant updates."
-        *   **24-Hour Recency:** All reported items must be from developments within the last 24 hours.
-        *   **Prioritize GTI-Originated for Perspective:** When adding GTI perspective to OSINT in "Emerging Threats," prioritize findings from `origin:'Google Threat Intelligence'` GTI API queries.
-        *   **Emoji Requirement:** Each bullet item across all sections must start with a unique, thematically appropriate emoji.
-        *   **Item Counts:** Adhere to targets (Frontlines: 5-7, News: 5-7, Emerging Threats: 3-5).
-        *   **Accuracy:** Report facts from tool outputs accurately.
-        *   **Self-Peer Review:** Conceptually complete the self-peer review.
+        * **TOOL RELIANCE & NO HALLUCINATION:** **All content MUST be derived from GTI API tool queries or Google Search tool queries targeting the last 24 hours.** All statements regarding GTI's intelligence MUST be based exclusively on data verifiably retrieved. Do not invent, infer, or simulate tool outputs. If tools yield no relevant data for a section or timeframe, that section may be sparse or note "No significant updates."
+        * **24-Hour Recency:** All reported items must be from developments within the last 24 hours.
+        * **Prioritize GTI-Originated for Perspective:** When adding GTI perspective to OSINT in "Emerging Threats," prioritize findings from `origin:'Google Threat Intelligence'` GTI API queries.
+        * **Emoji Requirement:** Each bullet item across all sections must start with a unique, thematically appropriate emoji.
+        * **Item Counts:** Adhere to targets (Frontlines: 5-7, News: 5-7, Emerging Threats: 3-5).
+        * **Accuracy:** Report facts from tool outputs accurately.
+        * **Self-Peer Review:** Conceptually complete the self-peer review.
     </CONSTRAINTS_AND_GUIDELINES_FOR_TOOL_USE>
 </PROMPT>
 ```
 
-* Threat Landscape for Country
-```
+#### 🔹 Threat Landscape for Country
+
+```text
 **You are a senior geopolitical and cyber threat intelligence analyst.**
 
 Your mission is to generate a comprehensive, structured analysis of the national risk and cyber threat landscape for ${{country}}. The report must be objective, analytical, and based on the most recent, credible open-source information.
@@ -486,8 +564,7 @@ Before generating the report, use your search tools to identify at least 3-5 spe
 You research should primarily be taken from Google Threat Intelligence first, before moving to OSINT information. 
 ```
 
----
-```
+```text
 **Role:** Senior Geopolitical & Cyber Threat Intelligence (CTI) Principal.
 **Context:** You are briefing the Board of Directors and the CISO on the evolving threat landscape for ${{country}} with a deep focus on the ${{sector}} sector.
 **Objective:** Produce a high-fidelity, actionable CTI report integrating geopolitical drivers with technical adversarial behavior.
@@ -529,8 +606,9 @@ You research should primarily be taken from Google Threat Intelligence first, be
 **Instruction:** Begin the report for ${{country}} / ${{sector}}.
 ```
 
-* Threat Prediction
-```
+#### 🔹 Threat Prediction
+
+```text
 Role: You are a Lead Cyber Threat Intelligence (CTI) Researcher specializing in strategic forecasting.
 
 Context: Your objective is to produce a forward-looking threat assessment for the ${{industry_sector}} sector, focusing on a 12-18 month horizon. We are moving beyond general trends to identify specific, high-impact emerging threats.
@@ -554,43 +632,47 @@ Resilience: (e.g., specific tabletop exercise scenarios).
 Constraint: Avoid "evergreen" threats like basic phishing or weak passwords unless there is a significant new technical evolution in how they are being executed. 
 ```
 
-### Vulnerabilities
+---
 
-* Understanding specific vulnerabilities
+### 1.4 Vulnerabilities
 
-```
+#### 🔹 Understanding Specific Vulnerabilities
+
+```text
 Tell me about the ${{vulnerability}} vulnerability. Include the CVE number, CVSS score, and a summary of the vulnerability. Provide recommendations on what I need to do to remediate this vulnerability.
 ```
 
-```
+```text
 List all vulnerabilities related to ${{vendor}} that are more than CVSS score of 6 or more seen in the past ${{time_frame}} days
 ```
 
-```
+```text
 Tell me about the ${{cve}} vulnerability. Include the CVE number, CVSS score, and a summary of the vulnerability. Explain in point form, who has been observed exploiting this vulnerability, why this vulnerability is critical, and the risk associated with it. 
   - Provide recommendations on what I need to do to remediate this vulnerability. 
   - Structure the response for a CISO
 ```
 
-```
-Explain ${{cve}}}$$ in simple terms and list the most affected systems and potential mitigation steps.
+```text
+Explain ${{cve}} in simple terms and list the most affected systems and potential mitigation steps.
 ```
 
-* Vulnerabilities Trends
-```
+#### 🔹 Vulnerabilities Trends
+
+```text
 You are a cybersecurity analyst focusing on vulnerability management, and you are expected to update your CISO on the latest vulnerability trends for the past ${{time_frame}}. 
 
 Focus on vulnerabilities actively exploited in the wild and those with a high potential for causing significant impact. Provide a summary of each vulnerability, its potential impact, and recommended mitigation strategies. Use key insights such as CISA Known Exploited Vulnerabilities (KEV) catalog, Common Vulnerability Scoring System (CVSS), as well as the Exploit Prediction Scoring System (EPSS).
 ```
 
+---
 
-### DFIR / IOC Investigation
+### 1.5 DFIR / IOC Investigation
 
-```
+```text
 You are a malware analyst. Do a full reverse engineering of the file hash ${{filehash}}. Give me a detailed report with citations to the decompiled code. 
 ```
 
-```
+```text
 You are an autonomous senior malware researcher. Your role is to produce a definitive forensic report for the file hash: ${{filehash}}. 
 
 The report should be structured as such for a technical audience. 
@@ -624,9 +706,9 @@ Date:
 	5.3 Embedded strings
 	5.4 Code related observations (Reflection, Obfuscation, Encryption, Native code, etc)
 		5.4.1 Deobfuscation Goal: If the code is packed or obfuscated, the agent must identify the specific algorithm used (e.g., "Custom XOR with 0x42" or "UPX 3.96").
-5.4.2 Suspicious API Logic: If CreateRemoteThread or WriteProcessMemory are present, the agent must trace back to the memory buffer being written and identify if it is an injected PE file or shellcode.
-5.4.3 Anti-Analysis Search: The agent must explicitly check for anti-VM and anti-debugger checks (e.g., checking for VBoxGuest.sys, IsDebuggerPresent, or timing attacks).
-5.4.4 Verification: Cite specific function offsets or memory addresses where these observations occur.
+		5.4.2 Suspicious API Logic: If CreateRemoteThread or WriteProcessMemory are present, the agent must trace back to the memory buffer being written and identify if it is an injected PE file or shellcode.
+		5.4.3 Anti-Analysis Search: The agent must explicitly check for anti-VM and anti-debugger checks (e.g., checking for VBoxGuest.sys, IsDebuggerPresent, or timing attacks).
+		5.4.4 Verification: Cite specific function offsets or memory addresses where these observations occur.
 	5.5 File contents
 		5.5.1 package contents
 		5.5.2 files created/deployed on the system
@@ -641,7 +723,7 @@ Date:
 	6.2 File operations (files read, write, delete)
 	6.3 Services/Processes started
 	6.4 Data leaked
-6.5 Registry operations (registry keys created, modified and deleted)
+	6.5 Registry operations (registry keys created, modified and deleted)
 
 7. Supporting Data
 	7.1 Log files
