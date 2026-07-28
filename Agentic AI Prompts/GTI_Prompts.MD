@@ -52,6 +52,7 @@ Below are the standard variables used throughout these prompt templates. Substit
     - [OSINT Daily Summary / BLUF](#osint-daily-summary--bluf)
     - [Threat Landscape for Country](#threat-landscape-for-country)
     - [Threat Prediction](#threat-prediction)
+    - [Influence Operations (IO) & Disinformation Analysis](#influence-operations-io--disinformation-analysis)
   - [1.4 Vulnerabilities](#14-vulnerabilities)
     - [Understanding Specific Vulnerabilities](#understanding-specific-vulnerabilities)
     - [Vulnerabilities Trends](#vulnerabilities-trends)
@@ -479,7 +480,7 @@ Provide 3-5 actionable recommendations:
 </PROMPT>
 ```
 
-#### 🔹 Threat Landscape for Country
+#### 🔹 Threat Landscape (Geopolitical and cyberthreat) for Country
 
 ```text
 **You are a senior geopolitical and cyber threat intelligence analyst.**
@@ -623,13 +624,45 @@ Business Impact: Explain the "so what?"—how this threat specifically cripples 
 
 Strategic Recommendations: Provide 3 pre-emptive defensive measures. These must be split into:
 
-Detection: (e.g., specific YARA-L rules for Google SecOps, Sigma rules, or telemetry to monitor).
-
-Prevention/Hardening: (e.g., architectural changes or policy enforcements).
-
-Resilience: (e.g., specific tabletop exercise scenarios).
+- Detection: ${{detection_language}}  
+- Prevention/Hardening: (e.g., architectural changes or policy enforcements).
+- Resilience: (e.g., specific tabletop exercise scenarios).
 
 Constraint: Avoid "evergreen" threats like basic phishing or weak passwords unless there is a significant new technical evolution in how they are being executed. 
+```
+
+#### 🔹 Influence Operations (IO) & Disinformation Analysis
+
+```text
+**Role:** Senior Information Operations (IO) & Disinformation Analyst at Google Threat Intelligence.
+**Context:** You are tasked with dissecting an active or historical influence operation based on provided intelligence reports or data.
+
+<variables>
+Report Link / ID: ${{report_link}}
+Target Country / Region: ${{region}}
+Timeframe: ${{time_frame}}
+** Note about default_behavior **
+- If ${{report_link}} is left blank, conduct research across Google Threat Intelligence, Google Search and use the `search_digital_threat_monitoring` tool to find all forum posts and Telegram messages in the corresponding period.
+- If ${{time_frame}} is left blank, default to the past 12 months.
+</variables>
+
+### **Analysis Objectives & Requirements**
+Produce a structured Information Operations report covering:
+1. **Executive Summary**
+   - 3-5 sentence overview of the IO campaign, attribution, strategic goals, and target demographic.
+2. **Narrative & Messaging Breakdown**
+   - **Core Narratives:** Key claims, themes, and propaganda talking points.
+   - **Synthetic Media & AI Usage:** Use of deepfakes, AI-generated text/images, or altered news clips.
+   - **Cultural Adaptation:** How narratives were tailored to local nuances in ${{region}}.
+3. **Infrastructure & Delivery Vectors**
+   - **Platforms & Channels:** Social platforms, self-hosted proxy news domains, or messaging apps.
+   - **Inauthentic Behavior:** Evidence of botnets, coordinated sharing, sockpuppet networks, or astroturfing.
+   - **Attribution:** Known group associations (e.g., Spamouflage, Doppelgänger) or state-aligned nexus.
+4. **DISARM Framework Mapping**
+   - Map observed behaviors to DISARM tactics & techniques (e.g., T0003 Content Creation, T0004 Infrastructure Creation, T0007 Amplification).
+5. **Impact Assessment & Recommendations**
+   - Real-world reach, engagement indicators, and media pickup.
+   - Recommended counter-disinformation monitoring actions.
 ```
 
 ---
