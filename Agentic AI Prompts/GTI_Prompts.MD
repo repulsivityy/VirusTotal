@@ -50,13 +50,15 @@ Below are the standard variables used throughout these prompt templates. Substit
     - [Report Gen for Leadership](#report-gen-for-leadership)
     - [Cyber Threat Actor Research Prompt](#cyber-threat-actor-research-prompt)
     - [OSINT Daily Summary / BLUF](#osint-daily-summary--bluf)
-    - [Threat Landscape for Country](#threat-landscape-for-country)
+    - [Threat Landscape (Geopolitical and Cyberthreat) for Country](#threat-landscape-geopolitical-and-cyberthreat-for-country)
     - [Threat Prediction](#threat-prediction)
     - [Influence Operations (IO) & Disinformation Analysis](#influence-operations-io--disinformation-analysis)
   - [1.4 Vulnerabilities](#14-vulnerabilities)
     - [Understanding Specific Vulnerabilities](#understanding-specific-vulnerabilities)
     - [Vulnerabilities Trends](#vulnerabilities-trends)
   - [1.5 DFIR / IOC Investigation](#15-dfir--ioc-investigation)
+    - [Reverse Engineering Malware Hash](#reverse-engineering-malware-hash)
+    - [Comprehensive Forensic Analysis](#comprehensive-forensic-analysis)
 
 ---
 
@@ -64,7 +66,7 @@ Below are the standard variables used throughout these prompt templates. Substit
 
 ### 1.1 Threat Hunt
 
-#### 🔹 Understanding Malware
+#### Understanding Malware
 
 ```text
 Tell me more about Ransomhub Ransomware. Include their TTPs, threat actors observed to have used them, and any known IOCs first seen in the past 30 days. 
@@ -74,19 +76,19 @@ Tell me more about Ransomhub Ransomware. Include their TTPs, threat actors obser
 Explain the 'Nitrogen' malware loader execution flow step-by-step. For each stage, list one specific Windows Event ID that could be used for detection. Format your response strictly as a JSON array of objects with keys: 'stage', 'description', and 'event_id'
 ```
 
-#### 🔹 Understanding Campaigns (Strategic)
+#### Understanding Campaigns (Strategic)
 
 ```text
 Based on this report ${{report_link}}, summarise the report for a CISO. Include their TTPs
 ```
 
-#### 🔹 Understanding Techniques
+#### Understanding Techniques
 
 ```text
 What is etherhiding and how do I detect it?
 ```
 
-#### 🔹 Understanding Tactics
+#### Understanding Tactics
 
 ```text
 What are some novel initial access tactics observed in the past year? 
@@ -96,7 +98,7 @@ What are some novel initial access tactics observed in the past year?
 Explain the concept of ‘living off the land’ attacks and how they are designed to deliberately bypass endpoint detection mechanisms by using built-in system tools.
 ```
 
-#### 🔹 Understanding Campaigns + Hunting Packages (Operational / Tactical)
+#### Understanding Campaigns + Hunting Packages (Operational / Tactical)
 
 ```text
 Based on this report ${{report_link}}, summarise the report for a threat intelligence analyst. 
@@ -111,7 +113,7 @@ If there are any TTPs that we can use, convert them into a cyber threat hunting 
 Analyze the following TTPs: T1583.003 (Malvertising), T1059 (Command and Scripting Interpreter). Suggest three specific hunt missions for a Windows environment.
 ```
 
-#### 🔹 Understanding Campaigns for Hypothesis
+#### Understanding Campaigns for Hypothesis
 
 ```text
 You are a threat hunter. Provide a list of hypotheses that we can test based on the following campaign report <insert link>. 
@@ -131,7 +133,7 @@ For each hypothesis, provide a list of data sources that we can use to test the 
 - Include citations
 ```
 
-#### 🔹 Understanding Reports & Pulling IOCs / Rules
+#### Understanding Reports & Pulling IOCs / Rules
 
 ```text
 You are a threat hunter. Based on this report ${{report_link}}, summarise the report for a threat intelligence analyst. Please output the following: 
@@ -141,7 +143,7 @@ You are a threat hunter. Based on this report ${{report_link}}, summarise the re
 If there are any rules such as YARA rules, automatically push them to my Livehunt rule on GTI 
 ```
 
-#### 🔹 Ransomware Victims / Affiliates Profile
+#### Ransomware Victims / Affiliates Profile
 
 ```text
 Analyse Akira Ransomware Victims and Tactics.
@@ -150,7 +152,7 @@ Analyse Akira Ransomware Victims and Tactics.
 Based on what was provided, provide some threat hunting hypotheses.
 ```
 
-#### 🔹 Report Analysis
+#### Report Analysis
 
 ```text
 <context>
@@ -175,7 +177,7 @@ Provide output as:
 
 ### 1.2 Threat Modelling
 
-#### 🔹 Developing Threat Models
+#### Developing Threat Models
 
 ```text
 Act as a Senior Threat Hunter. Develop a STRIDE threat model for a scenario where an attacker gains unauthorized access to a company's cloud storage. Provide a table of threats and mitigations.
@@ -192,13 +194,13 @@ Campaign Reports: ${{report_link}}
 Given the following incidents, identify and summarize the attack vectors the threat actor used to succeed. For each vector, explain: (1) what it was, (2) how it was exploited, and (3) why it worked (e.g., misconfiguration, human error, unpatched vulnerability, weak controls). Present the vectors in chronological order based on when each was exploited. Conclude with a prioritized list of the most critical entry points to address, ranked by severity and likelihood of recurrence.
 ```
 
-#### 🔹 Visualisation
+#### Visualisation
 
 ```text
 Visualize the attack chain for ${{threat_actor}} for the last ${{time_frame}} days, with the type of attack being ${{attack_type}}. Use a diagram mapping each phase from initial access to impact. Highlight the most common entry points, lateral movement techniques, and end-stage objectives across campaigns.
 ```
 
-#### 🔹 Diamond Model
+#### Diamond Model
 > *Note: Drawing diamond models directly inside LLM text output requires specific formatting instructions below.*
 
 ```text
@@ -304,13 +306,13 @@ provided data/reports ONLY. If information for any element is not available in t
 
 ### 1.3 Strategic / Risk Focused
 
-#### 🔹 Threat Landscape Overview
+#### Threat Landscape Overview
 
 ```text
 Generate a threat landscape overview for ${{region}} and ${{industry}} for the last ${{time_frame}} days. Include the most active threat actors, predominant TTPs, commonly targeted assets, and any clustering in campaign activity that reveals how the threat environment is evolving.
 ```
 
-#### 🔹 Report Gen for Leadership
+#### Report Gen for Leadership
 
 ```text
 Time scale: ${{time_frame}}
@@ -320,7 +322,7 @@ Industry: ${{industry}}
 My CISO has been asked about our exposure to the latest wave of attacks in our sector and region. Generate a focused briefing that answers: Are we a likely target? What TTPs should we be watching for, and do we have the controls to detect or stop them? Close with a short, prioritized action list framed around business risk and decision-making, not a full landscape review, just what leadership needs to respond with confidence right now.
 ```
 
-#### 🔹 Cyber Threat Actor Research Prompt
+#### Cyber Threat Actor Research Prompt
 
 ```text
  **Research Target:** ${{threat_actor}}
@@ -417,7 +419,7 @@ Provide 3-5 actionable recommendations:
 - Highlight any information gaps or limitations
 ```
 
-#### 🔹 OSINT Daily Summary / BLUF
+#### OSINT Daily Summary / BLUF
 
 ```text
 <PROMPT>
@@ -480,7 +482,7 @@ Provide 3-5 actionable recommendations:
 </PROMPT>
 ```
 
-#### 🔹 Threat Landscape (Geopolitical and cyberthreat) for Country
+#### Threat Landscape (Geopolitical and Cyberthreat) for Country
 
 ```text
 **You are a senior geopolitical and cyber threat intelligence analyst.**
@@ -607,7 +609,7 @@ You research should primarily be taken from Google Threat Intelligence first, be
 **Instruction:** Begin the report for ${{country}} / ${{sector}}.
 ```
 
-#### 🔹 Threat Prediction
+#### Threat Prediction
 
 ```text
 Role: You are a Lead Cyber Threat Intelligence (CTI) Researcher specializing in strategic forecasting.
@@ -631,7 +633,7 @@ Strategic Recommendations: Provide 3 pre-emptive defensive measures. These must 
 Constraint: Avoid "evergreen" threats like basic phishing or weak passwords unless there is a significant new technical evolution in how they are being executed. 
 ```
 
-#### 🔹 Influence Operations (IO) & Disinformation Analysis
+#### Influence Operations (IO) & Disinformation Analysis
 
 ```text
 **Role:** Senior Information Operations (IO) & Disinformation Analyst at Google Threat Intelligence.
@@ -669,7 +671,7 @@ Produce a structured Information Operations report covering:
 
 ### 1.4 Vulnerabilities
 
-#### 🔹 Understanding Specific Vulnerabilities
+#### Understanding Specific Vulnerabilities
 
 ```text
 Tell me about the ${{vulnerability}} vulnerability. Include the CVE number, CVSS score, and a summary of the vulnerability. Provide recommendations on what I need to do to remediate this vulnerability.
@@ -689,7 +691,7 @@ Tell me about the ${{cve}} vulnerability. Include the CVE number, CVSS score, an
 Explain ${{cve}} in simple terms and list the most affected systems and potential mitigation steps.
 ```
 
-#### 🔹 Vulnerabilities Trends
+#### Vulnerabilities Trends
 
 ```text
 You are a cybersecurity analyst focusing on vulnerability management, and you are expected to update your CISO on the latest vulnerability trends for the past ${{time_frame}}. 
@@ -701,9 +703,13 @@ Focus on vulnerabilities actively exploited in the wild and those with a high po
 
 ### 1.5 DFIR / IOC Investigation
 
+#### Reverse Engineering Malware Hash
+
 ```text
 You are a malware analyst. Do a full reverse engineering of the file hash ${{filehash}}. Give me a detailed report with citations to the decompiled code. 
 ```
+
+#### Comprehensive Forensic Analysis
 
 ```text
 You are an autonomous senior malware researcher. Your role is to produce a definitive forensic report for the file hash: ${{filehash}}. 
