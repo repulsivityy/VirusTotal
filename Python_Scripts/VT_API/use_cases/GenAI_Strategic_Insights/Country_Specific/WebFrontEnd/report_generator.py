@@ -170,15 +170,15 @@ def get_system_instruction(output_country, output_language, topic=None):
             * {f"Ensure all selected reports also relate to the topic: **{topic}**." if topic else ""}
 
         2.  **Select & Synthesize for the Newsletter:**
-            * From your country-relevant shortlist, select the **top 8-10 most significant stories**, such as:
+            * From your country-relevant shortlist, select **up to 10 of the most significant stories** (minimum 3 if available). Do NOT include low-relevance or duplicate items merely to reach a target count:
                 * Active, widespread exploitation of a vulnerability or cyber attacks affecting organizations in `{output_country}`.
                 * Confirmed major intrusion against a critical infrastructure entity or major corporation in `{output_country}`.
                 * A new campaign by a threat actor known to target `{output_country}` or its key industries.
                 * A globally significant threat with high potential impact on `{output_country}`.
-                * Geopolitical developments or shifts in the regional threat landscape, including regional instabaility, disinformation campaigns and influence operations.
+                * Geopolitical developments or shifts in the regional threat landscape, including regional instability, disinformation campaigns and influence operations.
             * If the same topic is covered in multiple reports, synthesize the information into a single summary item.
             * For each selected story, write a concise summary (2-4 sentences).
-            * **Include CVEs in Headlines:** If a story revolves around a specific vulnerability or vulnerabilities, ensure the CVE identifier (e.g., CVE-2024-12345) is mentioned prominently in the bold title or the first sentence of the summary. This is critical for the vulnerability enrichment step that happens *after* you generate the text.
+            * **Include CVEs in Headlines:** If a story revolves around a specific vulnerability or vulnerabilities, ensure the CVE identifier is mentioned prominently in the bold title or the first sentence of the summary. All CVE identifiers MUST strictly follow the exact format `CVE-YYYY-NNNNN` (uppercase, with hyphen, e.g., CVE-2024-12345) so downstream regex parsers can extract them.
             * **Link Source:** Ensure each summary includes an inline link to the primary OSINT source report using its `link` field. Prioritize media sources based in the same region as the {output_country}.
 
         3.  **Group and Structure the Output:**
@@ -187,7 +187,7 @@ def get_system_instruction(output_country, output_language, topic=None):
                 * `**Threat Actor Activity & Campaigns**` (for news about specific APTs or cybercrime groups targeting the country).
                 * `**Malware & Phishing Trends**` (for notable malware or social engineering campaigns).
                 * `**Geopolitical & Industry-Specific Threats**` (for broader context items).
-            * Do not create a section if there are no relevant items for it. The total number of items should still be between 7-10.
+            * Do not create a section if there are no relevant items for it. Include up to 10 items total based on available relevant reports.
 
         4.  **Translate to Target Language:**
             * Ensure the entire final output, including all headings and summaries, is written fluently and accurately in {output_language}.
@@ -201,7 +201,7 @@ def get_system_instruction(output_country, output_language, topic=None):
             3.  **Greeting:** Add a simple, professional greeting (Translated).
             4.  **Summary Paragraph:** Write a brief (2-4 sentence) introductory paragraph highlighting the 1-2 most important developments covered below, based *only* on selected items. If a broader trend or connection between multiple items was identified, mention it here.
             5.  **Section:** Include a single main section, for example: `**Key Threat Landscape Developments**` (Translated).
-            6.  **List Items:** Within the main section, list the 8-10 individual story summaries using Markdown bullet points (`* `).
+            6.  **List Items:** Within the main section, list the individual story summaries (up to 10) using Markdown bullet points (`* `).
                 * Start each item with a bold title/phrase summarizing the story (Translated).
                 * Provide a concise (2-4 sentences) description of the development, including its specific relevance to **`{output_country}`**.
                 * Embed a relevant Markdown link *within* the description text: `[Descriptive Text](URL)`. Hyperlink 3-5 contextually relevant words. The URL should come from the OSINT report's `link` field.
@@ -209,9 +209,10 @@ def get_system_instruction(output_country, output_language, topic=None):
         </OUTPUT_FORMAT>
         
         <CONSTRAINTS>
-        * **Country Focus:** All selected stories MUST be relevant to `{output_country}`.
+            * **Country Focus:** All selected stories MUST be relevant to `{output_country}`.
             * **Language:** The final output MUST be entirely in `{output_language}`.
-            * **Item Count:** The newsletter should contain **8-10** story summaries.
+            * **Item Count:** Select up to 10 relevant story summaries (minimum 3). Do NOT pad output with low-relevance reports.
+            * **CVE Formatting:** Any CVE mentioned MUST strictly follow the exact uppercase format `CVE-YYYY-NNNNN` (e.g. CVE-2024-12345).
             * **No CVE Table:** Do NOT generate a "Vulnerability Spotlight" table. This will be added later by the program. Focus only on writing the narrative summary.
             * **Recency:** Prioritize information from the last 24-48 hours for a daily brief, or the last week for a weekly brief.
             * **Linking:** Use *only* inline Markdown links. Every item must have at least one functional link to a source.
