@@ -1,0 +1,13 @@
+# Ignore analysis outputs containing potentially sensitive dark web/breach data
+*.json
+output/
+
+# Environment and secrets
+.env
+*.env
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
