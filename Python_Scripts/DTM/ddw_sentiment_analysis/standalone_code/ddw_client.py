@@ -1,4 +1,6 @@
 import os
+import hashlib
+from collections import Counter
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 import requests
@@ -21,6 +23,8 @@ class GTIDDWClient:
             "User-Agent": "GTI-DDW-Sentiment-Client/1.0"
         }
         self._author_cache: Dict[str, Dict[str, Any]] = {}
+        self._channel_cache: Dict[str, Dict[str, Any]] = {}
+        self._service_cache: Dict[str, Dict[str, Any]] = {}
 
     def _get(self, path: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Perform a GET request to the VirusTotal / GTI API with timeout and error handling."""
@@ -59,8 +63,9 @@ class GTIDDWClient:
 
     def search_communications_by_author(self, author_name: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Search for communications by author name."""
+        safe_author = author_name.replace('"', '\\"')
         params = {
-            "filter": f'author.name:"{author_name}"',
+            "filter": f'author.name:"{safe_author}"',
             "limit": min(limit, 40)
         }
         res = self._get("/ddw_communications", params=params)
@@ -68,27 +73,231 @@ class GTIDDWClient:
 
     def search_communications_by_channel(self, channel_name: str, limit: int = 5) -> List[Dict[str, Any]]:
         """Fetch sample communications from a specific channel name."""
+        safe_channel = channel_name.replace('"', '\\"')
         params = {
-            "filter": f'communication_channel.name:"{channel_name}"',
+            "filter": f'communication_channel.name:"{safe_channel}"',
             "limit": min(limit, 40)
         }
         res = self._get("/ddw_communications", params=params)
         return res.get("data", [])
 
     def get_channel_metadata(self, channel_id: str) -> Dict[str, Any]:
-        """Fetch metadata for a Dark Web Communication Channel."""
-        res = self._get(f"/ddw_communication_channels/{channel_id}")
-        return res.get("data", {})
+        """Fetch metadata for a Dark Web Communication Channel with in-memory caching."""
+        if not channel_id:
+            return {}
+        if channel_id in self._channel_cache:
+            return self._channel_cache[channel_id]
+        try:
+            res = self._get(f"/ddw_communication_channels/{channel_id}")
+            data = res.get("data", {})
+            self._channel_cache[channel_id] = data
+            return data
+        except Exception:
+            return {}
+
+    def get_service_metadata(self, service_id: str) -> Dict[str, Any]:
+        """Fetch metadata for a Dark Web Service / Platform with in-memory caching."""
+        if not service_id:
+            return {}
+        if service_id in self._service_cache:
+            return self._service_cache[service_id]
+        try:
+            res = self._get(f"/ddw_services/{service_id}")
+            data = res.get("data", {})
+            self._service_cache[service_id] = data
+            return data
+        except Exception:
+            return {}
+
+    def get_conversation_thread(self, thread_id: str) -> Dict[str, Any]:
+        """Fetch metadata for a Dark Web Conversation Thread."""
+        if not thread_id:
+            return {}
+        try:
+            res = self._get(f"/ddw_conversation_threads/{thread_id}")
+            return res.get("data", {})
+        except Exception:
+            return {}
+
+    def get_author_history(
+        self,
+        author_id: Optional[str],
+        author_name: Optional[str] = None,
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Multi-tier retrieval of an author's historical posts across underground platforms.
+        Tier 1: Query by strict GTI user profile ID (no false collisions).
+        Tier 2: If Tier 1 yields <= 1 post, fall back to search by author handle.
+        """
+        limit = max(1, min(limit, 25))
+        items: List[Dict[str, Any]] = []
+
+        # Tier 1: Query by author profile ID
+        if author_id:
+            try:
+                params = {
+                    "filter": f'author.id:"{author_id}"',
+                    "limit": limit,
+                    "attributes": "subject,content,content_translated,communication_type,timestamp,origin_url",
+                    "relationships": "communication_channel,service"
+                }
+                res = self._get("/ddw_communications", params=params)
+                items = res.get("data", [])
+            except Exception:
+                items = []
+
+        # Tier 2: Fall back to author name/handle if Tier 1 returned <= 1 post
+        generic_handles = {"unknown", "admin", "administrator", "bot", "channel", "user", "anonymous"}
+        if len(items) <= 1 and author_name and author_name.lower().strip() not in generic_handles and len(author_name.strip()) > 2:
+            try:
+                safe_author = author_name.strip().replace('"', '\\"')
+                params = {
+                    "filter": f'author.name:"{safe_author}"',
+                    "limit": limit,
+                    "attributes": "subject,content,content_translated,communication_type,timestamp,origin_url",
+                    "relationships": "communication_channel,service"
+                }
+                res = self._get("/ddw_communications", params=params)
+                fallback_items = res.get("data", [])
+                if fallback_items:
+                    existing_ids = {m.get("id") for m in items}
+                    for m in fallback_items:
+                        if m.get("id") not in existing_ids:
+                            items.append(m)
+            except Exception:
+                pass
+
+        # Normalize and resolve channel / platform names
+        formatted: List[Dict[str, Any]] = []
+        for m in items:
+            attrs = m.get("attributes", {})
+            rels = m.get("relationships", {})
+            msg_ts = attrs.get("timestamp")
+
+            platform_name = "Unknown Platform"
+            ch_data = rels.get("communication_channel", {}).get("data")
+            srv_data = rels.get("service", {}).get("data")
+
+            if ch_data and isinstance(ch_data, dict):
+                ch_id = ch_data.get("id")
+                ch_meta = self.get_channel_metadata(ch_id)
+                platform_name = ch_meta.get("attributes", {}).get("name") or "Telegram Channel"
+            elif srv_data and isinstance(srv_data, dict):
+                srv_id = srv_data.get("id")
+                srv_meta = self.get_service_metadata(srv_id)
+                platform_name = srv_meta.get("attributes", {}).get("name") or "Darknet Forum"
+
+            iso_time = (
+                datetime.fromtimestamp(msg_ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
+                if msg_ts else "Unknown"
+            )
+
+            orig_text = (attrs.get("content") or "").strip()
+            trans_text = (attrs.get("content_translated") or "").strip()
+
+            formatted.append({
+                "id": m.get("id"),
+                "platform": platform_name,
+                "type": attrs.get("communication_type"),
+                "subject": attrs.get("subject"),
+                "text": trans_text or orig_text,
+                "original_text": orig_text,
+                "translated_text": trans_text,
+                "timestamp": msg_ts,
+                "timestamp_iso": iso_time,
+                "origin_url": attrs.get("origin_url")
+            })
+
+        formatted.sort(key=lambda x: x.get("timestamp") or 0, reverse=True)
+        return formatted[:limit]
+
+    def compute_author_behavioral_metrics(self, historical_posts: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Compute deterministic behavioral metrics on an author's historical posts.
+        Calculates channel dispersion, copypasta rate (broadcast spam detection), and activity span.
+        """
+        if not historical_posts:
+            return {
+                "total_historical_posts_retrieved": 0,
+                "unique_platforms_count": 0,
+                "platforms_observed": [],
+                "copypasta_broadcast_rate": 0.0,
+                "activity_span_days": 0.0,
+                "first_seen_in_sample": "N/A",
+                "last_seen_in_sample": "N/A",
+                "sample_snippets": []
+            }
+
+        total = len(historical_posts)
+        platforms = [p.get("platform") for p in historical_posts if p.get("platform")]
+        unique_platforms = sorted(list(set(platforms)))
+
+        # Copypasta detection via normalized message hashes
+        text_hashes = []
+        for p in historical_posts:
+            raw = (p.get("original_text") or p.get("text") or "").strip().lower()
+            norm = "".join(raw.split())
+            if len(norm) > 10:
+                h = hashlib.sha256(norm.encode("utf-8")).hexdigest()
+                text_hashes.append(h)
+
+        if text_hashes:
+            counts = Counter(text_hashes)
+            duplicates = sum(count - 1 for count in counts.values())
+            copypasta_rate = round(duplicates / len(text_hashes), 2)
+        else:
+            copypasta_rate = 0.0
+
+        # Activity timeline span
+        timestamps = [p.get("timestamp") for p in historical_posts if p.get("timestamp")]
+        if timestamps:
+            min_ts = min(timestamps)
+            max_ts = max(timestamps)
+            span_days = round((max_ts - min_ts) / 86400, 1)
+            first_seen = datetime.fromtimestamp(min_ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
+            last_seen = datetime.fromtimestamp(max_ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
+        else:
+            span_days = 0.0
+            first_seen = "N/A"
+            last_seen = "N/A"
+
+        # Representative sample snippets for LLM context (up to 4)
+        sample_snippets = []
+        seen_texts = set()
+        for p in historical_posts:
+            t = (p.get("text") or "")[:120].strip()
+            if t and t not in seen_texts:
+                seen_texts.add(t)
+                sample_snippets.append({
+                    "date": p.get("timestamp_iso"),
+                    "platform": p.get("platform"),
+                    "snippet": t
+                })
+                if len(sample_snippets) >= 4:
+                    break
+
+        return {
+            "total_historical_posts_retrieved": total,
+            "unique_platforms_count": len(unique_platforms),
+            "platforms_observed": unique_platforms[:8],
+            "copypasta_broadcast_rate": copypasta_rate,
+            "activity_span_days": span_days,
+            "first_seen_in_sample": first_seen,
+            "last_seen_in_sample": last_seen,
+            "sample_snippets": sample_snippets
+        }
 
     def get_context_window(
         self,
         communication_id: str,
-        window_size: int = 10
+        window_size: int = 10,
+        profile_author: bool = False,
+        author_history_limit: int = 10
     ) -> Dict[str, Any]:
         """
-        Fetch the target communication, resolve channel/thread metadata, and retrieve
-        the chronological context (N previous messages and N next messages).
-        Preserves both the original language text and English translation.
+        Fetch target communication, resolve channel/thread metadata, context window,
+        and optionally profile the author's cross-channel footprint.
         """
         window_size = max(1, min(window_size, 40))
         target_data = self.get_communication(communication_id)
@@ -129,9 +338,16 @@ class GTIDDWClient:
         # For forum posts, prioritize thread_id to get replies rather than unrelated board posts
         is_forum = (comm_type == "forum_post") or bool(thread_id and not channel_id)
 
+        thread_metadata = {}
         if is_forum and thread_id:
             prev_path = f"/ddw_conversation_threads/{thread_id}/previous_communications/{communication_id}"
             next_path = f"/ddw_conversation_threads/{thread_id}/next_communications/{communication_id}"
+
+            try:
+                t_data = self.get_conversation_thread(thread_id)
+                thread_metadata = t_data.get("attributes", {})
+            except Exception as e:
+                retrieval_errors.append(f"Thread metadata warning: {str(e)}")
 
             if channel_id:
                 try:
@@ -225,6 +441,18 @@ class GTIDDWClient:
         ]
         formatted_next.sort(key=lambda x: x.get("timestamp") or 0)
 
+        author_footprint = None
+        if profile_author:
+            try:
+                hist_posts = self.get_author_history(
+                    author_id=author_id,
+                    author_name=target_author_display,
+                    limit=author_history_limit
+                )
+                author_footprint = self.compute_author_behavioral_metrics(hist_posts)
+            except Exception as e:
+                retrieval_errors.append(f"Author history profiling warning: {str(e)}")
+
         target_iso_time = (
             datetime.fromtimestamp(target_ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
             if target_ts else "Unknown"
@@ -251,10 +479,12 @@ class GTIDDWClient:
             "channel_or_thread": {
                 "channel_id": channel_id,
                 "thread_id": thread_id,
-                "name": channel_metadata.get("name"),
+                "name": channel_metadata.get("name") or thread_metadata.get("subject"),
                 "description": channel_metadata.get("description"),
-                "url": channel_metadata.get("url")
+                "url": channel_metadata.get("url") or thread_metadata.get("url"),
+                "thread_details": thread_metadata if thread_metadata else None
             },
+            "author_footprint": author_footprint,
             "context": {
                 "previous_messages": formatted_prev,
                 "next_messages": formatted_next
