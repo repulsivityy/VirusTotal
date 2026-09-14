@@ -35,8 +35,27 @@ def main():
     args = parser.parse_args()
     print_banner()
 
+    # Upfront check for GTI API Key (required for all modes)
+    gti_key = args.gti_key or os.getenv("GTI_APIKEY") or os.getenv("VT_APIKEY")
+    if not gti_key:
+        print("\n❌ Configuration Error: Missing GTI API Key.")
+        print("   Please set the GTI_APIKEY environment variable:")
+        print("     export GTI_APIKEY=\"your_gti_api_key\"")
+        print("   Or provide it via CLI with: --gti-key <KEY>\n")
+        sys.exit(1)
+
+    # Upfront check for Gemini API Key (required when analyzing a post without --dry-run)
+    gemini_key = args.gemini_key or os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_APIKEY") or os.getenv("GOOGLE_API_KEY")
+    if args.id and not args.dry_run and not gemini_key:
+        print("\n❌ Configuration Error: Missing Gemini API Key.")
+        print("   Please set the GEMINI_API_KEY environment variable:")
+        print("     export GEMINI_API_KEY=\"your_gemini_api_key\"")
+        print("   Or provide it via CLI with: --gemini-key <KEY>")
+        print("   (Tip: pass --dry-run to fetch and inspect context without calling Gemini)\n")
+        sys.exit(1)
+
     try:
-        client = GTIDDWClient(api_key=args.gti_key)
+        client = GTIDDWClient(api_key=gti_key)
     except ValueError as e:
         print(f"\n❌ Configuration Error: {e}")
         sys.exit(1)
@@ -147,7 +166,7 @@ def main():
             print(f"   • {err}")
         print("-" * 70)
 
-    analyzer = DDWSentimentAnalyzer(api_key=args.gemini_key, model=args.model)
+    analyzer = DDWSentimentAnalyzer(api_key=gemini_key, model=args.model)
 
     if args.dry_run:
         print("\n🔎 DRY RUN ENABLED — Assembled Prompt Preview:")

@@ -12,7 +12,7 @@ class DDWSentimentAnalyzer:
     """
 
     def __init__(self, api_key: Optional[str] = None, model: str = "gemini-3.8-flash", timeout: int = 45):
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        self.api_key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_APIKEY") or os.getenv("GOOGLE_API_KEY")
         self.model = model
         self.timeout = timeout
 
