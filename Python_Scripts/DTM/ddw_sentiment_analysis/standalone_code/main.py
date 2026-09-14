@@ -26,6 +26,17 @@ def main():
         default=10,
         help="Number of messages before and after target post (default: 10, configurable up to 40)"
     )
+    parser.add_argument(
+        "--profile-author",
+        action="store_true",
+        help="Search GTI for author's historical footprint across underground channels and forums"
+    )
+    parser.add_argument(
+        "--author-history-limit",
+        type=int,
+        default=10,
+        help="Number of historical posts to query for author profiling (default: 10, max: 25)"
+    )
     parser.add_argument("--output", help="Optional path to save full JSON output (ready for BQ/SQL)")
     parser.add_argument("--dry-run", action="store_true", help="Assemble context window and prompt without calling Gemini LLM")
     parser.add_argument("--gti-key", help="GTI API Key (defaults to GTI_APIKEY env var)")
@@ -45,7 +56,7 @@ def main():
         sys.exit(1)
 
     # Upfront check for Gemini API Key (required when analyzing a post without --dry-run)
-    gemini_key = args.gemini_key or os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_APIKEY") or os.getenv("GOOGLE_API_KEY")
+    gemini_key = args.gemini_key or os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_APIKEY")
     if args.id and not args.dry_run and not gemini_key:
         print("\n❌ Configuration Error: Missing Gemini API Key.")
         print("   Please set the GEMINI_API_KEY environment variable:")
@@ -122,12 +133,17 @@ def main():
     # Mode 3: Contextual Sentiment Analysis for a specific Communication ID
     comm_id = args.id
     window = max(1, min(args.window, 40))
-    print(f"\n📥 Fetching target post '{comm_id}' with +/- {window} context window...")
+    profile_author = args.profile_author
+    author_limit = max(1, min(args.author_history_limit, 25))
+    profile_msg = f" (with author profiling limit: {author_limit})" if profile_author else ""
+    print(f"\n📥 Fetching target post '{comm_id}' with +/- {window} context window{profile_msg}...")
 
     try:
         context_bundle = client.get_context_window(
             comm_id,
-            window_size=window
+            window_size=window,
+            profile_author=profile_author,
+            author_history_limit=author_limit
         )
     except Exception as e:
         print(f"❌ Failed to fetch context window: {e}")
@@ -137,6 +153,7 @@ def main():
     ch = context_bundle["channel_or_thread"]
     prev_chats = context_bundle["context"]["previous_messages"]
     next_chats = context_bundle["context"]["next_messages"]
+    footprint = context_bundle.get("author_footprint")
     retrieval_errors = context_bundle.get("retrieval_errors", [])
 
     print("\n" + "-" * 70)
@@ -144,6 +161,18 @@ def main():
     print(f"📌 Container Bio  : {ch.get('description') or 'N/A'}")
     print(f"📌 Container URL  : {ch.get('url') or 'N/A'}")
     print("-" * 70)
+
+    # Display Author Footprint summary if profiled
+    if footprint:
+        hist_count = footprint.get('total_historical_posts_retrieved', 0)
+        u_plat = footprint.get('unique_platforms_count', 0)
+        plat_str = ', '.join(footprint.get('platforms_observed', [])) or 'None'
+        copy_rate = int(footprint.get('copypasta_broadcast_rate', 0.0) * 100)
+        span = footprint.get('activity_span_days', 0.0)
+        print(f"👤 Author Footprint : {hist_count} historical post(s) across {u_plat} platform(s)")
+        print(f"👤 Platforms Seen   : {plat_str}")
+        print(f"👤 Broadcast Dupl.  : {copy_rate}% copypasta rate | Active span: {span} days")
+        print("-" * 70)
 
     print(f"⏮️  Preceding messages retrieved : {len(prev_chats)} messages")
     print(f"🎯 Target Timestamp             : {target.get('timestamp_iso')} (Epoch: {target.get('timestamp')})")
@@ -179,10 +208,13 @@ def main():
     analysis_result = analyzer.analyze(context_bundle)
 
     # Combine for unified record (ready for BigQuery/SQL)
+    from datetime import datetime, timezone
     final_record = {
         "communication_id": comm_id,
+        "evaluated_at": datetime.now(timezone.utc).isoformat(),
         "channel": ch,
         "target_post": target,
+        "author_footprint": footprint,
         "context_window": {
             "window_size_configured": window,
             "previous_count": len(prev_chats),
@@ -198,6 +230,39 @@ def main():
     print("=" * 70)
     print(json.dumps(analysis_result, indent=2, ensure_ascii=False))
     print("=" * 70)
+
+    # Highlight CTI Summary
+    threat = analysis_result.get("threat_and_supply_chain", {})
+    sentiment = analysis_result.get("community_sentiment_and_reaction", {})
+    rec = analysis_result.get("investigative_recommendation")
+    if threat:
+        ep = threat.get("estimative_probability", {})
+        ep_range = ep.get('probability_range')
+        range_str = f" [{ep_range}]" if ep_range and ep_range != "N/A" else ""
+        ep_str = f"{ep.get('level')}{range_str}" if ep else "N/A"
+        print("\n🎯 CTI THREAT & SENTIMENT HIGHLIGHTS:")
+        print(f"   • Intent / Category    : {threat.get('intent_category')}")
+        print(f"   • Estimative Prob.     : {ep_str} (Actionable: {threat.get('is_actionable_threat')})")
+        if ep.get("criteria_matched"):
+            print(f"   • Criteria Matched     : {' | '.join(ep.get('criteria_matched'))}")
+        if ep.get("rationale"):
+            print(f"   • Prob. Rationale      : {ep.get('rationale')}")
+        if threat.get("explicitly_claimed_actor"):
+            print(f"   • Claimed Threat Actor : {threat.get('explicitly_claimed_actor')}")
+        if threat.get("targeted_entities"):
+            print(f"   • Targeted Entities    : {', '.join(threat.get('targeted_entities'))}")
+        if threat.get("targeted_sectors"):
+            print(f"   • Targeted Sectors     : {', '.join(threat.get('targeted_sectors'))}")
+        if threat.get("targeted_technologies"):
+            print(f"   • Targeted Tech        : {', '.join(threat.get('targeted_technologies'))}")
+        if sentiment:
+            print(f"   • Community Sentiment  : {sentiment.get('reaction_status')} (Vouched: {sentiment.get('vouches_detected')}, Disputes: {sentiment.get('disputes_or_scam_warnings', False)})")
+        if rec:
+            print(f"   • Recommendation       : {rec}")
+        disclaimer = analysis_result.get("analytic_scope_disclaimer")
+        if disclaimer:
+            print(f"   ℹ️  Disclaimer          : {disclaimer}")
+        print("-" * 70)
 
     if args.output:
         out_path = os.path.abspath(args.output)
