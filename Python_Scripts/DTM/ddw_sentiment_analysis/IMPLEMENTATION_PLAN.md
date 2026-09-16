@@ -1,6 +1,6 @@
 # 🛠️ Implementation Plan: Contextual Underground Threat & Sentiment Intelligence System (CUTSIS)
 
-**Repository Path:** `/Users/dominicchua/My_Drive/Github/VirusTotal/Python_Scripts/DTM/ddw_sentiment_analysis/standalone_code/`  
+**Repository Path:** `ddw_sentiment_analysis/standalone_code/`  
 **Target Roadmap:** Phase 1 (Standalone Engine) $\to$ Phase 2 (Author Cross-Correlation) $\to$ Phase 3 (Actor Profiling & Python SDK) $\to$ Phase 4 (Analyst UX & Threat Actor API)
 
 ---
