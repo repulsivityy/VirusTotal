@@ -1,0 +1,1 @@
+This folder is to help with the migration of users and seeds from GTI to Wiz. 
