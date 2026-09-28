@@ -222,8 +222,20 @@ export default function CveMetrics({
                 </span>
               </div>
               <p className="text-xs text-slate-400 font-mono">
-                Final Score = ({rbvmBreakdown.weights.w1.toFixed(2)} × S_vuln) + ({rbvmBreakdown.weights.w2.toFixed(2)} × S_asset) + ({rbvmBreakdown.weights.w3.toFixed(2)} × S_threat)
+                Final Score = [({rbvmBreakdown.weights.w1.toFixed(2)} × S_vuln) + ({rbvmBreakdown.weights.w2.toFixed(2)} × S_asset) + ({rbvmBreakdown.weights.w3.toFixed(2)} × S_threat)]
+                {rbvmBreakdown.controlReductionPct > 0 && (
+                  <span className="text-teal-400">
+                    {' '}× {rbvmBreakdown.controlMultiplier} (-{rbvmBreakdown.controlReductionPct}% Controls)
+                  </span>
+                )}
               </p>
+              {rbvmBreakdown.controlReductionPct > 0 && (
+                <p className="text-[11px] text-teal-400 font-mono">
+                  Compensating controls reduced raw weighted score from{' '}
+                  <strong>{rbvmBreakdown.rawWeightedScore.toFixed(1)}</strong> to{' '}
+                  <strong>{rbvmBreakdown.finalScore.toFixed(1)}</strong> (-{rbvmBreakdown.controlReductionPct}% compounded).
+                </p>
+              )}
               {rbvmBreakdown.weightsNormalized && (
                 <p className="text-[11px] text-amber-400 font-mono">
                   Your weights did not sum to 1.00 — scaled proportionally to the effective weights shown above.
@@ -238,7 +250,9 @@ export default function CveMetrics({
                   <span className="text-sm text-slate-500 font-normal">/100</span>
                 </div>
                 <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">
-                  Weighted Risk Score
+                  {rbvmBreakdown.controlReductionPct > 0
+                    ? `Mitigated (Raw: ${rbvmBreakdown.rawWeightedScore.toFixed(1)})`
+                    : 'Weighted Risk Score'}
                 </span>
               </div>
               <div className={`inline-flex items-center gap-1.5 px-3.5 py-2 ${rbvmSev.bg} ${rbvmSev.border} border rounded-xl text-xs font-mono font-bold uppercase ${rbvmSev.color}`}>
@@ -302,6 +316,37 @@ export default function CveMetrics({
                 {rbvmBreakdown.baseThreatReason} × {rbvmBreakdown.epssMultiplier}x EPSS
                 {rbvmBreakdown.epssFloorApplied ? ' (EPSS floor)' : ''} → Contributes{' '}
                 <strong className="text-slate-200">{(rbvmBreakdown.weights.w3 * rbvmBreakdown.sThreat).toFixed(1)} pts</strong>
+              </p>
+            </div>
+          </div>
+
+          {/* Simplistic RBVM Triage Judgment */}
+          <div
+            className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${rbvmSev.bg} ${rbvmSev.border}`}
+          >
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-slate-950/70 text-slate-400 border border-slate-800">
+                  Simplistic Judgment
+                </span>
+                <span className={`text-xs font-mono font-bold uppercase ${rbvmSev.color}`}>
+                  {rbvmBreakdown.riskLevel === 'CRITICAL'
+                    ? 'Critical (≥ 80)'
+                    : rbvmBreakdown.riskLevel === 'HIGH'
+                    ? 'High (60–79.9)'
+                    : rbvmBreakdown.riskLevel === 'MEDIUM'
+                    ? 'Medium (35–59.9)'
+                    : 'Low (< 35)'}
+                </span>
+              </div>
+              <p className="text-xs font-sans text-slate-200 pt-0.5">
+                {rbvmBreakdown.riskLevel === 'CRITICAL'
+                  ? 'Patch immediately, monitor logs for potential intrusion, and implement mitigation measures as soon as possible.'
+                  : rbvmBreakdown.riskLevel === 'HIGH'
+                  ? 'Patch as soon as possible, monitor logs for potential intrusion, and implement mitigation measures as soon as possible.'
+                  : rbvmBreakdown.riskLevel === 'MEDIUM'
+                  ? 'Patch as soon as practical. Where possible, implement mitigation measures.'
+                  : 'Patch within standard maintenance cycles.'}
               </p>
             </div>
           </div>

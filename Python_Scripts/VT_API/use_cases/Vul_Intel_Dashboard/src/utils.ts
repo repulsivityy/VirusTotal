@@ -1,4 +1,72 @@
-import { CveReport, RbvmBreakdown, RbvmConfig } from './types';
+import {
+  CompensatingControlId,
+  CveReport,
+  ImpactFactorId,
+  RbvmBreakdown,
+  RbvmConfig,
+  ReachabilityTierId
+} from './types';
+
+export const REACHABILITY_SCORES: Record<ReachabilityTierId, number> = {
+  internet: 40,
+  internal: 15,
+  isolated: 5,
+};
+
+export const IMPACT_SCORES: Record<ImpactFactorId, number> = {
+  sensitive_data: 40,
+  tier0_auth: 30,
+  prod_env: 20,
+  dev_env: 5,
+};
+
+export const CONTROL_REDUCTIONS: Record<CompensatingControlId, number> = {
+  inline_enforcement: 0.15,
+  runtime_detection: 0.15,
+};
+
+/**
+ * Computes S_asset (0 - 100) from Base Reachability + Impact/Criticality modifiers.
+ * Returns null if neither reachability nor any impact factor is selected.
+ */
+export function computeAssetScore(
+  reachability?: ReachabilityTierId | null,
+  impactFactors?: ImpactFactorId[]
+): number | null {
+  const hasReachability = Boolean(reachability && REACHABILITY_SCORES[reachability] !== undefined);
+  const hasImpact = Boolean(impactFactors && impactFactors.length > 0);
+  if (!hasReachability && !hasImpact) {
+    return null;
+  }
+
+  const base = hasReachability && reachability ? REACHABILITY_SCORES[reachability] : 0;
+  const impactSum = (impactFactors || []).reduce(
+    (sum, id) => sum + (IMPACT_SCORES[id] ?? 0),
+    0
+  );
+
+  return Math.min(100, Math.max(0, base + impactSum));
+}
+
+/**
+ * Computes the compounding multiplier for compensating controls:
+ *   Multiplier = Π (1 - r_i)
+ * Example: two -15% controls => 0.85 * 0.85 = 0.7225 (27.75% total reduction).
+ */
+export function computeControlMultiplier(
+  controls?: CompensatingControlId[]
+): { multiplier: number; reductionPct: number } {
+  if (!controls || controls.length === 0) {
+    return { multiplier: 1.0, reductionPct: 0 };
+  }
+  const rawMultiplier = controls.reduce(
+    (acc, id) => acc * (1 - (CONTROL_REDUCTIONS[id] ?? 0)),
+    1.0
+  );
+  const multiplier = Math.round(rawMultiplier * 10000) / 10000;
+  const reductionPct = Math.round((1 - multiplier) * 10000) / 100;
+  return { multiplier, reductionPct };
+}
 
 /**
  * Sanitizes dynamic URLs to prevent javascript: protocol execution.
@@ -24,19 +92,25 @@ export function sanitizeUrl(urlStr: string | undefined | null): string {
 
 /**
  * Computes the Risk-Based Vulnerability Management (RBVM) score:
- *   Final Score = (W1 * S_vuln) + (W2 * S_asset) + (W3 * S_threat)
+ *   Raw Weighted Score = (W1 * S_vuln) + (W2 * S_asset) + (W3 * S_threat)
+ *   Final Score = Raw Weighted Score * Π (1 - Control_i)
  *
  * Weights are normalized (each divided by their sum) so they always total 1.0,
  * keeping the final score on a 0-100 scale while preserving the user's ratios.
  *
- * Returns null if config.sAsset is null/undefined (so the UI only shows GTI/Mandiant intel),
+ * Returns null if no asset context is active (so the UI only shows GTI/Mandiant intel),
  * or if all weights are zero (no valid ratio to normalize).
  */
 export function calculateRbvmScore(
   report: CveReport,
   config: RbvmConfig
 ): RbvmBreakdown | null {
-  if (config.sAsset === null || config.sAsset === undefined) {
+  const derivedAssetScore = computeAssetScore(config.reachability, config.impactFactors);
+  const effectiveAssetInput = config.sAsset !== null && config.sAsset !== undefined
+    ? config.sAsset
+    : derivedAssetScore;
+
+  if (effectiveAssetInput === null || effectiveAssetInput === undefined) {
     return null;
   }
 
@@ -58,7 +132,7 @@ export function calculateRbvmScore(
   const sVuln = Math.min(100, Math.max(0, Math.round(((report.cvssScore ?? 0) * 10) * 10) / 10));
 
   // 2. S_asset (0 - 100): User-provided asset exposure & sensitivity score
-  const sAsset = Math.min(100, Math.max(0, Math.round(config.sAsset * 10) / 10));
+  const sAsset = Math.min(100, Math.max(0, Math.round(effectiveAssetInput * 10) / 10));
 
   // 3. S_threat (0 - 100): GTI Exploitation State + Exploit Availability + EPSS Multiplier
   const expState = (report.exploitPatterns.exploitationState || '').trim().toLowerCase();
@@ -145,8 +219,17 @@ export function calculateRbvmScore(
     Math.max(0, Math.round(Math.max(tierTimesMultiplier, epssTimes100) * 10) / 10)
   );
 
-  const rawFinal = (rawW1 * sVuln + rawW2 * sAsset + rawW3 * sThreat) / weightSum;
-  const finalScore = Math.min(100, Math.max(0, Math.round(rawFinal * 10) / 10));
+  const rawWeighted = (rawW1 * sVuln + rawW2 * sAsset + rawW3 * sThreat) / weightSum;
+  const rawWeightedScore = Math.min(100, Math.max(0, Math.round(rawWeighted * 10) / 10));
+
+  // Apply compounding compensating controls to the weighted score
+  const { multiplier: controlMultiplier, reductionPct: controlReductionPct } =
+    computeControlMultiplier(config.compensatingControls);
+
+  const finalScore = Math.min(
+    100,
+    Math.max(0, Math.round(rawWeighted * controlMultiplier * 10) / 10)
+  );
 
   let riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' = 'LOW';
   if (finalScore >= 80) {
@@ -159,6 +242,7 @@ export function calculateRbvmScore(
 
   return {
     finalScore,
+    rawWeightedScore,
     sVuln,
     sAsset,
     sThreat,
@@ -166,6 +250,8 @@ export function calculateRbvmScore(
     baseThreatReason,
     epssMultiplier,
     epssFloorApplied,
+    controlMultiplier,
+    controlReductionPct,
     weights: effectiveWeights,
     weightsNormalized,
     riskLevel,
