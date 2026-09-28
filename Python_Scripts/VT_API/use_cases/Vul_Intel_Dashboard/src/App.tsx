@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { CveReport, CveAssociation } from './types';
+import { CveReport, CveAssociation, RbvmConfig } from './types';
 import CveSearch from './components/CveSearch';
 import CveMetrics from './components/CveMetrics';
 import CveExploits from './components/CveExploits';
 import CveRemediation from './components/CveRemediation';
-import { sanitizeUrl } from './utils';
+import RiskContextPanel from './components/RiskContextPanel';
+import { sanitizeUrl, calculateRbvmScore } from './utils';
 import {
   Shield,
   TrendingUp,
@@ -36,6 +37,12 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'overview' | 'exploits' | 'remediation'>('overview');
   const [error, setError] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
+
+  // Ephemeral in-memory RBVM context state (never persisted to localStorage or server)
+  const [rbvmConfig, setRbvmConfig] = useState<RbvmConfig>({
+    sAsset: null,
+    weights: { w1: 0.2, w2: 0.4, w3: 0.4 }
+  });
 
   // API Keys state
   const [gtiKey, setGtiKey] = useState<string>(() => localStorage.getItem('gti_key') || '');
@@ -321,6 +328,9 @@ export default function App() {
         {/* Main search bar block */}
         <CveSearch onSearch={handleSearch} isLoading={isLoading} />
 
+        {/* Optional In-Memory Organization Risk Context Panel */}
+        <RiskContextPanel config={rbvmConfig} onChange={setRbvmConfig} />
+
         {/* Quick info advisory / Diagnostic Feed */}
         {!report && !isLoading && !error && (
           <div className="p-4 bg-slate-900/20 border border-slate-900 rounded-2xl flex items-center gap-3">
@@ -355,129 +365,153 @@ export default function App() {
         )}
 
         {/* CVE Report Results Panel */}
-        {report && !isLoading && (
-          <div className="space-y-6 animate-fade-in">
+        {report && !isLoading && (() => {
+          const rbvmBreakdown = calculateRbvmScore(report, rbvmConfig);
+          return (
+            <div className="space-y-6 animate-fade-in">
 
-            {/* Report Header Card */}
-            <div className="bg-slate-950/60 border border-slate-900 rounded-2xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-bl-full pointer-events-none" />
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-mono font-black text-emerald-400 selection:bg-emerald-500/50">
-                    {report.cveId}
-                  </span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 bg-slate-900 text-slate-400 border border-slate-800 rounded-md">
-                    Data Source: {
-                      report.dataSource === 'GTI_API' ? 'Direct GTI API' :
-                        report.dataSource === 'MOCK' ? 'Fallback Local Intelligence Compiler' :
-                          'Grounded Gemini Intelligence'
-                    }
-                  </span>
+              {/* Report Header Card */}
+              <div className="bg-slate-950/60 border border-slate-900 rounded-2xl p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-bl-full pointer-events-none" />
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-2xl font-mono font-black text-emerald-400 selection:bg-emerald-500/50">
+                      {report.cveId}
+                    </span>
+                    {report.mveId && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md">
+                        {report.mveId}
+                      </span>
+                    )}
+                    {report.priority && (
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-md">
+                        Priority: {report.priority}
+                      </span>
+                    )}
+                    {rbvmBreakdown && (
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 rounded-md">
+                        RBVM Score: {rbvmBreakdown.finalScore.toFixed(1)}/100 ({rbvmBreakdown.riskLevel})
+                      </span>
+                    )}
+                    <span className="text-[10px] font-mono px-2 py-0.5 bg-slate-900 text-slate-400 border border-slate-800 rounded-md">
+                      Source: Direct GTI API
+                    </span>
+                    {report.publishedDate && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 bg-slate-900 text-slate-400 border border-slate-800 rounded-md">
+                        Disclosed: {report.publishedDate}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-lg font-sans font-bold text-slate-100 leading-tight">
+                    {report.title}
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed font-sans max-w-2xl whitespace-pre-wrap">
+                    {report.description}
+                  </p>
                 </div>
-                <h3 className="text-lg font-sans font-bold text-slate-100 leading-tight">
-                  {report.title}
-                </h3>
-                <p className="text-xs text-slate-400 leading-relaxed font-sans max-w-2xl">
-                  {report.description}
-                </p>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={copyJsonReport}
+                    className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-slate-400 hover:text-slate-200 transition-all font-sans text-xs flex items-center gap-1.5 cursor-pointer"
+                    title="Copy full JSON report to clipboard"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>{isCopied ? 'Copied!' : 'Export JSON'}</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              {/* Gemini Live News Summary Block */}
+              {news && (
+                <div className="bg-slate-900/40 border border-emerald-500/20 rounded-2xl p-6 space-y-4 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-bl-full pointer-events-none" />
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-800/60 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <h4 className="text-sm font-sans font-bold text-slate-200 uppercase tracking-wider">
+                        Latest News & Security Advisory Summary
+                      </h4>
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md">
+                      Gemini Search Grounded
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-300 leading-relaxed font-sans">
+                    {news.summary}
+                  </p>
+
+                  {news.sources && news.sources.length > 0 && (
+                    <div className="pt-2 border-t border-slate-800/40">
+                      <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider block mb-2">
+                        Verified News Sources
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {news.sources.map((src: any, idx: number) => (
+                          <a
+                            key={idx}
+                            href={sanitizeUrl(src.url)}
+                            target="_blank"
+                            referrerPolicy="no-referrer"
+                            className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-emerald-400 bg-slate-900/60 border border-slate-800 px-2 py-1 rounded-md transition-all font-mono"
+                          >
+                            <span>{src.title}</span>
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Navigation Tabs */}
+              <div className="flex border-b border-slate-900 bg-slate-950 p-1 rounded-xl gap-2">
                 <button
-                  onClick={copyJsonReport}
-                  className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-slate-400 hover:text-slate-200 transition-all font-sans text-xs flex items-center gap-1.5 cursor-pointer"
-                  title="Copy full JSON report to clipboard"
+                  onClick={() => setActiveTab('overview')}
+                  className={`flex-1 py-3 text-xs font-sans font-bold rounded-lg transition-all cursor-pointer ${activeTab === 'overview'
+                      ? 'bg-slate-900 text-slate-100 border-b-2 border-emerald-500'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
+                    }`}
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>{isCopied ? 'Copied!' : 'Export JSON'}</span>
+                  Overview & Severity Metrics
+                </button>
+                <button
+                  onClick={() => setActiveTab('exploits')}
+                  className={`flex-1 py-3 text-xs font-sans font-bold rounded-lg transition-all cursor-pointer ${activeTab === 'exploits'
+                      ? 'bg-slate-900 text-slate-100 border-b-2 border-emerald-500'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
+                    }`}
+                >
+                  Exploits & Threat Actors
+                </button>
+                <button
+                  onClick={() => setActiveTab('remediation')}
+                  className={`flex-1 py-3 text-xs font-sans font-bold rounded-lg transition-all cursor-pointer ${activeTab === 'remediation'
+                      ? 'bg-slate-900 text-slate-100 border-b-2 border-emerald-500'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
+                    }`}
+                >
+                  Actionable Remediation
                 </button>
               </div>
-            </div>
 
-            {/* Gemini Live News Summary Block */}
-            {news && (
-              <div className="bg-slate-900/40 border border-emerald-500/20 rounded-2xl p-6 space-y-4 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-500/5 to-transparent rounded-bl-full pointer-events-none" />
-                <div className="flex items-center justify-between gap-2 border-b border-slate-800/60 pb-3">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <h4 className="text-sm font-sans font-bold text-slate-200 uppercase tracking-wider">
-                      Latest News & Security Advisory Summary
-                    </h4>
-                  </div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md">
-                    Gemini Search Grounded
-                  </span>
-                </div>
-
-                <p className="text-xs text-slate-300 leading-relaxed font-sans">
-                  {news.summary}
-                </p>
-
-                {news.sources && news.sources.length > 0 && (
-                  <div className="pt-2 border-t border-slate-800/40">
-                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider block mb-2">
-                      Verified News Sources
-                    </span>
-                    <div className="flex flex-wrap gap-2">
-                      {news.sources.map((src: any, idx: number) => (
-                        <a
-                          key={idx}
-                          href={sanitizeUrl(src.url)}
-                          target="_blank"
-                          referrerPolicy="no-referrer"
-                          className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-emerald-400 bg-slate-900/60 border border-slate-800 px-2 py-1 rounded-md transition-all font-mono"
-                        >
-                          <span>{src.title}</span>
-                          <ExternalLink className="w-2.5 h-2.5" />
-                        </a>
-                      ))}
-                    </div>
-                  </div>
+              {/* Tab Content Rendering */}
+              <div className="space-y-6">
+                {activeTab === 'overview' && (
+                  <CveMetrics
+                    report={report}
+                    rbvmBreakdown={rbvmBreakdown}
+                  />
                 )}
+                {activeTab === 'exploits' && <CveExploits report={report} associations={associations} />}
+                {activeTab === 'remediation' && <CveRemediation report={report} />}
               </div>
-            )}
 
-            {/* Navigation Tabs */}
-            <div className="flex border-b border-slate-900 bg-slate-950 p-1 rounded-xl gap-2">
-              <button
-                onClick={() => setActiveTab('overview')}
-                className={`flex-1 py-3 text-xs font-sans font-bold rounded-lg transition-all cursor-pointer ${activeTab === 'overview'
-                    ? 'bg-slate-900 text-slate-100 border-b-2 border-emerald-500'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
-                  }`}
-              >
-                Overview & Severity Metrics
-              </button>
-              <button
-                onClick={() => setActiveTab('exploits')}
-                className={`flex-1 py-3 text-xs font-sans font-bold rounded-lg transition-all cursor-pointer ${activeTab === 'exploits'
-                    ? 'bg-slate-900 text-slate-100 border-b-2 border-emerald-500'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
-                  }`}
-              >
-                Exploits & Threat Actors
-              </button>
-              <button
-                onClick={() => setActiveTab('remediation')}
-                className={`flex-1 py-3 text-xs font-sans font-bold rounded-lg transition-all cursor-pointer ${activeTab === 'remediation'
-                    ? 'bg-slate-900 text-slate-100 border-b-2 border-emerald-500'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/30'
-                  }`}
-              >
-                Actionable Remediation
-              </button>
             </div>
-
-            {/* Tab Content Rendering */}
-            <div className="space-y-6">
-              {activeTab === 'overview' && <CveMetrics report={report} />}
-              {activeTab === 'exploits' && <CveExploits report={report} associations={associations} />}
-              {activeTab === 'remediation' && <CveRemediation report={report} />}
-            </div>
-
-          </div>
-        )}
+          );
+        })()}
 
         {/* Initial landing instruction card when no report is shown */}
         {!report && !isLoading && !error && (
