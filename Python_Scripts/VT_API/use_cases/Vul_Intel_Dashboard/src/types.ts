@@ -129,6 +129,12 @@ export interface CveAssociation {
   motivations?: string[];
 }
 
+export type ReachabilityTierId = 'internet' | 'internal' | 'isolated';
+
+export type ImpactFactorId = 'sensitive_data' | 'tier0_auth' | 'prod_env' | 'dev_env';
+
+export type CompensatingControlId = 'inline_enforcement' | 'runtime_detection';
+
 export interface RbvmWeights {
   w1: number; // Vulnerability weight (default 0.20)
   w2: number; // Asset context weight (default 0.40)
@@ -138,11 +144,15 @@ export interface RbvmWeights {
 export interface RbvmConfig {
   sAsset: number | null; // null = no asset input provided (do not show RBVM score)
   assetPresetId?: string;
+  reachability?: ReachabilityTierId | null;
+  impactFactors?: ImpactFactorId[];
+  compensatingControls?: CompensatingControlId[];
   weights: RbvmWeights;
 }
 
 export interface RbvmBreakdown {
   finalScore: number;
+  rawWeightedScore: number; // Weighted score before compensating control dampening
   sVuln: number;
   sAsset: number;
   sThreat: number;
@@ -150,6 +160,8 @@ export interface RbvmBreakdown {
   baseThreatReason: string;
   epssMultiplier: 1.0 | 1.1 | 1.25 | 1.5;
   epssFloorApplied: boolean;
+  controlMultiplier: number; // Compounded multiplier, e.g. 0.85 * 0.85 = 0.7225
+  controlReductionPct: number; // Effective % reduction, e.g. 27.75
   weights: RbvmWeights; // Effective (normalized) weights used in the calculation
   weightsNormalized: boolean; // True if user weights did not sum to 1.0 and were scaled
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
