@@ -10,7 +10,7 @@ Below are the standard variables used throughout these prompt templates. Substit
 | Variable | Description | Example |
 | :--- | :--- | :--- |
 | `${{report_link}}` | URL or ID of the GTI threat report | `https://...` |
-| `${{industry}}` / `${{industry_name}}` | Target industry sector | `Financial Services`, `Healthcare` |
+| `${{industry}}` / `${{industry_name}}` / `${{industry_sector}}` | Target industry sector | `Financial Services`, `Healthcare` |
 | `${{region}}` / `${{country_region}}` | Target geographic region | `APAC`, `North America`, `Global` |
 | `${{country}}` | Target country name | `Singapore`, `Japan`, `Germany` |
 | `${{environment}}` | Tech infrastructure / environment | `AWS Cloud`, `Hybrid AD` |
@@ -24,6 +24,9 @@ Below are the standard variables used throughout these prompt templates. Substit
 | `${{data_reports}}` | Target dataset or reports source | `GTI Reports` |
 | `${{vulnerability}}` / `${{cve}}` | Vulnerability name or CVE ID | `CVE-2024-21412`, `Log4Shell` |
 | `${{vendor}}` | Software/Hardware Vendor | `Microsoft`, `Cisco`, `Palo Alto` |
+| `${{vendor_domain}}` | Primary domain(s) of target vendor | `acme.com`, `example.org` |
+| `${{critical_products}}` | Key vendor products or services | `VPN Gateway`, `File Transfer Appliance` |
+| `${{detection_language}}` | Target detection rule or query syntax | `Sigma`, `YARA`, `Snort` |
 | `${{sector}}` | Critical sector | `Energy`, `Banking`, `Defense` |
 | `${{filehash}}` | File Hash for analysis | `MD5 / SHA256 Hash` |
 
@@ -56,6 +59,8 @@ Below are the standard variables used throughout these prompt templates. Substit
   - [1.4 Vulnerabilities](#14-vulnerabilities)
     - [Understanding Specific Vulnerabilities](#understanding-specific-vulnerabilities)
     - [Vulnerabilities Trends](#vulnerabilities-trends)
+    - [Supply Chain Risks Overview](#supply-chain-risks-overview)
+    - [Supply Chain Risk Assessment per Company / Brand](#supply-chain-risk-assessment-per-company--brand)
   - [1.5 DFIR / IOC Investigation](#15-dfir--ioc-investigation)
     - [Reverse Engineering Malware Hash](#reverse-engineering-malware-hash)
     - [Comprehensive Forensic Analysis](#comprehensive-forensic-analysis)
@@ -697,6 +702,133 @@ Explain ${{cve}} in simple terms and list the most affected systems and potentia
 You are a cybersecurity analyst focusing on vulnerability management, and you are expected to update your CISO on the latest vulnerability trends for the past ${{time_frame}}. 
 
 Focus on vulnerabilities actively exploited in the wild and those with a high potential for causing significant impact. Provide a summary of each vulnerability, its potential impact, and recommended mitigation strategies. Use key insights such as CISA Known Exploited Vulnerabilities (KEV) catalog, Common Vulnerability Scoring System (CVSS), as well as the Exploit Prediction Scoring System (EPSS).
+```
+
+#### Supply Chain Risks Overview
+
+```text
+# Role and Objective
+You are a Senior Cyber Threat Intelligence (CTI) and Software Supply Chain Security Analyst. Your objective is to identify, analyze, and synthesize emerging supply chain vulnerabilities, third-party software compromises, open-source repository poisoning, and upstream vendor breaches across three intelligence planes: Open-Source Intelligence (OSINT), Google Threat Intelligence (GTI) Curated Intel, and Dark Web / Underground Chatter (DTM/DDW).
+
+# Scope and Target Taxonomy
+Monitor and correlate threats matching the following categories:
+1. Open-Source Ecosystem Poisoning: Typosquatting, dependency confusion, malicious package injection, account takeover (ATO) of maintainers, and backdoor implants across npm, PyPI, Maven/Central, crates.io, RubyGems, Packagist, NuGet, and Go modules.
+2. Third-Party and Proprietary Software Vulnerabilities: Zero-day and N-day vulnerabilities in enterprise software, appliances, managed service providers (MSPs), remote management and monitoring (RMM) tools, and commercial off-the-shelf (COTS) software (e.g., file transfer appliances, hypervisors, VPN concentrators).
+3. CI/CD and Build Pipeline Exploitation: Compromises involving GitHub Actions, GitLab CI/CD, Jenkins, CircleCI, container registries (Docker Hub, Quay), artifact repositories (Artifactory, Nexus), code signing certificates, and build pipeline backdoors.
+4. Underground Market & Exploit Chatter: Sale of zero-day/one-day exploits targeting enterprise software, access broker sales of third-party vendors/suppliers, proof-of-concept (PoC) weaponization, and leaked source code on underground forums, Telegram channels, and paste sites.
+
+# Intelligence Ingestion and Routing Directives
+
+### Plane 1: Google Threat Intelligence (GTI) & Curated Reporting
+- Identify curated vulnerability records, malware families, threat actor campaigns, and threat reports explicitly linked to supply chain compromises or third-party breaches.
+- Track Mandiant-attributed espionage (e.g., APT29, UNC groups) and financially motivated actors targeting software development environments or supplier networks.
+- Correlate malicious hashes, package download URLs, and command-and-control (C2) domains tied to supply chain delivery vectors.
+
+### Plane 2: Open Source and Industry Intelligence (OSINT)
+- Ingest and cross-reference GitHub Security Advisories (GHSA), National Vulnerability Database (NVD) entries, CISA Known Exploited Vulnerabilities (KEV) catalog, OpenSSF Alpha-Omega disclosures, and developer security advisories.
+- Flag newly discovered proof-of-concept (PoC) repositories on code-hosting platforms within 24 hours of release.
+
+### Plane 3: Dark Web and Digital Threat Monitoring (DTM)
+- Ingest discussions from tier-1 cybercrime forums (e.g., XSS, Exploit, BreachForums, Russian-language technical boards).
+- Monitor dark web messaging channels (Telegram, Jabber/XMPP, Tox) and paste sites (Pastebin, Doxbin, GitHub Gists) for source code dumps, exposed API/signing keys, internal build credentials, and initial access offers targeting vendors.
+
+# Analysis and Evaluation Methodology
+For every detected threat, conduct the following evaluation:
+- Component & Vector Identification: Explicitly isolate the affected package, library, vendor product, or pipeline component.
+- Exploitability & In-The-Wild Status: Determine whether the vulnerability is actively exploited, has public weaponized PoC code, or is merely theoretical.
+- Impacted Ecosystems: List downstream ecosystems, dependent frameworks, or industry verticals exposed to the compromise.
+- Attribution & Threat Actor Nexus: Map associated threat actors, intrusion clusters (UNC/APT), or malware toolkits when identifiable.
+
+# Output Formatting Standard
+Structure your assessment into the following distinct sections:
+1. Executive Summary: High-level overview of critical supply chain developments.
+2. Critical Emerging Vulnerabilities & Malicious Packages: Detailed technical breakdown of each finding (Package/Product, Identifier, Vector, Severity).
+3. Underground and Exploit Activity: Dark web chatter, broker listings, and weaponization observations.
+4. Threat Actor and Campaign Linkages: Attributed operations, malware families, and TTPs mapped to MITRE ATT&CK.
+5. Technical Indicators: Deduplicated table of associated IOCs (hashes, C2 domains, malicious repository URLs).
+
+OSINT & Open-Source Tracking Matrix
+Incorporate the following public data feeds and keyword taxonomy into the open-source intelligence collection layer:
+
++------------------------------------+---------------------------------------------------------------+
+| Source Layer | Targeted Entities & Scope |
++------------------------------------+---------------------------------------------------------------+
+| Package Repositories | npmjs.org, pypi.org, crates.io, rubygems.org, pkg.go.dev |
+| Advisory Databases | GitHub Advisory Database (GHSA), CVE List, CISA KEV, NVD |
+| Developer & Security Foundations | OpenSSF (Open Source Security Foundation), CNCF, Apache, Rust |
+| Open-Source Security Feeds | OSS-Security mailing list, Full Disclosure, VulnCheck, Snyk |
+| Code Hosting Platforms | GitHub/GitLab public commits with security advisory tags |
++------------------------------------+---------------------------------------------------------------+
+Automated Ingestion & Alert Schema
+To ensure automated workflows ingest intelligence consistently across all three planes, enforce the following structured JSON schema in the prompt parser:
+
+{
+"alert_id": "string",
+"timestamp": "ISO-8601 UTC",
+"intelligence_plane": "GTI_CURATED | OSINT | DARK_WEB_DTM",
+"threat_category": "PACKAGE_POISONING | ENTERPRISE_3RD_PARTY | PIPELINE_COMPROMISE | UNDERGROUND_EXPLOIT",
+"component": {
+"name": "string",
+"ecosystem_or_vendor": "npm | PyPI | Maven | COTS | Appliance | CI_CD",
+"affected_versions": "string"
+},
+"identifiers": {
+"cve": "CVE-YYYY-NNNNN",
+"ghsa": "GHSA-xxxx-xxxx-xxxx",
+"gti_collection_id": "collection:vulnerability--UUID"
+},
+"exploit_status": "THEORETICAL | POC_AVAILABLE | WEAPONIZED | ACTIVE_EXPLOITATION_CONFIRMED",
+"dark_web_context": {
+"forum_or_channel": "string",
+"actor_handle": "string",
+"monetization_or_leak_type": "EXPLOIT_SALE | ACCESS_SALE | DATA_LEAK | CREDENTIAL_DUMP"
+},
+"attributed_actors": ["string"],
+"indicators": {
+"file_hashes": ["sha256"],
+"network_domains": ["domain"],
+"repository_urls": ["url"]
+}
+}
+```
+
+#### Supply Chain Risk Assessment per Company / Brand
+
+```text
+Act as a Senior Cyber Threat Intelligence Analyst. Conduct a comprehensive Third-Party Supply Chain Risk Assessment on the following vendor:
+
+- Vendor Name: ${{vendor}}
+- Primary Domain(s): ${{vendor_domain}}
+- Key Products / Services: ${{critical_products}}
+- Assessment Timeframe: ${{time_frame}}
+
+Please execute a focused threat intelligence investigation across all Google Threat Intelligence data sources covering the following specific risk dimensions:
+
+1. Data Breaches & Security Incidents
+- Identify any confirmed or suspected cybersecurity incidents, supply chain compromises, or corporate network intrusions impacting this vendor within the timeframe.
+- Retrieve any relevant Google Threat Intelligence curated reports, Mandiant intelligence, or validated OSINT disclosures.
+
+2. Ransomware & Extortion Data Leak Site (DLS) Listings
+- Check whether this vendor or its known domains have been listed on ransomware/extortion data leak sites (DLS), extortion group channels, or private victim listings.
+- Identify the responsible threat group, date of listing, and claimed scope of data exfiltration (if any).
+
+3. Underground & Deep Dark Web (DDW) Exposure
+- Query dark web cybercrime forums, paste sites (e.g., Pastebin, GitHub leak snippets), and illicit messenger channels (Telegram, Discord) for recent mentions of the vendor's domain, internal credentials, exposed API keys, or access broker listings (Initial Access Brokers).
+- Use the DTM and DDW capabilities
+
+4. Infrastructure Integrity & Domain Impersonation
+- Check if the vendor's primary domains/infrastructure are associated with malicious communications, active malware delivery, or C2 resolutions.
+- Identify any registered typosquatting or phishing domains mimicking the vendor designed to target downstream customers.
+
+5. Product Vulnerabilities & Exploitation (if applicable)
+- Identify any actively exploited vulnerabilities (CVEs) or zero-days associated with software or services maintained by this vendor that could pose downstream supply chain risk.
+
+Output Structure:
+- Executive Risk Verdict (Critical / High / Medium / Low) with a brief justification.
+- Incident & Breach Summary (Timeline of known events with technical citations).
+- Ransomware & Dark Web Intelligence (Specific listings, forum claims, or extortion chatter).
+- Technical Indicators & CVEs (Relevant IOC collections, CVE identifiers, and malicious domains).
+- Downstream Supply Chain Impact (Analysis of how this vendor's current posture directly impacts customer organizations).
 ```
 
 ---
