@@ -30,7 +30,8 @@ class DDWSentimentAnalyzer:
         def _sanitize(val: Any) -> str:
             if val is None:
                 return "N/A"
-            return str(val).strip().replace("<<<", "[").replace(">>>", "]")
+            cleaned = str(val).strip().replace("<<<", "[").replace(">>>", "]")
+            return cleaned if cleaned else "N/A"
 
         def format_chat_list(messages):
             if not messages:
@@ -63,7 +64,12 @@ class DDWSentimentAnalyzer:
 
         author_meta_str = f"Name/ID: {_sanitize(target.get('author'))}"
         if author_rank:
-            author_meta_str += f" | Forum Titles/Rank: {author_rank}"
+            safe_ranks = (
+                [_sanitize(r) for r in author_rank]
+                if isinstance(author_rank, list)
+                else [_sanitize(author_rank)]
+            )
+            author_meta_str += f" | Forum Titles/Rank: {safe_ranks}"
         if is_bot:
             author_meta_str += " | [AUTOMATED BOT]"
 
@@ -88,35 +94,59 @@ Opening Content:
 
         # Section 1c: Author Historical Footprint (if profiled)
         author_footprint_section = ""
-        if author_footprint and author_footprint.get("total_historical_posts_retrieved", 0) > 0:
+        if author_footprint is not None:
             hist_total = author_footprint.get("total_historical_posts_retrieved", 0)
             uniq_plat = author_footprint.get("unique_platforms_count", 0)
-            plat_list = ", ".join(author_footprint.get("platforms_observed", [])) or "None"
+            raw_plats = author_footprint.get("platforms_observed", [])
+            plat_list = ", ".join(_sanitize(p) for p in raw_plats if p) or "None"
             copy_rate = author_footprint.get("copypasta_broadcast_rate", 0.0)
             span_days = author_footprint.get("activity_span_days", 0.0)
+            lookback_days = author_footprint.get("lookback_days")
+            win_start = author_footprint.get("window_start_iso", "N/A")
+            win_end = author_footprint.get("window_end_iso", "N/A")
+            if lookback_days:
+                window_desc = f"Last {lookback_days} days prior to target post [{win_start} to {win_end}]"
+            else:
+                window_desc = "Unbounded historical sample"
+
             snippets = author_footprint.get("sample_snippets", [])
             snippet_lines = []
             for s in snippets:
-                clean_s = _sanitize(s.get('snippet'))
-                snippet_lines.append(f"  • [{s.get('date')}] ({s.get('platform')}): \"{clean_s}\"")
-            snippet_block = "\n".join(snippet_lines) if snippet_lines else "  (No snippets available)"
+                clean_s = _sanitize(s.get("snippet"))
+                clean_plat = _sanitize(s.get("platform"))
+                clean_date = _sanitize(s.get("date"))
+                snippet_lines.append(f"  • [{clean_date}] ({clean_plat}): \"{clean_s}\"")
+            snippet_block = "\n".join(snippet_lines) if snippet_lines else "  (No other historical posts observed in lookback window)"
 
             author_footprint_section = f"""
 ============================================================
 1c. AUTHOR CROSS-CHANNEL FOOTPRINT (Historical Posts Across Underground)
 ============================================================
-Total Historical Posts Retrieved: {hist_total}
-Distinct Platforms / Channels Operated In: {uniq_plat} ({plat_list})
+Temporal Lookback Window: {window_desc}
+Total Historical Posts Retrieved (Excl. Target Post): {hist_total}
+Distinct Platforms / Channels Operated In: {uniq_plat}
 Copypasta / Broadcast Duplication Rate: {int(copy_rate * 100)}% (high duplication indicates automated broadcast spam)
-Observed Activity Span: {span_days} days
-Recent Cross-Channel Snippets:
+Observed Activity Span in Window: {span_days} days
 <<<UNTRUSTED_CONTENT>>>
+Observed Platforms: {plat_list}
+Recent Cross-Channel Snippets:
 {snippet_block}
 <<<UNTRUSTED_CONTENT>>>
 """
 
+        if author_footprint is not None:
+            scope_disclaimer = (
+                "Assessment is based on the target post, immediate channel context window, and bounded "
+                "cross-channel author history. External threat intelligence report corroboration has not been performed."
+            )
+        else:
+            scope_disclaimer = (
+                "Assessment is based exclusively on the target post and immediate channel context window. "
+                "External threat intelligence corroboration has not been performed."
+            )
+
         prompt = f"""You are a Senior Underground Cyber Threat Intelligence (CTI) Analyst.
-Your task is to analyze dark web / Telegram underground chatter to determine threat severity, supply chain exposure, and community sentiment.
+Your task is to analyze dark web / Telegram underground chatter to determine truth likelihood using Words of Estimative Probability (WEP), supply chain exposure, and community sentiment.
 Evaluate the TARGET POST in the context of its CONTAINER, its SURROUNDING CHRONOLOGICAL MESSAGES, its THREAD ROOT (if forum), and the AUTHOR'S HISTORICAL FOOTPRINT (if provided).
 
 SECURITY DIRECTIVE:
@@ -215,7 +245,7 @@ Analyze the interaction and return ONLY a valid JSON object matching this schema
     "channel_credibility": "High | Medium | Low | Unknown"
   }},
   "investigative_recommendation": "<Specific next action for CTI analysts, e.g., 'Escalate to CIRT for supplier exposure', 'Monitor thread for dump sample', 'Disregard as spam'>",
-  "analytic_scope_disclaimer": "Assessment is based exclusively on the target post and immediate channel context window. External threat intelligence corroboration has not been performed.",
+  "analytic_scope_disclaimer": "{scope_disclaimer}",
   "executive_summary": "<2 sentences synthesizing the operational risk of this post given its context>"
 }}
 """

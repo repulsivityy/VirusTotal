@@ -37,6 +37,12 @@ def main():
         default=10,
         help="Number of historical posts to query for author profiling (default: 10, max: 25)"
     )
+    parser.add_argument(
+        "--lookback-days",
+        type=int,
+        default=14,
+        help="Temporal lookback window in days prior to target post for author profiling (default: 14)"
+    )
     parser.add_argument("--output", help="Optional path to save full JSON output (ready for BQ/SQL)")
     parser.add_argument("--dry-run", action="store_true", help="Assemble context window and prompt without calling Gemini LLM")
     parser.add_argument("--gti-key", help="GTI API Key (defaults to GTI_APIKEY env var)")
@@ -47,7 +53,12 @@ def main():
     print_banner()
 
     # Upfront check for GTI API Key (required for all modes)
-    gti_key = args.gti_key or os.getenv("GTI_APIKEY") or os.getenv("VT_APIKEY")
+    gti_key = (
+        args.gti_key
+        or os.getenv("GTI_APIKEY")
+        or os.getenv("GTI_API_KEY")
+        or os.getenv("VT_APIKEY")
+    )
     if not gti_key:
         print("\n❌ Configuration Error: Missing GTI API Key.")
         print("   Please set the GTI_APIKEY environment variable:")
@@ -56,7 +67,12 @@ def main():
         sys.exit(1)
 
     # Upfront check for Gemini API Key (required when analyzing a post without --dry-run)
-    gemini_key = args.gemini_key or os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_APIKEY")
+    gemini_key = (
+        args.gemini_key
+        or os.getenv("GEMINI_API_KEY")
+        or os.getenv("GEMINI_APIKEY")
+        or os.getenv("GOOGLE_API_KEY")
+    )
     if args.id and not args.dry_run and not gemini_key:
         print("\n❌ Configuration Error: Missing Gemini API Key.")
         print("   Please set the GEMINI_API_KEY environment variable:")
@@ -119,9 +135,13 @@ def main():
         for i, post in enumerate(sample_posts, 1):
             p_id = post.get("id")
             attrs = post.get("attributes", {})
+            rels = post.get("relationships", {})
+            author_rel = rels.get("author", {}).get("data", {})
+            author_id = author_rel.get("id") if isinstance(author_rel, dict) else None
+            author_label = author_id or attrs.get("author") or "Unknown"
             orig = (attrs.get("content") or "").strip()
             trans = (attrs.get("content_translated") or "").strip()
-            print(f"[{i}] ID: {p_id} | Author: {attrs.get('author')}")
+            print(f"[{i}] ID: {p_id} | Author: {author_label}")
             if trans and orig and trans != orig:
                 print(f"    Translated: {trans[:150]}...")
                 print(f"    Original  : {orig[:150]}...\n")
@@ -135,7 +155,11 @@ def main():
     window = max(1, min(args.window, 40))
     profile_author = args.profile_author
     author_limit = max(1, min(args.author_history_limit, 25))
-    profile_msg = f" (with author profiling limit: {author_limit})" if profile_author else ""
+    lookback_days = max(1, args.lookback_days)
+    profile_msg = (
+        f" (with author profiling: limit={author_limit}, lookback={lookback_days}d)"
+        if profile_author else ""
+    )
     print(f"\n📥 Fetching target post '{comm_id}' with +/- {window} context window{profile_msg}...")
 
     try:
@@ -143,7 +167,8 @@ def main():
             comm_id,
             window_size=window,
             profile_author=profile_author,
-            author_history_limit=author_limit
+            author_history_limit=author_limit,
+            lookback_days=lookback_days
         )
     except Exception as e:
         print(f"❌ Failed to fetch context window: {e}")
@@ -163,13 +188,18 @@ def main():
     print("-" * 70)
 
     # Display Author Footprint summary if profiled
-    if footprint:
+    if footprint is not None:
         hist_count = footprint.get('total_historical_posts_retrieved', 0)
         u_plat = footprint.get('unique_platforms_count', 0)
         plat_str = ', '.join(footprint.get('platforms_observed', [])) or 'None'
         copy_rate = int(footprint.get('copypasta_broadcast_rate', 0.0) * 100)
         span = footprint.get('activity_span_days', 0.0)
-        print(f"👤 Author Footprint : {hist_count} historical post(s) across {u_plat} platform(s)")
+        lb_days = footprint.get('lookback_days')
+        win_start = footprint.get('window_start_iso', 'N/A')
+        win_end = footprint.get('window_end_iso', 'N/A')
+        if lb_days:
+            print(f"👤 Lookback Window  : Last {lb_days}d [{win_start} -> {win_end}]")
+        print(f"👤 Author Footprint : {hist_count} historical post(s) (excl. target) across {u_plat} platform(s)")
         print(f"👤 Platforms Seen   : {plat_str}")
         print(f"👤 Broadcast Dupl.  : {copy_rate}% copypasta rate | Active span: {span} days")
         print("-" * 70)
@@ -206,6 +236,10 @@ def main():
 
     print(f"\n🧠 Running LLM Reasoning using {args.model}...")
     analysis_result = analyzer.analyze(context_bundle)
+
+    if "error" in analysis_result:
+        print(f"\n❌ LLM Analysis Error: {analysis_result['error']}")
+        sys.exit(1)
 
     # Combine for unified record (ready for BigQuery/SQL)
     from datetime import datetime, timezone

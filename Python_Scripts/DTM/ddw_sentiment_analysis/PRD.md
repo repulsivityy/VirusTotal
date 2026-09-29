@@ -17,9 +17,9 @@ In underground cybercrime forums and encrypted messenger channels (e.g., Telegra
 
 ### 1.2 System Vision
 The **Contextual Underground Threat & Sentiment Intelligence System (CUTSIS)** transforms unstructured dark web chatter into validated, actionable cyber threat intelligence. By pairing direct GTI DDW sliding context windows ($\pm N$ messages) and cross-channel actor profiling with Gemini LLM reasoning, CUTSIS automatically determines:
-1. **Threat Legitimacy & Severity:** Is the post credible, actionable, and verified?
-2. **Actor Profile & Reliability:** Standardized CTI Admiralty Scale (`A1`–`F6`) rating and behavioral archetype classification.
-3. **Target & Supply Chain Risk:** Specific corporate entities, technology stacks, and industrial sectors placed at risk.
+1. **Truth Likelihood & Actionability (WEP):** Evaluates whether a threat claim is credible, actionable, and corroborated by observable evidence using intelligence-standard **Words of Estimative Probability (WEP)** (`Almost_Certain` to `Remote`, plus `Undetermined_Insufficient_Data`).
+2. **Community Peer Validation & Actor Context:** Captures peer vouches, active negotiations, and scam disputes in surrounding chatter, paired with explicit-only attribution (Phase 1) and time-framed cross-channel actor correlation (Phase 2).
+3. **Target & Supply Chain Risk:** Extracts specific corporate entities, technology stacks, and industrial sectors placed at risk.
 
 ---
 
@@ -27,9 +27,9 @@ The **Contextual Underground Threat & Sentiment Intelligence System (CUTSIS)** t
 
 | Persona | Primary Needs | How CUTSIS Solves It |
 | :--- | :--- | :--- |
-| **Cyber Threat Intelligence (CTI) Analyst** | Rapid triage of dark web mentions and threat actor dossiers. | Automates context gathering; provides instantaneous Admiralty code, peer vouches, and intent classification. |
-| **Supply Chain & Third-Party Risk Officer** | Early warning when critical suppliers, SaaS vendors, or logistics partners are targeted. | Extracts structured `targeted_entities` and triggers automated alerts when monitored supply chain assets appear. |
-| **SOC & Incident Response Lead** | High-fidelity breach verification before declaring an incident. | Verifies whether a claimed leak is corroborated by community vouchers and transaction progression. |
+| **Cyber Threat Intelligence (CTI) Analyst** | Rapid triage of dark web mentions and threat actor dossiers. | Automates context gathering; provides instantaneous Words of Estimative Probability (WEP) ratings, peer vouches, and intent classification. |
+| **Supply Chain & Third-Party Risk Officer** | Early warning when critical suppliers, SaaS vendors, or logistics partners are targeted. | Extracts structured `targeted_entities`, `targeted_sectors`, and `targeted_technologies` when monitored supply chain assets appear. |
+| **SOC & Incident Response Lead** | High-fidelity breach verification before declaring an incident. | Verifies whether a claimed leak is corroborated by technical proof, community vouchers, and transaction progression. |
 
 ---
 
@@ -77,16 +77,16 @@ graph TD
   - Retrieve both original language and English translated text to preserve fidelity.
 
 * **REQ-P1-02: Container & Thread Root Grounding**
-  - Retrieve channel profile (name, bio, origin URL) with in-memory caching.
-  - For forum posts, resolve root thread topic and pitch (`conversation_thread`) to ground the context.
+  - Retrieve container profile (Telegram channel or darknet forum service name, bio/description, origin URL) with in-memory caching.
+  - For forum posts, resolve root thread topic and opening pitch (`conversation_thread`) to ground the context.
 
 * **REQ-P1-03: Streamlined Threat & Sentiment Synthesis (Gemini 3.8 Flash)**
   - Model: Default to `gemini-3.8-flash` via Google Generative Language API.
   - Prompt Injection Delimiters: Untrusted adversarial content encapsulated in `<<<UNTRUSTED_CONTENT>>>` tags.
-  - Focus strictly on 3 core outputs:
-    1. **Threat & Supply Chain Targeting:** `intent_category`, `threat_severity` (1–5), `is_actionable_threat`, `targeted_entities`, `targeted_sectors`, `targeted_technologies`, and `explicitly_claimed_actor` (null if not explicitly stated in post).
-    2. **Community Sentiment & Reaction:** `reaction_status` (`Vouched_Confirmed`, `Negotiation_In_Progress`, `Accused_Of_Scam`, `Indifferent_Ignored`), `supporting_evidence_quotes`, `reaction_narrative`.
-    3. **Channel Intelligence & Action:** Channel theme, credibility, specific `investigative_recommendation`, and concise `executive_summary`.
+  - Focus strictly on core structured outputs:
+    1. **Threat & Supply Chain Targeting (`threat_and_supply_chain`):** `intent_category`, `estimative_probability` (`level`, `probability_range`, `criteria_matched`, `rationale` following the WEP matrix), `is_actionable_threat`, `explicitly_claimed_actor` (`null` unless explicitly claimed in post text), `targeted_entities`, `targeted_sectors`, and `targeted_technologies`.
+    2. **Community Sentiment & Reaction (`community_sentiment_and_reaction`):** `reaction_status` (`Vouched_Confirmed`, `Negotiation_In_Progress`, `Accused_Of_Scam`, `Indifferent_Ignored`), `buyer_interest_detected`, `vouches_detected`, `disputes_or_scam_warnings`, `supporting_evidence_quotes`, and `reaction_narrative`.
+    3. **Channel Intelligence & Analyst Action:** `channel_intelligence` (`primary_theme`, `channel_context_takeaway`, `channel_credibility`), `investigative_recommendation`, `analytic_scope_disclaimer`, and `executive_summary`.
 
 * **REQ-P1-04: Structured JSON Export**
   - Support `--output <path>` to export a clean, standardized schema ready for downstream ingestion.

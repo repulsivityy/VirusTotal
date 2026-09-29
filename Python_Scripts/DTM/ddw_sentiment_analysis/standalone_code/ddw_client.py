@@ -47,6 +47,11 @@ class GTIDDWClient:
         res = self._get(f"/ddw_communications/{communication_id}", params=params)
         return res.get("data", {})
 
+    @staticmethod
+    def _escape_filter_str(val: str) -> str:
+        """Escape backslashes and double quotes for GTI filter strings."""
+        return val.replace("\\", "\\\\").replace('"', '\\"')
+
     def get_user_profile(self, user_id: str) -> Dict[str, Any]:
         """Fetch Dark Web User Profile by ID (e.g. name, rank/titles, is_bot). Caches results."""
         if not user_id:
@@ -59,11 +64,13 @@ class GTIDDWClient:
             self._author_cache[user_id] = profile
             return profile
         except Exception:
-            return {"id": user_id}
+            fallback = {"id": user_id}
+            self._author_cache[user_id] = fallback
+            return fallback
 
     def search_communications_by_author(self, author_name: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Search for communications by author name."""
-        safe_author = author_name.replace('"', '\\"')
+        safe_author = self._escape_filter_str(author_name)
         params = {
             "filter": f'author.name:"{safe_author}"',
             "limit": min(limit, 40)
@@ -73,10 +80,11 @@ class GTIDDWClient:
 
     def search_communications_by_channel(self, channel_name: str, limit: int = 5) -> List[Dict[str, Any]]:
         """Fetch sample communications from a specific channel name."""
-        safe_channel = channel_name.replace('"', '\\"')
+        safe_channel = self._escape_filter_str(channel_name)
         params = {
             "filter": f'communication_channel.name:"{safe_channel}"',
-            "limit": min(limit, 40)
+            "limit": min(limit, 40),
+            "relationships": "author"
         }
         res = self._get("/ddw_communications", params=params)
         return res.get("data", [])
@@ -93,6 +101,7 @@ class GTIDDWClient:
             self._channel_cache[channel_id] = data
             return data
         except Exception:
+            self._channel_cache[channel_id] = {}
             return {}
 
     def get_service_metadata(self, service_id: str) -> Dict[str, Any]:
@@ -107,6 +116,7 @@ class GTIDDWClient:
             self._service_cache[service_id] = data
             return data
         except Exception:
+            self._service_cache[service_id] = {}
             return {}
 
     def get_conversation_thread(self, thread_id: str) -> Dict[str, Any]:
@@ -123,50 +133,88 @@ class GTIDDWClient:
         self,
         author_id: Optional[str],
         author_name: Optional[str] = None,
-        limit: int = 10
+        limit: int = 10,
+        exclude_comm_id: Optional[str] = None,
+        reference_timestamp: Optional[int] = None,
+        lookback_days: int = 14
     ) -> List[Dict[str, Any]]:
         """
-        Multi-tier retrieval of an author's historical posts across underground platforms.
-        Tier 1: Query by strict GTI user profile ID (no false collisions).
-        Tier 2: If Tier 1 yields <= 1 post, fall back to search by author handle.
+        Multi-tier, time-framed retrieval of an author's historical posts across underground platforms.
+        - Bounded to [T - lookback_days, T] when reference_timestamp is provided (REQ-P2-01 / Task 2.1.1).
+        - Excludes the target post (exclude_comm_id) from its own historical footprint (Task 2.1.2).
+        - Tier 1: Query by strict GTI user profile ID (no false collisions).
+        - Tier 2: If Tier 1 yields 0 other posts, fall back to search by author handle.
         """
         limit = max(1, min(limit, 25))
+        query_limit = min(limit + 1, 40)
         items: List[Dict[str, Any]] = []
+
+        start_ts: Optional[int] = None
+        end_ts: Optional[int] = None
+        time_filter = ""
+        if reference_timestamp and lookback_days > 0:
+            start_ts = max(0, reference_timestamp - (lookback_days * 86400))
+            end_ts = reference_timestamp
+            # GTI search grammar: timestamp:X+ is >= X, timestamp:Y- is < Y
+            time_filter = f" timestamp:{start_ts}+ timestamp:{end_ts + 1}-"
+
+        def _is_valid_historical_item(m: Dict[str, Any]) -> bool:
+            m_id = m.get("id")
+            if exclude_comm_id and m_id == exclude_comm_id:
+                return False
+            if start_ts is not None and end_ts is not None:
+                m_ts = m.get("attributes", {}).get("timestamp")
+                if m_ts is not None and not (start_ts <= m_ts <= end_ts):
+                    return False
+            return True
 
         # Tier 1: Query by author profile ID
         if author_id:
             try:
+                safe_id = self._escape_filter_str(author_id)
                 params = {
-                    "filter": f'author.id:"{author_id}"',
-                    "limit": limit,
+                    "filter": f'author.id:"{safe_id}"{time_filter}',
+                    "limit": query_limit,
                     "attributes": "subject,content,content_translated,communication_type,timestamp,origin_url",
                     "relationships": "communication_channel,service"
                 }
                 res = self._get("/ddw_communications", params=params)
-                items = res.get("data", [])
+                items = [m for m in res.get("data", []) if _is_valid_historical_item(m)]
             except Exception:
                 items = []
 
-        # Tier 2: Fall back to author name/handle if Tier 1 returned <= 1 post
+        # Tier 2: Fall back to author name/handle if Tier 1 returned 0 other historical posts
         generic_handles = {"unknown", "admin", "administrator", "bot", "channel", "user", "anonymous"}
-        if len(items) <= 1 and author_name and author_name.lower().strip() not in generic_handles and len(author_name.strip()) > 2:
+        clean_name = author_name.strip() if author_name else ""
+        if (
+            len(items) == 0
+            and clean_name
+            and clean_name.lower() not in generic_handles
+            and len(clean_name) > 2
+            and clean_name != author_id
+        ):
             try:
-                safe_author = author_name.strip().replace('"', '\\"')
+                safe_author = self._escape_filter_str(clean_name)
                 params = {
-                    "filter": f'author.name:"{safe_author}"',
-                    "limit": limit,
+                    "filter": f'author.name:"{safe_author}"{time_filter}',
+                    "limit": query_limit,
                     "attributes": "subject,content,content_translated,communication_type,timestamp,origin_url",
                     "relationships": "communication_channel,service"
                 }
                 res = self._get("/ddw_communications", params=params)
-                fallback_items = res.get("data", [])
+                fallback_items = [m for m in res.get("data", []) if _is_valid_historical_item(m)]
                 if fallback_items:
                     existing_ids = {m.get("id") for m in items}
                     for m in fallback_items:
                         if m.get("id") not in existing_ids:
                             items.append(m)
+                            existing_ids.add(m.get("id"))
             except Exception:
                 pass
+
+        # Sort by timestamp descending and slice to limit BEFORE resolving channel/service metadata
+        items.sort(key=lambda m: m.get("attributes", {}).get("timestamp") or 0, reverse=True)
+        items = items[:limit]
 
         # Normalize and resolve channel / platform names
         formatted: List[Dict[str, Any]] = []
@@ -209,16 +257,33 @@ class GTIDDWClient:
                 "origin_url": attrs.get("origin_url")
             })
 
-        formatted.sort(key=lambda x: x.get("timestamp") or 0, reverse=True)
-        return formatted[:limit]
+        return formatted
 
-    def compute_author_behavioral_metrics(self, historical_posts: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def compute_author_behavioral_metrics(
+        self,
+        historical_posts: List[Dict[str, Any]],
+        reference_timestamp: Optional[int] = None,
+        lookback_days: int = 14
+    ) -> Dict[str, Any]:
         """
         Compute deterministic behavioral metrics on an author's historical posts.
         Calculates channel dispersion, copypasta rate (broadcast spam detection), and activity span.
         """
+        if reference_timestamp and lookback_days > 0:
+            start_ts = max(0, reference_timestamp - (lookback_days * 86400))
+            window_start_iso = datetime.fromtimestamp(start_ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
+            window_end_iso = datetime.fromtimestamp(reference_timestamp, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
+            effective_lookback: Optional[int] = lookback_days
+        else:
+            window_start_iso = "N/A"
+            window_end_iso = "N/A"
+            effective_lookback = None
+
         if not historical_posts:
             return {
+                "lookback_days": effective_lookback,
+                "window_start_iso": window_start_iso,
+                "window_end_iso": window_end_iso,
                 "total_historical_posts_retrieved": 0,
                 "unique_platforms_count": 0,
                 "platforms_observed": [],
@@ -278,6 +343,9 @@ class GTIDDWClient:
                     break
 
         return {
+            "lookback_days": effective_lookback,
+            "window_start_iso": window_start_iso,
+            "window_end_iso": window_end_iso,
             "total_historical_posts_retrieved": total,
             "unique_platforms_count": len(unique_platforms),
             "platforms_observed": unique_platforms[:8],
@@ -293,7 +361,8 @@ class GTIDDWClient:
         communication_id: str,
         window_size: int = 10,
         profile_author: bool = False,
-        author_history_limit: int = 10
+        author_history_limit: int = 10,
+        lookback_days: int = 14
     ) -> Dict[str, Any]:
         """
         Fetch target communication, resolve channel/thread metadata, context window,
@@ -314,7 +383,8 @@ class GTIDDWClient:
         author_rel = relationships.get("author", {}).get("data", {})
         author_id = author_rel.get("id") if isinstance(author_rel, dict) else None
         target_author_profile = self.get_user_profile(author_id) if author_id else {}
-        target_author_display = target_author_profile.get("name") or author_id or "Unknown"
+        target_author_name = target_author_profile.get("name")
+        target_author_display = target_author_name or author_id or "Unknown"
 
         channel_id = None
         thread_id = None
@@ -407,7 +477,8 @@ class GTIDDWClient:
 
             a_rel = rels.get("author", {}).get("data", {})
             a_id = a_rel.get("id") if isinstance(a_rel, dict) else None
-            author_display = a_id or "Unknown"
+            cached_name = self._author_cache.get(a_id, {}).get("name") if a_id else None
+            author_display = cached_name or a_id or "Unknown"
 
             iso_time = (
                 datetime.fromtimestamp(msg_ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
@@ -446,10 +517,17 @@ class GTIDDWClient:
             try:
                 hist_posts = self.get_author_history(
                     author_id=author_id,
-                    author_name=target_author_display,
-                    limit=author_history_limit
+                    author_name=target_author_name,
+                    limit=author_history_limit,
+                    exclude_comm_id=communication_id,
+                    reference_timestamp=target_ts,
+                    lookback_days=lookback_days
                 )
-                author_footprint = self.compute_author_behavioral_metrics(hist_posts)
+                author_footprint = self.compute_author_behavioral_metrics(
+                    hist_posts,
+                    reference_timestamp=target_ts,
+                    lookback_days=lookback_days
+                )
             except Exception as e:
                 retrieval_errors.append(f"Author history profiling warning: {str(e)}")
 
