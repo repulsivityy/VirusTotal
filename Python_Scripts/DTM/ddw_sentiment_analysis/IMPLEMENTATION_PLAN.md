@@ -8,28 +8,28 @@
 ## Phase 1: Standalone Threat & Sentiment Engine (Current Focus)
 
 ### Objective
-Deliver a streamlined, high-accuracy standalone CLI tool that gathers sliding context windows, extracts forum thread roots, and synthesizes intelligence into actionable threat severity, supply chain exposure, and community sentiment pulse without premature attribution.
+Deliver a streamlined, high-accuracy standalone CLI tool that gathers sliding context windows, extracts forum thread roots, and synthesizes intelligence into actionable Words of Estimative Probability (WEP), supply chain exposure, and community sentiment pulse without premature attribution.
 
 ### Milestone 1.1: GTI DDW Client Enhancements (`ddw_client.py`)
 * [x] **Task 1.1.1: Implement Sliding Context Window**
   - Query `/previous_communications/{id}` and `/next_communications/{id}` for $\pm N$ chats.
   - Preserve all chats chronologically with original and translated text.
 * [x] **Task 1.1.2: Implement Thread Root Post Retrieval**
-  - Extract opening message (post #1) for forum threads (`conversation_thread`).
+  - Extract opening message (post #1) for forum threads (`conversation_thread`) with bilingual support.
 * [x] **Task 1.1.3: Container Profile & Metadata Caching**
-  - Cache Telegram channel and dark web forum service metadata.
+  - Cache Telegram channel (`communication_channel`) and dark web forum (`service`) metadata.
 
 ---
 
 ### Milestone 1.2: Streamlined CTI Prompt & Synthesis (`analyzer.py`)
 * [x] **Task 1.2.1: Integrate Thread Root Grounding in Prompt**
   - Add Section `1b. FORUM THREAD ROOT CONTEXT` when post belongs to a `conversation_thread`.
-* [x] **Task 1.2.2: Streamlined Output Schema**
+* [x] **Task 1.2.2: Streamlined WEP Output Schema**
   - Focus strictly on:
-    - `threat_and_supply_chain`: `intent_category`, `threat_severity` (1–5), `is_actionable_threat`, `targeted_entities`, `targeted_sectors`, `targeted_technologies`, `explicitly_claimed_actor`.
+    - `threat_and_supply_chain`: `intent_category`, `estimative_probability` (`level`, `probability_range`, `criteria_matched`, `rationale`), `is_actionable_threat`, `explicitly_claimed_actor`, `targeted_entities`, `targeted_sectors`, `targeted_technologies`.
     - `community_sentiment_and_reaction`: `reaction_status`, `buyer_interest_detected`, `vouches_detected`, `disputes_or_scam_warnings`, `supporting_evidence_quotes`, `reaction_narrative`.
-    - `channel_intelligence`: theme, context takeaway, credibility.
-    - `investigative_recommendation` and `executive_summary`.
+    - `channel_intelligence`: `primary_theme`, `channel_context_takeaway`, `channel_credibility`.
+    - `investigative_recommendation`, `analytic_scope_disclaimer`, and `executive_summary`.
 * [x] **Task 1.2.3: Verify Prompt Delimiting & Injection Resistance**
   - Wrap all untrusted user content in `<<<UNTRUSTED_CONTENT>>>` with explicit security and attribution directives.
 
@@ -37,9 +37,9 @@ Deliver a streamlined, high-accuracy standalone CLI tool that gathers sliding co
 
 ### Milestone 1.3: CLI Controls & JSON Export (`main.py`)
 * [x] **Task 1.3.1: Command-Line Flags**
-  - `--id <COMM_ID>`, `--window <N>`, `--output <PATH>`, `--dry-run`.
+  - `--id <COMM_ID>`, `--window <N>`, `--output <PATH>`, `--dry-run`, `--profile-author`, `--author-history-limit <N>`, `--lookback-days <N>`, `--author <NAME>`, `--channel <NAME>`.
 * [x] **Task 1.3.2: Terminal Output Cards**
-  - Display container info, target previews, threat severity, targeted supply chain entities/sectors, and community reaction pulse.
+  - Display container info, target previews, WEP probability level/range and rationale, targeted supply chain entities/sectors/tech, and community reaction pulse.
 * [x] **Task 1.3.3: Clean JSON Output Export**
   - Export full bundle + analysis matching future ingestion requirements.
 
@@ -51,13 +51,13 @@ Deliver a streamlined, high-accuracy standalone CLI tool that gathers sliding co
 Expand upon single-post evaluation by correlating the target author's handle or user ID across other underground forums and channels within a bounded temporal window, analyzing the sentiment and reputation of their posts in those environments, and feeding that historical context into the final post verdict.
 
 ### Milestone 2.1: Time-Framed Historical Retrieval
-* [ ] **Task 2.1.1: Time-Framing Bounded Queries (`[T - 14d, T]`)**
+* [x] **Task 2.1.1: Time-Framing Bounded Queries (`[T - 14d, T]`)**
   - Given target post timestamp $T$, calculate temporal boundaries (default: $T - 14$ days, configurable via CLI `--lookback-days`).
   - Restrict historical post retrieval and corroboration queries to this window to avoid conflating stale historical events.
-* [ ] **Task 2.1.2: Multi-Platform Author Querying**
-  - Search GTI DDW by `author.id` (Tier 1) and alias `author.name` (Tier 2) within the temporal window.
-* [ ] **Task 2.1.3: Deterministic Behavioral Metrics**
-  - Compute platform dispersion, copypasta broadcast rate, and active window span.
+* [x] **Task 2.1.2: Multi-Platform Author Querying (Baseline Implemented)**
+  - Search GTI DDW by `author.id` (Tier 1) and alias `author.name` (Tier 2), excluding the target post itself.
+* [x] **Task 2.1.3: Deterministic Behavioral Metrics (Baseline Implemented)**
+  - Compute platform dispersion, copypasta broadcast rate, and active window span via `--profile-author`.
 
 ### Milestone 2.2: Cross-Channel Sentiment & Reputation Extraction
 * [ ] **Task 2.2.1: Sentiment Extraction Across Platforms**

@@ -69,16 +69,17 @@ graph LR
 ### 1. Requirements
 Python 3.10+ is required.
 ```bash
+cd standalone_code
 pip install -r requirements.txt
 ```
 
 ### 2. Environment Variables
 Set your API keys:
 ```bash
-# Google Threat Intelligence / VirusTotal API Key
+# Google Threat Intelligence / VirusTotal API Key (supports GTI_APIKEY, GTI_API_KEY, or VT_APIKEY)
 export GTI_APIKEY="your-gti-api-key"
 
-# Gemini LLM API Key (used for CTI reasoning)
+# Gemini LLM API Key (supports GEMINI_API_KEY, GEMINI_APIKEY, or GOOGLE_API_KEY)
 export GEMINI_API_KEY="your-gemini-api-key"
 ```
 
@@ -86,20 +87,34 @@ export GEMINI_API_KEY="your-gemini-api-key"
 
 ## 💻 CLI Usage
 
+Run commands from the `standalone_code/` directory:
+
 ### 1. Contextual Post Evaluation
 Evaluates a specific post within a $\pm 10$ message context window:
 ```bash
 python main.py --id "185fa470-ec54-4ee4-97ae-ac5f5c4109b5" --window 10
 ```
 
-### 2. Export to Structured JSON
+### 2. Contextual Evaluation with Time-Framed Cross-Channel Author Profiling
+Includes the author's historical cross-channel footprint within `[T - 14d, T]` (`--profile-author`, configurable via `--lookback-days`):
+```bash
+python main.py --id "185fa470-ec54-4ee4-97ae-ac5f5c4109b5" --window 10 --profile-author --lookback-days 14 --author-history-limit 10
+```
+
+### 3. Export to Structured JSON
 ```bash
 python main.py --id "185fa470-ec54-4ee4-97ae-ac5f5c4109b5" --output analysis_record.json
 ```
 
-### 3. Dry Run Preview (No LLM Call)
+### 4. Dry Run Preview (No LLM Call)
 ```bash
 python main.py --id "185fa470-ec54-4ee4-97ae-ac5f5c4109b5" --dry-run
+```
+
+### 5. Discovery Modes (Author & Channel Search)
+```bash
+python main.py --author "actor_handle"
+python main.py --channel "channel_name"
 ```
 
 ---
@@ -145,7 +160,13 @@ python main.py --id "185fa470-ec54-4ee4-97ae-ac5f5c4109b5" --dry-run
     "supporting_evidence_quotes": [],
     "reaction_narrative": "Broadcast via automated syndication feed without interactive chat replies."
   },
+  "channel_intelligence": {
+    "primary_theme": "Database Leaks & Breach Syndication",
+    "channel_context_takeaway": "Automated leak aggregation channel reposting breach disclosures from underground forums.",
+    "channel_credibility": "Medium"
+  },
+  "investigative_recommendation": "Cross-reference internal supplier exposure against affected third-party identity verification integrations.",
   "analytic_scope_disclaimer": "Assessment is based exclusively on the target post and immediate channel context window. External threat intelligence corroboration has not been performed.",
-  "investigative_recommendation": "Cross-reference internal supplier exposure against affected third-party identity verification integrations."
+  "executive_summary": "A high-confidence breach leak affecting an enterprise identity verification vendor was syndicated with verifiable data samples, posing downstream supply chain exposure to dependent logistics and automotive partners."
 }
 ```
