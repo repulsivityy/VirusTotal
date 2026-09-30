@@ -211,7 +211,7 @@ export default function App() {
       </header>
 
       {/* Main body centered layout */}
-      <main className="flex-grow max-w-4xl w-full mx-auto p-4 md:p-8 space-y-6">
+      <main className="flex-grow w-full lg:w-[65%] mx-auto p-4 md:p-8 space-y-6">
 
         {/* Critical GTI Key Missing Alert */}
         {!hasGtiKeyConfigured && (
