@@ -136,7 +136,8 @@ const CONTROL_OPTIONS: ControlOption[] = [
 ];
 
 export default function RiskContextPanel({ config, onChange }: RiskContextPanelProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isWeightsExpanded, setIsWeightsExpanded] = useState(false);
+  const [isContextExpanded, setIsContextExpanded] = useState(false);
 
   const selectedReachability = config.reachability ?? null;
   const selectedImpacts = config.impactFactors ?? [];
@@ -224,17 +225,189 @@ export default function RiskContextPanel({ config, onChange }: RiskContextPanelP
   };
 
   const isContextActive = config.sAsset !== null;
-  const rawUncappedAsset =
-    (selectedReachability ? REACHABILITY_SCORES[selectedReachability] : 0) +
-    selectedImpacts.reduce((sum, id) => sum + IMPACT_SCORES[id], 0);
+  const activeSelectionCount =
+    (selectedReachability ? 1 : 0) + selectedImpacts.length + selectedControls.length;
 
   return (
-    <div className="w-full max-w-4xl mx-auto">
-      <div className="bg-slate-900/70 border border-slate-800/90 rounded-2xl overflow-hidden transition-all">
-        {/* Toggle Header Bar */}
+    <div className="w-full space-y-3">
+      {/* Panel 1: Separate Scoring Weights & Point Reference (between CVE Search and Organization Risk Context) */}
+      <div className="bg-slate-900/50 border border-slate-800/80 rounded-2xl overflow-hidden transition-all">
         <button
           type="button"
-          onClick={() => setIsExpanded(!isExpanded)}
+          onClick={() => setIsWeightsExpanded(!isWeightsExpanded)}
+          className="w-full px-5 py-3 flex items-center justify-between text-left hover:bg-slate-900/80 transition-colors cursor-pointer"
+        >
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="p-1.5 rounded-lg bg-slate-800/80 border border-slate-700/80 text-slate-300">
+              <Shield className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-semibold text-slate-200 uppercase tracking-wider font-mono">
+                  RBVM Scoring Weights & Point Reference
+                </span>
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                  W₁: {config.weights.w1.toFixed(2)} · W₂: {config.weights.w2.toFixed(2)} · W₃: {config.weights.w3.toFixed(2)}
+                </span>
+                {config.sAsset !== null && (
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    S_asset: {config.sAsset}/100
+                  </span>
+                )}
+                {controlReductionPct > 0 && (
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-teal-500/15 text-teal-300 border border-teal-500/30">
+                    Controls: -{controlReductionPct}% (×{controlMultiplier})
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                View or customize pillar weights (W₁, W₂, W₃) and modifier point allocations.
+              </p>
+            </div>
+          </div>
+          <div className="text-slate-400 flex items-center gap-1.5 text-xs font-mono shrink-0 ml-4">
+            <span>{isWeightsExpanded ? 'Hide' : 'Weights'}</span>
+            {isWeightsExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </div>
+        </button>
+
+        {isWeightsExpanded && (
+          <div className="px-5 pb-5 pt-3 border-t border-slate-800/80 space-y-4 bg-slate-950/40">
+            {/* Pillar Weights (W1, W2, W3) */}
+            <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h4 className="text-xs font-mono uppercase tracking-wider text-slate-300 font-semibold">
+                    Pillar Weights (W₁ + W₂ + W₃ = 1.0)
+                  </h4>
+                  <p className="text-[11px] text-slate-400 mt-0.5 font-mono">
+                    Final Score = [(W₁ × S_vuln) + (W₂ × S_asset) + (W₃ × S_threat)] × Control Multiplier
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleResetWeights}
+                  className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-400 hover:text-slate-200 px-2 py-1 rounded bg-slate-800/80 hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Reset weights to 0.20 / 0.40 / 0.40"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Reset</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-mono text-slate-400 mb-1">
+                    W₁ (Vuln / CVSS)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={config.weights.w1}
+                    onChange={(e) => handleWeightChange('w1', e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-200 focus:border-emerald-500/50 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-mono text-slate-400 mb-1">
+                    W₂ (Asset Context)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={config.weights.w2}
+                    onChange={(e) => handleWeightChange('w2', e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-200 focus:border-emerald-500/50 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-mono text-slate-400 mb-1">
+                    W₃ (GTI Threat)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={config.weights.w3}
+                    onChange={(e) => handleWeightChange('w3', e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-200 focus:border-emerald-500/50 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] font-mono pt-1">
+                <span className="text-slate-400">Total Weight Sum:</span>
+                <span
+                  className={`inline-flex items-center gap-1 font-semibold ${
+                    isWeightSumValid ? 'text-emerald-400' : 'text-amber-400'
+                  }`}
+                >
+                  {isWeightSumValid ? (
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  ) : (
+                    <AlertCircle className="w-3.5 h-3.5" />
+                  )}
+                  <span>{weightSum.toFixed(2)}</span>
+                  {!isWeightSumValid && <span>(Will be scaled to 1.00)</span>}
+                </span>
+              </div>
+            </div>
+
+            {/* Consolidated Point & Percentage Reference Table */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs font-mono">
+              <div className="bg-slate-900/40 border border-slate-800/70 rounded-xl p-3.5 space-y-2">
+                <div className="text-[11px] text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-800 pb-1.5">
+                  1. Base Reachability (S_asset)
+                </div>
+                {REACHABILITY_OPTIONS.map((opt) => (
+                  <div key={opt.id} className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">{opt.label}</span>
+                    <span className="text-emerald-400 font-bold">+{opt.score} pts</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-slate-900/40 border border-slate-800/70 rounded-xl p-3.5 space-y-2">
+                <div className="text-[11px] text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-800 pb-1.5">
+                  2. Impact / Criticality (S_asset)
+                </div>
+                {IMPACT_OPTIONS.map((opt) => (
+                  <div key={opt.id} className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">{opt.label}</span>
+                    <span className="text-emerald-400 font-bold">+{opt.score} pts</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-slate-900/40 border border-slate-800/70 rounded-xl p-3.5 space-y-2">
+                <div className="text-[11px] text-slate-300 font-semibold uppercase tracking-wider border-b border-slate-800 pb-1.5">
+                  3. Controls (Compounded)
+                </div>
+                {CONTROL_OPTIONS.map((ctrl) => (
+                  <div key={ctrl.id} className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">{ctrl.label}</span>
+                    <span className="text-teal-400 font-bold">{ctrl.reductionLabel}</span>
+                  </div>
+                ))}
+                <div className="pt-1 border-t border-slate-800/60 text-[10px] text-slate-500">
+                  Both active: ×0.85 × 0.85 = -27.75%
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Panel 2: Clean Organization Risk Context Selector (No point badges or weight clutter) */}
+      <div className="bg-slate-900/70 border border-slate-800/90 rounded-2xl overflow-hidden transition-all">
+        <button
+          type="button"
+          onClick={() => setIsContextExpanded(!isContextExpanded)}
           className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-slate-900/90 transition-colors cursor-pointer"
         >
           <div className="flex items-center gap-3 flex-wrap">
@@ -249,69 +422,48 @@ export default function RiskContextPanel({ config, onChange }: RiskContextPanelP
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
                   Optional RBVM
                 </span>
-                {config.sAsset !== null && (
+                {activeSelectionCount > 0 && (
                   <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                    S_asset: {config.sAsset}/100
-                  </span>
-                )}
-                {controlReductionPct > 0 && (
-                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-teal-500/15 text-teal-300 border border-teal-500/30">
-                    Controls: -{controlReductionPct}% (×{controlMultiplier})
+                    {activeSelectionCount} {activeSelectionCount === 1 ? 'factor' : 'factors'} selected
                   </span>
                 )}
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
                 {isContextActive
-                  ? 'Asset context active — RBVM score dynamically calculated with reachability, criticality & controls.'
+                  ? 'Asset context active — RBVM score dynamically calculated alongside GTI telemetry.'
                   : 'Select reachability, criticality checkboxes, and compensating controls to compute a contextualized RBVM score.'}
               </p>
             </div>
           </div>
           <div className="text-slate-400 flex items-center gap-1.5 text-xs font-mono shrink-0 ml-4">
-            <span>{isExpanded ? 'Hide' : 'Configure'}</span>
-            {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            <span>{isContextExpanded ? 'Hide' : 'Configure'}</span>
+            {isContextExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </div>
         </button>
 
-        {/* Expandable Configuration Body */}
-        {isExpanded && (
+        {isContextExpanded && (
           <div className="px-5 pb-5 pt-3 border-t border-slate-800/80 space-y-6 bg-slate-950/40">
-            {/* Top summary & Clear button */}
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="text-xs text-slate-400">
-                Build <span className="font-mono text-slate-200">S_asset</span> from{' '}
-                <span className="text-slate-200 font-semibold">Base Reachability</span> +{' '}
-                <span className="text-slate-200 font-semibold">Impact / Criticality</span> (capped at 100), then apply{' '}
-                <span className="text-emerald-400 font-semibold">Compensating Controls</span>.
-              </div>
-              {(config.sAsset !== null || selectedControls.length > 0) && (
+            {activeSelectionCount > 0 && (
+              <div className="flex justify-end">
                 <button
                   type="button"
                   onClick={handleClearAsset}
                   className="text-xs font-mono text-slate-400 hover:text-rose-400 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 hover:border-rose-500/30 transition-colors cursor-pointer"
                 >
-                  Clear All Context (Intel Only)
+                  Clear All Selections
                 </button>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Section 1: Base Reachability (Mutually Exclusive) */}
             <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-mono uppercase tracking-wider text-slate-300 font-semibold">
-                    1. Base Reachability (Mutually Exclusive)
-                  </h4>
-                  <p className="text-[11px] text-slate-400">
-                    Select one network exposure baseline. Clicking an active tier deselects it.
-                  </p>
-                </div>
-                <span className="text-xs font-mono text-slate-400">
-                  Base:{' '}
-                  <strong className="text-slate-200">
-                    +{selectedReachability ? REACHABILITY_SCORES[selectedReachability] : 0} pts
-                  </strong>
-                </span>
+              <div>
+                <h4 className="text-xs font-mono uppercase tracking-wider text-slate-300 font-semibold">
+                  1. Base Reachability
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  Select how the asset is reachable.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -322,27 +474,16 @@ export default function RiskContextPanel({ config, onChange }: RiskContextPanelP
                       key={opt.id}
                       type="button"
                       onClick={() => handleSelectReachability(opt.id)}
-                      className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                      className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3 ${
                         isSelected
                           ? 'bg-emerald-500/10 border-emerald-500/50 shadow-lg shadow-emerald-950/30'
                           : 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700'
                       }`}
                     >
-                      <div>
-                        <div className="flex items-center justify-between gap-2 mb-2">
-                          <div className="p-1.5 rounded-lg bg-slate-950/80 border border-slate-800">
-                            {opt.icon}
-                          </div>
-                          <span
-                            className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
-                              isSelected
-                                ? 'bg-emerald-500 text-slate-950'
-                                : 'bg-slate-800 text-slate-300'
-                            }`}
-                          >
-                            +{opt.score}
-                          </span>
-                        </div>
+                      <div className="p-1.5 rounded-lg bg-slate-950/80 border border-slate-800 shrink-0">
+                        {opt.icon}
+                      </div>
+                      <div className="min-w-0">
                         <div className="text-xs font-semibold text-slate-200 mb-1">
                           {opt.label}
                         </div>
@@ -358,24 +499,13 @@ export default function RiskContextPanel({ config, onChange }: RiskContextPanelP
 
             {/* Section 2: Impact / Criticality Checkboxes */}
             <div className="space-y-2.5 pt-2 border-t border-slate-800/60">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <h4 className="text-xs font-mono uppercase tracking-wider text-slate-300 font-semibold">
-                    2. Impact / Criticality (Additive Checkboxes)
-                  </h4>
-                  <p className="text-[11px] text-slate-400">
-                    Check all that apply. Production (+20) and Staging/Dev (+5) are mutually exclusive.
-                  </p>
-                </div>
-                <span className="text-xs font-mono text-slate-400">
-                  S_asset:{' '}
-                  <strong className="text-emerald-400">
-                    {config.sAsset ?? 0}/100
-                  </strong>
-                  {rawUncappedAsset > 100 && (
-                    <span className="text-amber-400 ml-1">(Raw {rawUncappedAsset} capped at 100)</span>
-                  )}
-                </span>
+              <div>
+                <h4 className="text-xs font-mono uppercase tracking-wider text-slate-300 font-semibold">
+                  2. Impact / Criticality
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  Select all asset characteristics that apply (Production and Staging/Dev are mutually exclusive).
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -402,21 +532,10 @@ export default function RiskContextPanel({ config, onChange }: RiskContextPanelP
                         <Check className="w-3 h-3 stroke-[3]" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-                            {opt.icon}
-                            <span>{opt.label}</span>
-                          </span>
-                          <span
-                            className={`text-xs font-mono font-bold px-2 py-0.5 rounded shrink-0 ${
-                              isChecked
-                                ? 'bg-emerald-500 text-slate-950'
-                                : 'bg-slate-800 text-slate-300'
-                            }`}
-                          >
-                            +{opt.score}
-                          </span>
-                        </div>
+                        <span className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                          {opt.icon}
+                          <span>{opt.label}</span>
+                        </span>
                         <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
                           {opt.description}
                         </p>
@@ -427,22 +546,15 @@ export default function RiskContextPanel({ config, onChange }: RiskContextPanelP
               </div>
             </div>
 
-            {/* Section 3: Compensating Controls (Compounding % Reduction) */}
+            {/* Section 3: Compensating Controls */}
             <div className="space-y-2.5 pt-2 border-t border-slate-800/60">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <h4 className="text-xs font-mono uppercase tracking-wider text-slate-300 font-semibold">
-                    3. Compensating Controls (Compounding % Reduction)
-                  </h4>
-                  <p className="text-[11px] text-slate-400">
-                    Each control reduces the remaining weighted risk score by 15% (both = ×0.85 × 0.85 = -27.75%).
-                  </p>
-                </div>
-                <span className="text-xs font-mono text-teal-400 font-semibold">
-                  {controlReductionPct > 0
-                    ? `Active Reduction: -${controlReductionPct}% (×${controlMultiplier})`
-                    : 'No controls active (×1.00)'}
-                </span>
+              <div>
+                <h4 className="text-xs font-mono uppercase tracking-wider text-slate-300 font-semibold">
+                  3. Compensating Controls
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  Select active security controls protecting this asset.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -469,21 +581,10 @@ export default function RiskContextPanel({ config, onChange }: RiskContextPanelP
                         <Check className="w-3 h-3 stroke-[3]" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-                            {ctrl.icon}
-                            <span>{ctrl.label}</span>
-                          </span>
-                          <span
-                            className={`text-xs font-mono font-bold px-2 py-0.5 rounded shrink-0 ${
-                              isChecked
-                                ? 'bg-teal-400 text-slate-950'
-                                : 'bg-slate-800 text-teal-300'
-                            }`}
-                          >
-                            {ctrl.reductionLabel}
-                          </span>
-                        </div>
+                        <span className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                          {ctrl.icon}
+                          <span>{ctrl.label}</span>
+                        </span>
                         <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
                           {ctrl.description}
                         </p>
@@ -491,93 +592,6 @@ export default function RiskContextPanel({ config, onChange }: RiskContextPanelP
                     </button>
                   );
                 })}
-              </div>
-            </div>
-
-            {/* Section 4: Risk Appetite Weights */}
-            <div className="pt-2 border-t border-slate-800/60">
-              <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-xs font-mono uppercase tracking-wider text-slate-300 font-semibold">
-                      4. Pillar Weights (W₁ + W₂ + W₃ = 1.0)
-                    </h4>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Final Score = [(W₁ × S_vuln) + (W₂ × S_asset) + (W₃ × S_threat)] × Control Multiplier
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleResetWeights}
-                    className="inline-flex items-center gap-1 text-[11px] font-mono text-slate-400 hover:text-slate-200 px-2 py-1 rounded bg-slate-800/80 hover:bg-slate-800 transition-colors cursor-pointer"
-                    title="Reset weights to 0.20 / 0.40 / 0.40"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Reset</span>
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-mono text-slate-400 mb-1">
-                      W₁ (Vuln / CVSS)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      value={config.weights.w1}
-                      onChange={(e) => handleWeightChange('w1', e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-200 focus:border-emerald-500/50 outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-mono text-slate-400 mb-1">
-                      W₂ (Asset Context)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      value={config.weights.w2}
-                      onChange={(e) => handleWeightChange('w2', e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-200 focus:border-emerald-500/50 outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-mono text-slate-400 mb-1">
-                      W₃ (GTI Threat)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      value={config.weights.w3}
-                      onChange={(e) => handleWeightChange('w3', e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs font-mono text-slate-200 focus:border-emerald-500/50 outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-[11px] font-mono pt-1">
-                  <span className="text-slate-400">Total Weight Sum:</span>
-                  <span
-                    className={`inline-flex items-center gap-1 font-semibold ${
-                      isWeightSumValid ? 'text-emerald-400' : 'text-amber-400'
-                    }`}
-                  >
-                    {isWeightSumValid ? (
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                    ) : (
-                      <AlertCircle className="w-3.5 h-3.5" />
-                    )}
-                    <span>{weightSum.toFixed(2)}</span>
-                    {!isWeightSumValid && <span>(Will be scaled to 1.00)</span>}
-                  </span>
-                </div>
               </div>
             </div>
           </div>
