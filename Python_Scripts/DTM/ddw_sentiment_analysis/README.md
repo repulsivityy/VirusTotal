@@ -61,6 +61,33 @@ graph LR
 5. **Epistemic Scope Disclaimer:** Clearly notes that single-post assessments are derived strictly from observable post evidence without premature external assumptions.
 6. **Bilingual Analytical Fidelity:** Retains both source language and English translations side-by-side.
 7. **Adversarial Prompt Injection Defense:** Wraps all adversarial underground chatter in strict structural delimiters (`<<<UNTRUSTED_CONTENT>>>`).
+8. **Observable Behavioral Commentary (deterministic, public API only):** `context_signals.py` runs reproducible heuristics over the retrieved window and injects them into the prompt as *leads, not verdicts* (section `1d`). The LLM mirrors them in a `behavioral_commentary` field. Signals and thresholds:
+
+   | Signal | Rule (constants in `context_signals.py`) |
+   | :--- | :--- |
+   | Automated broadcast pattern | `--profile-author` footprint has ≥ 3 historical posts (`BROADCAST_MIN_HISTORY`) and ≥ 50 % identical text (`BROADCAST_MIN_RATE`) |
+   | Two-part promo drop | Uncaptioned media attachment immediately adjacent to the target, ≤ 5 s apart (`PAIRED_MEDIA_MAX_GAP_SEC`); flags same sender vs. companion account |
+   | Duplicate ad copy / repeat broadcast | Target text re-appears near-verbatim (`SequenceMatcher` ≥ 0.85) from other accounts / the same author inside the window |
+   | High-velocity broadcast stream | ≥ 4 surrounding messages from ≥ 4 distinct senders within ± 90 s of the target (`VELOCITY_*`) — Telegram only |
+   | Forum unlock chatter | Reply ≤ 20 chars (`UNLOCK_REPLY_MAX_CHARS`) on an established thread, plus the count of surrounding replies that are equally short or quote-only |
+   | @handle classification | See below |
+
+   **@handle mention vs. scam call-out.** Every `@handle` in the window is classified per mention — `scam_callout` (multilingual ripper/scam lexicon with negation scrubbing, so *"no scam, honest"* is **not** a call-out), `promoted_contact` (contact cues such as *DM / contact / 联系 / 📩*, a `label: @handle` layout, a bare handle on its own line, or a handle in the closing third of a long advert), or `neutral_mention` — and tagged with provenance (`original`, `quoted`, `forwarded`, `relayed_copy` = near-duplicate of an earlier message by a different sender, `self_repost`). A message that *opens* with the handle and continues on the same line (`@vendor_x price for 10k?`) is an **addressed reply**: the handle is the addressee, so it is `neutral_mention` rather than a promotion (scam cues still win). Each handle is also cross-referenced with the accounts that post in the window: `also_posts_in_window` holds the author label of a window message sent *by* that handle (`Name (@handle)` labels or bare forum usernames), and `is_target_author` marks the target post's own author. Per handle this rolls up to one verdict:
+
+   | Verdict | Meaning |
+   | :--- | :--- |
+   | `disputed_handle` | Promoted by some accounts **and** called out as a scam by others — contested, not a vouch |
+   | `community_scam_callout` | Only warnings against the handle; raises `disputes_or_scam_warnings`, never a promotion |
+   | `coordinated_promotion` | ≥ 2 distinct accounts push the same contact in their own wording — possible multi-account shilling |
+   | `relayed_ad_copy` | One original promoter, later mentions are near-verbatim re-posts/forwards — parroting, not endorsement |
+   | `parroted_handle` | Appears only inside quoted/forwarded/duplicated content |
+   | `single_promoted_contact` | Promoted solely by the target author (reported only for handles in the target post) |
+   | `addressed_target_author` | The target author's own handle is addressed/mentioned neutrally by other accounts — engagement with the post, not endorsement |
+   | `bot_contact_in_window` | A `…bot` handle advertised once by a surrounding account, not in the target post — all such bots share one lowest-priority line, grouped per advertiser; when every bot an account lists is itself a sender in the window, the line calls it a *roster of accounts active here rather than a contact* |
+   | `mention_only` | Nothing actionable (kept in JSON, not in the commentary) |
+
+   Handles sharing the same promoters/relayers (e.g. `@vendor` and `@vendor_bot` in one advert) collapse into a single commentary line. Every line appends the cross-reference where it applies — *"@x is the TARGET AUTHOR's own handle — this bears directly on the post under analysis"* (plus a count of neutral addresses, and ranked first among lines of equal severity) or *"@y (as 'Name (@y)') also posts in this window"*. Any `…bot` handle carries an explicit caveat: Telegram reserves the `bot` suffix for automated accounts, so the line states the role the surrounding text implies (`escrow/guarantor`, `fallback contact`, `support/admin`, `storefront/order`, or *role not stated*) and reminds the analyst it may equally be a benign utility bot. At most 6 handle lines are emitted (`MAX_HANDLE_INSIGHTS`). The console handle table tags rows with `(in target post)`, `(TARGET AUTHOR)` or `(also posts in window)`.
+9. **`.env` Autoload:** `main.py` reads `KEY=value` pairs from `./.env`, `standalone_code/.env`, the parent directory `.env`, and `~/.env` (first hit wins, never overriding variables already exported).
 
 ---
 
@@ -74,7 +101,7 @@ pip install -r requirements.txt
 ```
 
 ### 2. Environment Variables
-Set your API keys:
+Set your API keys (or place the same `KEY=value` lines in a `.env` file next to `main.py`, in its parent directory, or in `~/.env` — see Phase 1 feature 9):
 ```bash
 # Google Threat Intelligence / VirusTotal API Key (supports GTI_APIKEY, GTI_API_KEY, or VT_APIKEY)
 export GTI_APIKEY="your-gti-api-key"
@@ -90,25 +117,27 @@ export GEMINI_API_KEY="your-gemini-api-key"
 Run commands from the `standalone_code/` directory:
 
 ### 1. Contextual Post Evaluation
-Evaluates a specific post within a $\pm 10$ message context window:
+Evaluates a specific post within a $\pm 10$ message context window (default). `--window` accepts 1–40, but values below **7** are raised to 7 with a console note — the broadcast, shared-handle and velocity heuristics are not meaningful on fewer messages per side:
 ```bash
 python main.py --id "185fa470-ec54-4ee4-97ae-ac5f5c4109b5" --window 10
 ```
 
 ### 2. Contextual Evaluation with Time-Framed Cross-Channel Author Profiling
-Includes the author's historical cross-channel footprint within `[T - 14d, T]` (`--profile-author`, configurable via `--lookback-days`):
+Includes the author's historical cross-channel footprint within `[T - 14d, T]` (`--profile-author`, configurable via `--lookback-days`). The *Automated broadcast pattern* signal requires this flag:
 ```bash
 python main.py --id "185fa470-ec54-4ee4-97ae-ac5f5c4109b5" --window 10 --profile-author --lookback-days 14 --author-history-limit 10
 ```
 
 ### 3. Export to Structured JSON
+The record contains the target, context window, `context_insights` (commentary lines), `handle_mentions` (per-handle verdicts with promoters / relayers / warners / neutral mentioners, bot role hint, `also_posts_in_window`, `is_target_author`), `context_window.window_size_requested` vs. `window_size_configured`, and the LLM `analysis`:
 ```bash
 python main.py --id "185fa470-ec54-4ee4-97ae-ac5f5c4109b5" --output analysis_record.json
 ```
 
 ### 4. Dry Run Preview (No LLM Call)
+Prints the deterministic commentary, the `@Handle Classification` table and the assembled prompt. Combined with `--output` it still writes the record (with `"analysis": null`), so the signals can be replayed offline from the JSON alone:
 ```bash
-python main.py --id "185fa470-ec54-4ee4-97ae-ac5f5c4109b5" --dry-run
+python main.py --id "185fa470-ec54-4ee4-97ae-ac5f5c4109b5" --dry-run --output context_only.json
 ```
 
 ### 5. Discovery Modes (Author & Channel Search)
@@ -116,6 +145,19 @@ python main.py --id "185fa470-ec54-4ee4-97ae-ac5f5c4109b5" --dry-run
 python main.py --author "actor_handle"
 python main.py --channel "channel_name"
 ```
+
+---
+
+## 🧩 Module Layout (`standalone_code/`)
+
+| File | Responsibility |
+| :--- | :--- |
+| `main.py` | CLI, `.env` autoload, window floor, console rendering (commentary + handle table), JSON export |
+| `ddw_client.py` | Public GTI `/api/v3` calls: target post, ± N window, forum thread root, author footprint; attaches `context_insights` / `handle_mentions` from `context_signals` |
+| `context_signals.py` | Deterministic heuristics (no network): broadcast, paired media, duplicate copy, velocity, forum unlock, @handle classification; all thresholds are module constants |
+| `analyzer.py` | Prompt assembly (sections 1–4, incl. `1d` signals with reading rules), Gemini call, JSON schema incl. `behavioral_commentary` |
+| `tests/test_context_signals.py` | Offline regression harness for every verdict/threshold (`python3 tests/test_context_signals.py`, no API key needed) |
+| `tests/replay_record.py` | Re-derives the signals from an exported `--output` JSON record without any API call |
 
 ---
 
@@ -165,8 +207,34 @@ python main.py --channel "channel_name"
     "channel_context_takeaway": "Automated leak aggregation channel reposting breach disclosures from underground forums.",
     "channel_credibility": "Medium"
   },
+  "behavioral_commentary": "Standard organic post with no automated or multi-account coordination patterns observed.",
   "investigative_recommendation": "Cross-reference internal supplier exposure against affected third-party identity verification integrations.",
   "analytic_scope_disclaimer": "Assessment is based exclusively on the target post and immediate channel context window. External threat intelligence corroboration has not been performed.",
   "executive_summary": "A high-confidence breach leak affecting an enterprise identity verification vendor was syndicated with verifiable data samples, posing downstream supply chain exposure to dependent logistics and automotive partners."
 }
 ```
+
+### Deterministic Commentary — Console Excerpt (abridged; live public-API run, Telegram, `--window 7 --dry-run`)
+
+```text
+💡 Observable Context Commentary:
+   • Relayed ad copy: @tongda877, @tongda877_bot are promoted by 'IDQ36 (@gtqjjh9abot)' and re-posted/forwarded
+     near-verbatim by 'LCJ63 (@gtqow47gbot)', 'ALX67 (@gtq7ltv4bot)' — the later mentions parrot prior content rather
+     than add independent endorsement. Note: @tongda877_bot (fallback contact bot) is a Telegram bot username (the 'bot'
+     suffix is reserved for automated accounts) — it may be the operator's storefront/escrow/support automation or a
+     benign utility bot, so confirm its function before treating it as actor infrastructure.
+   • Contact handle in target post: @dhusacdnjwioqfh89 — promoted only by the target author within the window
+     (no corroborating or dissenting mentions).
+   • High-velocity broadcast stream: 14 surrounding messages from 14 distinct senders within ±90s of the target
+     (span 33s) — adjacent messages are interleaved promos, not replies to the target.
+----------------------------------------------------------------------
+🔗 @Handle Classification (window scan):
+   • @tongda877 → relayed_ad_copy
+       promoters: 1 | relayed/quoted: 2 | scam call-outs: 0 | neutral: 0
+   • @tongda877_bot [BOT: fallback contact bot] → relayed_ad_copy
+       promoters: 1 | relayed/quoted: 2 | scam call-outs: 0 | neutral: 0
+   • @dhusacdnjwioqfh89 (in target post) → single_promoted_contact
+       promoters: 1 | relayed/quoted: 0 | scam call-outs: 0 | neutral: 0
+```
+
+The same lines are passed to Gemini under section `1d` together with reading rules (call-out ≠ promotion; relayed/parroted ≠ endorsement; a bot handle may be benign; never assert same-operator links beyond what the signal states).

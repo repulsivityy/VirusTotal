@@ -38,9 +38,10 @@ The **Contextual Underground Threat & Sentiment Intelligence System (CUTSIS)** t
 ```mermaid
 graph TD
     subgraph "Phase 1: Standalone Threat & Sentiment Engine (Current)"
-        P1_A["Single Post CLI (main.py)"] --> P1_B["GTI Sliding Context Window (+/- N)"]
+        P1_A["Single Post CLI (main.py)"] --> P1_B["GTI Sliding Context Window (+/- N, floor 7)"]
         P1_A --> P1_C["Thread Root Grounding (Forums)"]
-        P1_B & P1_C --> P1_D["Gemini 3.8 Flash Streamlined Reasoning"]
+        P1_B & P1_C --> P1_S["Deterministic Behavioral Signals (context_signals.py)"]
+        P1_S --> P1_D["Gemini 3.8 Flash Streamlined Reasoning"]
         P1_D --> P1_E["Structured Threat & Supply Chain Output"]
     end
 
@@ -73,23 +74,51 @@ graph TD
 
 * **REQ-P1-01: Direct Sliding Context Window Retrieval**
   - Query GTI DDW `/previous_communications/{id}` and `/next_communications/{id}` for $\pm N$ messages (default: 10, configurable up to 40).
+  - **Minimum effective window: 7 per side** (`MIN_CONTEXT_WINDOW`). Smaller `--window` values are raised to 7 with a console notice because the broadcast, shared-handle and velocity heuristics in REQ-P1-05 are not meaningful below that; both the requested and the configured size are recorded in the export (`window_size_requested`, `window_size_configured`).
   - Preserve all chronological chats, including one-word negotiation/vouch messages (`"dm'ed"`, `"price?"`, `"+"`).
   - Retrieve both original language and English translated text to preserve fidelity.
 
-* **REQ-P1-02: Container & Thread Root Grounding**
-  - Retrieve container profile (Telegram channel or darknet forum service name, bio/description, origin URL) with in-memory caching.
-  - For forum posts, resolve root thread topic and opening pitch (`conversation_thread`) to ground the context.
+* **REQ-P1-02: Container & Thread Root Grounding (Public API Only)**
+  - Retrieve container service (`/ddw_services/{id}`) and channel/sub-board (`/ddw_communication_channels/{id}`) profiles with in-memory caching.
+  - For forum posts, resolve `Post #1` (original post) via bounded pagination on `GET /ddw_conversation_threads/{id}/previous_communications/{comm_id}?limit=40` (`max_hops=15`).
 
 * **REQ-P1-03: Streamlined Threat & Sentiment Synthesis (Gemini 3.8 Flash)**
   - Model: Default to `gemini-3.8-flash` via Google Generative Language API.
   - Prompt Injection Delimiters: Untrusted adversarial content encapsulated in `<<<UNTRUSTED_CONTENT>>>` tags.
+  - Prompt section `1d` carries the deterministic signals from REQ-P1-05 verbatim, preceded by reading rules: a scam call-out is not a promotion; relayed/parroted text is not independent endorsement; a bot handle may be benign and a "roster of accounts active here" is a list of senders, not an advertised contact; a line naming the TARGET AUTHOR's own handle ties the mention to this post (a call-out against it is dispute of this post, neutral addresses are engagement, not endorsement); "also posts in this window" refers to another sender's message; same-operator links must not be asserted beyond what a signal states.
   - Focus strictly on core structured outputs:
     1. **Threat & Supply Chain Targeting (`threat_and_supply_chain`):** `intent_category`, `estimative_probability` (`level`, `probability_range`, `criteria_matched`, `rationale` following the WEP matrix), `is_actionable_threat`, `explicitly_claimed_actor` (`null` unless explicitly claimed in post text), `targeted_entities`, `targeted_sectors`, and `targeted_technologies`.
     2. **Community Sentiment & Reaction (`community_sentiment_and_reaction`):** `reaction_status` (`Vouched_Confirmed`, `Negotiation_In_Progress`, `Accused_Of_Scam`, `Indifferent_Ignored`), `buyer_interest_detected`, `vouches_detected`, `disputes_or_scam_warnings`, `supporting_evidence_quotes`, and `reaction_narrative`.
-    3. **Channel Intelligence & Analyst Action:** `channel_intelligence` (`primary_theme`, `channel_context_takeaway`, `channel_credibility`), `investigative_recommendation`, `analytic_scope_disclaimer`, and `executive_summary`.
+    3. **Channel Intelligence, Behavioral Commentary & Analyst Action:** `channel_intelligence` (`primary_theme`, `channel_context_takeaway`, `channel_credibility`), `behavioral_commentary` (1–2 plain sentences grounded in section `1d`: automated copypasta, paired banner+caption drops, whether a shared `@handle` is a promoted contact, a scam call-out, or relayed/parroted prior content, the role a `…bot` handle plays per the surrounding text, interleaved broadcast streams, short forum unlock replies; otherwise the fixed sentence *"Standard organic post with no automated or multi-account coordination patterns observed."*), `investigative_recommendation`, `analytic_scope_disclaimer`, and `executive_summary`.
 
 * **REQ-P1-04: Structured JSON Export**
-  - Support `--output <path>` to export a clean, standardized schema ready for downstream ingestion.
+  - Support `--output <path>` to export a clean, standardized schema ready for downstream ingestion: `target_post`, `channel` (incl. `thread_root`), `author_footprint`, `context_insights` (list of commentary strings), `handle_mentions` (per-handle records, see REQ-P1-05), `context_window` (requested/configured sizes + messages), `retrieval_errors`, `analysis`.
+  - `--dry-run --output` writes the same record with `"analysis": null`, so every deterministic signal can be re-derived offline from the file alone (no API call).
+
+* **REQ-P1-05: Deterministic Observable Behavioral Signals (`context_signals.py`, public API data only)**
+  - All signals are computed locally from the retrieved bundle; no additional endpoints, no LLM. Thresholds are module constants:
+
+    | Signal | Trigger |
+    | :--- | :--- |
+    | Automated broadcast pattern | Author footprint (`--profile-author`) has ≥ 3 historical posts **and** copypasta rate ≥ 50 % |
+    | Two-part promo drop | Immediately adjacent uncaptioned media attachment ≤ 5 s from the target; distinguishes same sender from a companion account |
+    | Duplicate ad copy / repeat broadcast | Target text (≥ 40 chars) re-appears in the window at `SequenceMatcher` ratio ≥ 0.85 from another account / the same author |
+    | High-velocity broadcast stream | Messenger only: ≥ 4 surrounding messages from ≥ 4 distinct senders within ± 90 s of the target |
+    | Forum unlock chatter | Forum reply ≤ 20 chars on a thread where the target is not Post #1; reports how many surrounding replies are equally short or quote-only (≤ 40 own words after a quote marker) |
+
+  - **@handle mention vs. scam call-out (per mention, then per handle):**
+    - Handles are Telegram-style ASCII usernames (`@[A-Za-z][A-Za-z0-9_]{3,31}`); e-mail addresses and the sender's own handle are ignored.
+    - Mention type: `scam_callout` when the ±70/50-char local context (or a message ≤ 120 chars) contains ripper/scam vocabulary in EN/RU/ES/PT/FR/DE/TR/ID/ZH **after** negation scrubbing (`no scam`, `not a ripper`, `без кидалова`, …); else `neutral_mention` when the message *opens* with the handle and continues on the same line (an addressed reply such as `@vendor_x price for 10k?` — the handle is the addressee, not a promoted contact); else `promoted_contact` on contact cues (`DM`, `contact`, `escrow`, `联系`, `客服`, contact emoji, a `label: @handle` layout, a bare handle on its own line, or the closing third of an advert ≥ 200 chars); else `neutral_mention`.
+    - Provenance: `quoted` (forum quote markers such as `Wrote:` / `>`), `forwarded` (`Forwarded from`), `relayed_copy` (message is a near-duplicate of an earlier window message by a **different** sender), `self_repost` (same sender), otherwise `original`.
+    - Sender cross-reference: every author label in the window is resolved to handles (`@name` tokens inside `Display (@name)` labels, or a bare forum username matching the handle grammar). A mentioned handle that equals a window sender gets `also_posts_in_window` = that author label; one that equals the target post's author gets `is_target_author = true`.
+    - Verdict precedence: `disputed_handle` (promoted and warned against) > `community_scam_callout` (warnings only) > `coordinated_promotion` (≥ 2 distinct original promoters) > `relayed_ad_copy` (one promoter + near-verbatim relayers) > `parroted_handle` (only quoted/forwarded/duplicated mentions) > `single_promoted_contact` (target author only; emitted only for handles in the target post) > `addressed_target_author` (the target author's own handle addressed/mentioned neutrally by other accounts — engagement, not endorsement) > `bot_contact_in_window` (a `…bot` handle advertised once by a surrounding account, not in the target post; all such bots share one line) > `mention_only` (JSON only).
+    - Handles with identical promoter/relayer/warner sets and the same target-author status (e.g. `@vendor` + `@vendor_bot` in one advert) share one commentary line; at most 6 handle lines per post. Lines are ordered by verdict severity; a line about the target author's own handle ranks first among equals.
+    - Every line appends the cross-reference where it applies: *"@x is the TARGET AUTHOR's own handle — this bears directly on the post under analysis"* (with the count of neutral addresses, if any) and/or *"@y (as '<author label>') also posts in this window — read that message with this in mind"*.
+    - **Bot handles** (`bot` suffix, reserved by Telegram for automated accounts) are always called out with context: the role implied by the surrounding text (`escrow/guarantor`, `fallback contact` — incl. "two-way contact"/"双向联系", `support/admin`, `storefront/order`, or *role not stated*) plus the caveat that it may be a benign utility bot or merely parroted contact info, so analysts confirm its function before treating it as actor infrastructure. The `bot_contact_in_window` line groups bots per advertising account; when every bot an account lists is itself a sender in the window, the group is described as *a roster of accounts active here rather than a contact*.
+    - Export: each `handle_mentions[]` record carries `handle`, `is_bot`, `bot_role_hint`, `in_target_post`, `target_mention_type`, `target_provenance`, `also_posts_in_window`, `is_target_author`, `assessment`, `promoters`, `relayers`, `warners`, `neutral_mentioners`, `self_reposts`, and up to 6 `mentions` (`sender`, `message_id`, `is_target`, `type`, `provenance`, `quote`).
+
+* **REQ-P1-06: Credential Loading**
+  - Accept `GTI_APIKEY` / `GTI_API_KEY` / `VT_APIKEY` and `GEMINI_API_KEY` / `GEMINI_APIKEY` / `GOOGLE_API_KEY` from the process environment, CLI flags, or `KEY=value` lines in `./.env`, `standalone_code/.env`, its parent `.env`, or `~/.env` (never overriding an already-set variable).
 
 ---
 
