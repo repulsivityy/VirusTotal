@@ -5,13 +5,45 @@ import sys
 
 from ddw_client import GTIDDWClient
 from analyzer import DDWSentimentAnalyzer
+from context_signals import MIN_CONTEXT_WINDOW
+
+
+def _load_dotenv_files() -> None:
+    """Load key=value pairs from standard .env locations without overriding active env vars."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(os.getcwd(), ".env"),
+        os.path.join(script_dir, ".env"),
+        os.path.join(os.path.dirname(script_dir), ".env"),
+        os.path.expanduser("~/.env"),
+    ]
+    for env_path in candidates:
+        if os.path.isfile(env_path):
+            try:
+                with open(env_path, "r", encoding="utf-8") as f:
+                    for raw_line in f:
+                        line = raw_line.strip()
+                        if not line or line.startswith("#") or "=" not in line:
+                            continue
+                        if line.startswith("export "):
+                            line = line[len("export "):].strip()
+                        k, v = line.split("=", 1)
+                        k = k.strip()
+                        v = v.strip().strip('"').strip("'")
+                        if k and k not in os.environ:
+                            os.environ[k] = v
+            except OSError:
+                pass
+
 
 def print_banner():
     print("=" * 70)
     print(" 🕵️ GTI Deep & Dark Web (DDW) Contextual Sentiment Analyzer")
     print("=" * 70)
 
+
 def main():
+    _load_dotenv_files()
     parser = argparse.ArgumentParser(
         description="Fetch GTI Dark Web posts with configurable context window (+/- N chats) and run contextual analysis."
     )
@@ -24,7 +56,11 @@ def main():
         "--window",
         type=int,
         default=10,
-        help="Number of messages before and after target post (default: 10, configurable up to 40)"
+        help=(
+            f"Number of messages before and after the target post (default: 10, max: 40). "
+            f"Values below {MIN_CONTEXT_WINDOW} are raised to {MIN_CONTEXT_WINDOW}: the broadcast / handle / "
+            f"velocity heuristics are not meaningful on fewer messages."
+        )
     )
     parser.add_argument(
         "--profile-author",
@@ -45,8 +81,8 @@ def main():
     )
     parser.add_argument("--output", help="Optional path to save full JSON output (ready for BQ/SQL)")
     parser.add_argument("--dry-run", action="store_true", help="Assemble context window and prompt without calling Gemini LLM")
-    parser.add_argument("--gti-key", help="GTI API Key (defaults to GTI_APIKEY env var)")
-    parser.add_argument("--gemini-key", help="Gemini API Key (defaults to GEMINI_API_KEY env var)")
+    parser.add_argument("--gti-key", help="GTI API Key (defaults to GTI_APIKEY, GTI_API_KEY or VT_APIKEY env var)")
+    parser.add_argument("--gemini-key", help="Gemini API Key (defaults to GEMINI_API_KEY, GEMINI_APIKEY or GOOGLE_API_KEY env var)")
     parser.add_argument("--model", default="gemini-3.8-flash", help="Gemini model to use (default: gemini-3.8-flash)")
 
     args = parser.parse_args()
@@ -61,8 +97,8 @@ def main():
     )
     if not gti_key:
         print("\n❌ Configuration Error: Missing GTI API Key.")
-        print("   Please set the GTI_APIKEY environment variable:")
-        print("     export GTI_APIKEY=\"your_gti_api_key\"")
+        print("   Please set one of GTI_APIKEY / GTI_API_KEY / VT_APIKEY (env var or .env file):")
+        print("     export GTI_API_KEY=\"your_gti_api_key\"")
         print("   Or provide it via CLI with: --gti-key <KEY>\n")
         sys.exit(1)
 
@@ -152,7 +188,13 @@ def main():
 
     # Mode 3: Contextual Sentiment Analysis for a specific Communication ID
     comm_id = args.id
-    window = max(1, min(args.window, 40))
+    requested_window = max(1, min(args.window, 40))
+    window = max(MIN_CONTEXT_WINDOW, requested_window)
+    if window != requested_window:
+        print(
+            f"\nℹ️  Context window raised from {requested_window} to {window}: the behavioral heuristics "
+            f"(broadcast, shared-handle, velocity) need at least {MIN_CONTEXT_WINDOW} messages per side."
+        )
     profile_author = args.profile_author
     author_limit = max(1, min(args.author_history_limit, 25))
     lookback_days = max(1, args.lookback_days)
@@ -176,15 +218,35 @@ def main():
 
     target = context_bundle["target"]
     ch = context_bundle["channel_or_thread"]
+    srv = context_bundle.get("service")
+    thread_root = ch.get("thread_root")
     prev_chats = context_bundle["context"]["previous_messages"]
     next_chats = context_bundle["context"]["next_messages"]
     footprint = context_bundle.get("author_footprint")
     retrieval_errors = context_bundle.get("retrieval_errors", [])
 
     print("\n" + "-" * 70)
-    print(f"📌 Container Name : {ch.get('name') or 'N/A'}")
+    if srv and (srv.get("name") or srv.get("domain")):
+        srv_label = srv.get("name") or srv.get("domain")
+        if srv.get("domain") and srv.get("domain") != srv_label:
+            srv_label += f" ({srv.get('domain')})"
+        print(f"🌐 Forum / Service: {srv_label}")
+    board_label = ch.get("name") or "N/A"
+    if ch.get("path"):
+        board_label += f" [{ch.get('path')}]"
+    print(f"📌 Container Name : {board_label}")
     print(f"📌 Container Bio  : {ch.get('description') or 'N/A'}")
     print(f"📌 Container URL  : {ch.get('url') or 'N/A'}")
+    if thread_root:
+        if thread_root.get("is_target_post"):
+            print("🧵 Thread Root    : Target post IS Post #1 (Original Post)")
+        else:
+            r_snip = (thread_root.get("text") or "").replace("\n", " ")[:140]
+            print(
+                f"🧵 Thread Post #1 : {thread_root.get('id')} by {thread_root.get('author')} "
+                f"({thread_root.get('prior_posts_count')} replies prior)"
+            )
+            print(f"   Post #1 Snippet: {r_snip}...")
     print("-" * 70)
 
     # Display Author Footprint summary if profiled
@@ -217,6 +279,32 @@ def main():
         print(f"🎯 Target Post Preview          : {(target.get('text') or '')[:200]}")
 
     print(f"⏭️  Subsequent messages retrieved: {len(next_chats)} messages")
+    context_insights = context_bundle.get("context_insights") or []
+    handle_mentions = context_bundle.get("handle_mentions") or []
+    if context_insights:
+        print("-" * 70)
+        print("💡 Observable Context Commentary:")
+        for ins in context_insights:
+            print(f"   • {ins}")
+    shown_handles = [
+        h for h in handle_mentions
+        if h.get("assessment") != "mention_only" or h.get("in_target_post") or h.get("is_target_author")
+    ]
+    if shown_handles:
+        print("-" * 70)
+        print("🔗 @Handle Classification (window scan):")
+        for h in shown_handles[:8]:
+            bot_tag = f" [BOT: {h.get('bot_role_hint') or 'role not stated'}]" if h.get("is_bot") else ""
+            where = " (in target post)" if h.get("in_target_post") else ""
+            if h.get("is_target_author"):
+                where += " (TARGET AUTHOR)"
+            elif h.get("also_posts_in_window"):
+                where += " (also posts in window)"
+            print(f"   • {h['handle']}{bot_tag}{where} → {h['assessment']}")
+            print(
+                f"       promoters: {len(h.get('promoters', []))} | relayed/quoted: {len(h.get('relayers', []))} "
+                f"| scam call-outs: {len(h.get('warners', []))} | neutral: {len(h.get('neutral_mentioners', []))}"
+            )
     print("-" * 70)
 
     if retrieval_errors:
@@ -227,11 +315,46 @@ def main():
 
     analyzer = DDWSentimentAnalyzer(api_key=gemini_key, model=args.model)
 
+    # Unified record (ready for BigQuery/SQL). Assembled before the dry-run branch so that
+    # --output always exports the context window + deterministic signals; "analysis" stays
+    # null when the LLM step is skipped.
+    from datetime import datetime, timezone
+    final_record = {
+        "communication_id": comm_id,
+        "evaluated_at": datetime.now(timezone.utc).isoformat(),
+        "service": srv,
+        "channel": ch,
+        "target_post": target,
+        "author_footprint": footprint,
+        "context_insights": context_insights,
+        "handle_mentions": handle_mentions,
+        "context_window": {
+            "window_size_requested": requested_window,
+            "window_size_configured": window,
+            "previous_count": len(prev_chats),
+            "next_count": len(next_chats),
+            "previous_messages": prev_chats,
+            "next_messages": next_chats
+        },
+        "retrieval_errors": retrieval_errors,
+        "analysis": None
+    }
+
+    def save_record() -> None:
+        if not args.output:
+            return
+        out_path = os.path.abspath(args.output)
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(final_record, f, indent=2, ensure_ascii=False)
+        label = "context" if final_record["analysis"] is None else "context + analysis"
+        print(f"\n💾 Saved full {label} record to: {out_path}")
+
     if args.dry_run:
         print("\n🔎 DRY RUN ENABLED — Assembled Prompt Preview:")
         print("=" * 70)
         print(analyzer.build_analysis_prompt(context_bundle))
         print("=" * 70)
+        save_record()
         return
 
     print(f"\n🧠 Running LLM Reasoning using {args.model}...")
@@ -241,24 +364,7 @@ def main():
         print(f"\n❌ LLM Analysis Error: {analysis_result['error']}")
         sys.exit(1)
 
-    # Combine for unified record (ready for BigQuery/SQL)
-    from datetime import datetime, timezone
-    final_record = {
-        "communication_id": comm_id,
-        "evaluated_at": datetime.now(timezone.utc).isoformat(),
-        "channel": ch,
-        "target_post": target,
-        "author_footprint": footprint,
-        "context_window": {
-            "window_size_configured": window,
-            "previous_count": len(prev_chats),
-            "next_count": len(next_chats),
-            "previous_messages": prev_chats,
-            "next_messages": next_chats
-        },
-        "retrieval_errors": retrieval_errors,
-        "analysis": analysis_result
-    }
+    final_record["analysis"] = analysis_result
 
     print("\n📊 ANALYSIS RESULT:")
     print("=" * 70)
@@ -269,6 +375,7 @@ def main():
     threat = analysis_result.get("threat_and_supply_chain", {})
     sentiment = analysis_result.get("community_sentiment_and_reaction", {})
     rec = analysis_result.get("investigative_recommendation")
+    b_comm = analysis_result.get("behavioral_commentary")
     if threat:
         ep = threat.get("estimative_probability", {})
         ep_range = ep.get('probability_range')
@@ -291,6 +398,8 @@ def main():
             print(f"   • Targeted Tech        : {', '.join(threat.get('targeted_technologies'))}")
         if sentiment:
             print(f"   • Community Sentiment  : {sentiment.get('reaction_status')} (Vouched: {sentiment.get('vouches_detected')}, Disputes: {sentiment.get('disputes_or_scam_warnings', False)})")
+        if b_comm:
+            print(f"   • Behavioral Commentary: {b_comm}")
         if rec:
             print(f"   • Recommendation       : {rec}")
         disclaimer = analysis_result.get("analytic_scope_disclaimer")
@@ -298,11 +407,8 @@ def main():
             print(f"   ℹ️  Disclaimer          : {disclaimer}")
         print("-" * 70)
 
-    if args.output:
-        out_path = os.path.abspath(args.output)
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(final_record, f, indent=2, ensure_ascii=False)
-        print(f"\n💾 Saved full context + analysis record to: {out_path}")
+    save_record()
+
 
 if __name__ == "__main__":
     main()

@@ -73,22 +73,61 @@ class DDWSentimentAnalyzer:
         if is_bot:
             author_meta_str += " | [AUTOMATED BOT]"
 
-        # Section 1b: Thread Root Context (if forum post)
-        thread_details = channel.get("thread_details")
+        # Build rich container metadata fields (Service / Forum + Channel / Sub-Board)
+        service_name = _sanitize(channel.get("service_name"))
+        service_domain = _sanitize(channel.get("service_domain"))
+        service_url = _sanitize(channel.get("service_url"))
+        service_line = service_name
+        if service_domain != "N/A":
+            service_line += f" (Domain: {service_domain})"
+        if service_url != "N/A":
+            service_line += f" | URL: {service_url}"
+
+        board_name = _sanitize(channel.get("name"))
+        board_type = _sanitize(channel.get("channel_type"))
+        board_path = _sanitize(channel.get("path"))
+        board_line = board_name
+        if board_type != "N/A" or board_path != "N/A":
+            meta_parts = []
+            if board_type != "N/A":
+                meta_parts.append(f"Type: {board_type}")
+            if board_path != "N/A":
+                meta_parts.append(f"Path: {board_path}")
+            board_line += f" ({' | '.join(meta_parts)})"
+
+        # Section 1b: Thread Root Context (Post #1 in forum threads)
+        thread_root = channel.get("thread_root")
         thread_section = ""
-        if thread_details:
-            t_subject = _sanitize(thread_details.get("subject"))
-            t_content = _sanitize(thread_details.get("content"))
-            t_url = _sanitize(thread_details.get("url"))
+        if thread_root:
+            r_id = _sanitize(thread_root.get("id"))
+            r_author = _sanitize(thread_root.get("author"))
+            r_ts = _sanitize(thread_root.get("timestamp_iso"))
+            r_subject = _sanitize(thread_root.get("subject"))
+            r_url = _sanitize(thread_root.get("url"))
+            r_orig = _sanitize(thread_root.get("original_text"))
+            r_trans = _sanitize(thread_root.get("translated_text"))
+            r_content = r_trans if r_trans != "N/A" else r_orig
+            prior_cnt = thread_root.get("prior_posts_count", 0)
+
+            if thread_root.get("is_target_post"):
+                root_status = "Target post IS Post #1 (Thread Root)"
+            elif thread_root.get("is_exact_root"):
+                root_status = f"Verified Post #1 (Thread Root) — {prior_cnt} replies precede target post"
+            else:
+                root_status = f"Earliest Retrieved Ancestor ({prior_cnt} posts prior; thread exceeds lookback cap)"
+
             thread_section = f"""
 ============================================================
-1b. FORUM THREAD ROOT CONTEXT (Original Topic / Pitch)
+1b. FORUM THREAD ROOT CONTEXT (Post #1 — Original Topic / Pitch)
 ============================================================
+Status: {root_status}
+Post #1 ID: {r_id} | Timestamp: {r_ts}
 <<<UNTRUSTED_CONTENT>>>
-Thread Subject: {t_subject}
-Thread URL: {t_url}
-Opening Content:
-{t_content[:600] if t_content != 'N/A' else 'No thread opening text recorded'}
+Post #1 Author: {r_author}
+Thread Subject: {r_subject}
+Thread URL: {r_url}
+Post #1 Opening Content:
+{r_content[:1200] if r_content != 'N/A' else 'No thread opening text recorded'}
 <<<UNTRUSTED_CONTENT>>>
 """
 
@@ -131,6 +170,31 @@ Observed Activity Span in Window: {span_days} days
 Observed Platforms: {plat_list}
 Recent Cross-Channel Snippets:
 {snippet_block}
+<<<UNTRUSTED_CONTENT>>>
+"""
+
+        context_insights = context_bundle.get("context_insights") or []
+        insights_section = ""
+        if context_insights:
+            bullet_insights = "\n".join(f"  * {_sanitize(ins)}" for ins in context_insights)
+            insights_section = f"""
+============================================================
+1d. OBSERVABLE CONTEXT SIGNALS (Deterministic heuristics over the retrieved window — leads, not verdicts)
+============================================================
+How to read these signals:
+- "Scam call-out" = accounts warning against a handle; it is NOT a promotion and should raise disputes_or_scam_warnings.
+- "Coordinated handle promotion" = distinct accounts pushing the same contact in their own words; "Relayed ad copy" /
+  "Parroted handle" = the same text quoted, forwarded, or re-posted — repetition of prior content, not independent endorsement.
+- A Telegram bot handle ('bot' suffix) may be the operator's storefront/escrow/support automation OR a benign utility bot;
+  do not label it actor infrastructure unless the surrounding text says what it does. A line describing bots as a
+  "roster of accounts active here" means other accounts in the window were listed, not that a contact was advertised.
+- "TARGET AUTHOR's own handle" ties a mention to the post under analysis: a scam call-out against it is community
+  dispute of THIS post; "addressed directly" / neutral addresses are engagement or buyer interest, not endorsement.
+- "also posts in this window" means the mentioned account is itself a sender here — weigh that account's message
+  with the mention in mind; it is not evidence about the target author unless the line says so.
+- Do NOT assert sockpuppet or same-operator links beyond what the signal states (shared handle, paired timing, duplicate text).
+<<<UNTRUSTED_CONTENT>>>
+{bullet_insights}
 <<<UNTRUSTED_CONTENT>>>
 """
 
@@ -180,11 +244,12 @@ In underground channels, these short responses are critical signals of transacti
 1. CONTAINER / CHANNEL PROFILE
 ============================================================
 <<<UNTRUSTED_CONTENT>>>
-Name: {_sanitize(channel.get('name'))}
+Platform / Forum Service: {service_line}
+Channel / Board Name: {board_line}
 Description / Bio: {_sanitize(channel.get('description'))}
 URL: {_sanitize(channel.get('url'))}
 <<<UNTRUSTED_CONTENT>>>
-{thread_section}{author_footprint_section}
+{thread_section}{author_footprint_section}{insights_section}
 ============================================================
 2. PRECEDING MESSAGES (Chronological order leading up to target - {len(prev_msgs)} messages)
 ============================================================
@@ -244,6 +309,7 @@ Analyze the interaction and return ONLY a valid JSON object matching this schema
     "channel_context_takeaway": "<What does the channel profile/bio tell us about the channel's intent/rules?>",
     "channel_credibility": "High | Medium | Low | Unknown"
   }},
+  "behavioral_commentary": "<1-2 plain sentences on concrete posting/coordination patterns, grounded in section 1d and the messages: automated cross-channel copypasta; paired media banner + text promo drops; whether a shared @handle is a promoted contact (coordinated promotion), a scam call-out against it, or merely relayed/quoted/parroted prior content; for @...bot handles say what the surrounding text indicates the bot does (storefront/escrow/support, fallback contact, or unknown — possibly a benign utility bot); interleaved broadcast streams; short forum unlock replies. If none apply: 'Standard organic post with no automated or multi-account coordination patterns observed.'>",
   "investigative_recommendation": "<Specific next action for CTI analysts, e.g., 'Escalate to CIRT for supplier exposure', 'Monitor thread for dump sample', 'Disregard as spam'>",
   "analytic_scope_disclaimer": "{scope_disclaimer}",
   "executive_summary": "<2 sentences synthesizing the operational risk of this post given its context>"

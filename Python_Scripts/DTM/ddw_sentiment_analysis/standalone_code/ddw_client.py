@@ -1,9 +1,12 @@
 import os
+import re
 import hashlib
 from collections import Counter
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 import requests
+
+from context_signals import analyze_context_signals
 
 class GTIDDWClient:
     """Client for Google Threat Intelligence (GTI) Deep & Dark Web (DDW) API."""
@@ -14,7 +17,7 @@ class GTIDDWClient:
         self.api_key = api_key or os.getenv("GTI_APIKEY") or os.getenv("GTI_API_KEY") or os.getenv("VT_APIKEY")
         if not self.api_key:
             raise ValueError(
-                "GTI API key not found. Set the GTI_APIKEY environment variable or pass api_key."
+                "GTI API key not found. Set GTI_APIKEY, GTI_API_KEY or VT_APIKEY in the environment (or a .env file), or pass api_key."
             )
         self.timeout = timeout
         self.headers = {
@@ -119,15 +122,97 @@ class GTIDDWClient:
             self._service_cache[service_id] = {}
             return {}
 
-    def get_conversation_thread(self, thread_id: str) -> Dict[str, Any]:
-        """Fetch metadata for a Dark Web Conversation Thread."""
-        if not thread_id:
-            return {}
-        try:
-            res = self._get(f"/ddw_conversation_threads/{thread_id}")
-            return res.get("data", {})
-        except Exception:
-            return {}
+    def find_thread_root(
+        self,
+        thread_id: str,
+        target_data: Dict[str, Any],
+        first_hop_prev: List[Dict[str, Any]],
+        max_hops: int = 15
+    ) -> Dict[str, Any]:
+        """
+        Locate Post #1 (Thread Root) of a forum thread using exclusively public API v3 endpoints:
+        - GET /ddw_conversation_threads/{thread_id}/previous_communications/{comm_id}?limit=40
+        - GET /ddw_communications/{id} (when intermediate hops fetched minimal attributes)
+        - GET /ddw_user_profiles/{id} (to resolve Post #1 author handle)
+        """
+        target_id = target_data.get("id")
+        if not first_hop_prev:
+            # Target post itself is Post #1 (0 preceding posts in thread)
+            root_item = target_data
+            prior_count = 0
+            hops_used = 1
+            is_exact_root = True
+            needs_full_fetch = False
+        elif len(first_hop_prev) < 40:
+            # Hop 1 already reached the start of the thread (0 extra API calls needed)
+            root_item = first_hop_prev[0]
+            prior_count = len(first_hop_prev)
+            hops_used = 1
+            is_exact_root = True
+            needs_full_fetch = False
+        else:
+            # Walk backward in chunks of 40 up to max_hops (15 hops = up to 600 replies)
+            root_item = first_hop_prev[0]
+            curr_id = root_item.get("id")
+            prior_count = len(first_hop_prev)
+            hops_used = 1
+            is_exact_root = False
+            needs_full_fetch = False
+
+            while hops_used < max_hops and curr_id:
+                hops_used += 1
+                hop_res = self._get(
+                    f"/ddw_conversation_threads/{thread_id}/previous_communications/{curr_id}",
+                    params={"limit": 40, "attributes": "timestamp"}
+                )
+                hop_items = hop_res.get("data", [])
+                if not hop_items:
+                    is_exact_root = True
+                    break
+                prior_count += len(hop_items)
+                root_item = hop_items[0]
+                curr_id = root_item.get("id")
+                needs_full_fetch = True
+                if len(hop_items) < 40:
+                    is_exact_root = True
+                    break
+
+        root_id = root_item.get("id")
+        if needs_full_fetch and root_id:
+            full_root = self.get_communication(root_id)
+            if full_root:
+                root_item = full_root
+
+        r_attrs = root_item.get("attributes", {})
+        r_rels = root_item.get("relationships", {})
+        r_author_rel = r_rels.get("author", {}).get("data", {})
+        r_author_id = r_author_rel.get("id") if isinstance(r_author_rel, dict) else None
+        r_author_profile = self.get_user_profile(r_author_id) if r_author_id else {}
+        r_author_name = r_author_profile.get("name") or r_author_id or "Unknown"
+
+        r_ts = r_attrs.get("timestamp")
+        r_iso = (
+            datetime.fromtimestamp(r_ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
+            if r_ts else "Unknown"
+        )
+        r_orig = (r_attrs.get("content") or "").strip()
+        r_trans = (r_attrs.get("content_translated") or "").strip()
+
+        return {
+            "id": root_id,
+            "is_target_post": (root_id == target_id),
+            "is_exact_root": is_exact_root,
+            "prior_posts_count": prior_count,
+            "hops_used": hops_used,
+            "author": r_author_name,
+            "subject": r_attrs.get("subject"),
+            "text": r_trans or r_orig,
+            "original_text": r_orig,
+            "translated_text": r_trans,
+            "timestamp": r_ts,
+            "timestamp_iso": r_iso,
+            "url": r_attrs.get("origin_url")
+        }
 
     def get_author_history(
         self,
@@ -388,12 +473,16 @@ class GTIDDWClient:
 
         channel_id = None
         thread_id = None
+        service_id = None
         channel_metadata = {}
+        service_metadata = {}
 
         if "communication_channel" in relationships and relationships["communication_channel"].get("data"):
             channel_id = relationships["communication_channel"]["data"].get("id")
         if "conversation_thread" in relationships and relationships["conversation_thread"].get("data"):
             thread_id = relationships["conversation_thread"]["data"].get("id")
+        if "service" in relationships and relationships["service"].get("data"):
+            service_id = relationships["service"].get("data", {}).get("id")
 
         prev_items: List[Dict[str, Any]] = []
         next_items: List[Dict[str, Any]] = []
@@ -405,36 +494,55 @@ class GTIDDWClient:
             "relationships": "author"
         }
 
-        # For forum posts, prioritize thread_id to get replies rather than unrelated board posts
-        is_forum = (comm_type == "forum_post") or bool(thread_id and not channel_id)
-
-        thread_metadata = {}
-        if is_forum and thread_id:
-            prev_path = f"/ddw_conversation_threads/{thread_id}/previous_communications/{communication_id}"
-            next_path = f"/ddw_conversation_threads/{thread_id}/next_communications/{communication_id}"
-
+        # Resolve Dark Web Service metadata (e.g., forum name/domain or messaging platform)
+        if service_id:
             try:
-                t_data = self.get_conversation_thread(thread_id)
-                thread_metadata = t_data.get("attributes", {})
+                srv_data = self.get_service_metadata(service_id)
+                service_metadata = srv_data.get("attributes", {})
             except Exception as e:
-                retrieval_errors.append(f"Thread metadata warning: {str(e)}")
+                retrieval_errors.append(f"Service metadata warning: {str(e)}")
 
-            if channel_id:
-                try:
-                    ch_data = self.get_channel_metadata(channel_id)
-                    channel_metadata = ch_data.get("attributes", {})
-                except Exception as e:
-                    retrieval_errors.append(f"Channel metadata warning: {str(e)}")
-
-        elif channel_id:
-            prev_path = f"/ddw_communication_channels/{channel_id}/previous_communications/{communication_id}"
-            next_path = f"/ddw_communication_channels/{channel_id}/next_communications/{communication_id}"
-
+        # Resolve Dark Web Communication Channel / Sub-Board metadata
+        if channel_id:
             try:
                 ch_data = self.get_channel_metadata(channel_id)
                 channel_metadata = ch_data.get("attributes", {})
             except Exception as e:
                 retrieval_errors.append(f"Channel metadata warning: {str(e)}")
+
+        # For forum posts, prioritize thread_id to get replies rather than unrelated board posts
+        is_forum = (comm_type == "forum_post") or bool(thread_id and not channel_id)
+        thread_root: Optional[Dict[str, Any]] = None
+
+        if is_forum and thread_id:
+            prev_path = f"/ddw_conversation_threads/{thread_id}/previous_communications/{communication_id}"
+            next_path = f"/ddw_conversation_threads/{thread_id}/next_communications/{communication_id}"
+
+            try:
+                # Request limit=40 on Hop 1 so threads <=40 replies resolve Post #1 with 0 extra HTTP calls
+                prev_res = self._get(prev_path, params={**params, "limit": 40})
+                first_hop_prev = prev_res.get("data", [])
+                prev_items = first_hop_prev[-window_size:] if first_hop_prev else []
+
+                try:
+                    thread_root = self.find_thread_root(
+                        thread_id=thread_id,
+                        target_data=target_data,
+                        first_hop_prev=first_hop_prev
+                    )
+                except Exception as e:
+                    retrieval_errors.append(f"Thread root (Post #1) retrieval warning: {str(e)}")
+            except Exception as e:
+                retrieval_errors.append(f"Failed to fetch previous messages: {str(e)}")
+        elif channel_id:
+            prev_path = f"/ddw_communication_channels/{channel_id}/previous_communications/{communication_id}"
+            next_path = f"/ddw_communication_channels/{channel_id}/next_communications/{communication_id}"
+
+            try:
+                prev_res = self._get(prev_path, params=params)
+                prev_items = prev_res.get("data", [])
+            except Exception as e:
+                retrieval_errors.append(f"Failed to fetch previous messages: {str(e)}")
         else:
             prev_path = None
             next_path = None
@@ -442,13 +550,6 @@ class GTIDDWClient:
                 f"No parent channel or conversation thread found for communication {communication_id}. "
                 "Context window cannot be fetched for this object type."
             )
-
-        if prev_path:
-            try:
-                prev_res = self._get(prev_path, params=params)
-                prev_items = prev_res.get("data", [])
-            except Exception as e:
-                retrieval_errors.append(f"Failed to fetch previous messages: {str(e)}")
 
         if next_path:
             try:
@@ -477,8 +578,14 @@ class GTIDDWClient:
 
             a_rel = rels.get("author", {}).get("data", {})
             a_id = a_rel.get("id") if isinstance(a_rel, dict) else None
-            cached_name = self._author_cache.get(a_id, {}).get("name") if a_id else None
-            author_display = cached_name or a_id or "Unknown"
+            prof = self.get_user_profile(a_id) if a_id else {}
+            author_name = prof.get("name")
+            tg_handles = prof.get("telegram_handle") or []
+            author_display = author_name or (tg_handles[0] if tg_handles else None) or a_id or "Unknown"
+            if tg_handles and tg_handles[0] and tg_handles[0] not in author_display:
+                author_display += f" (@{tg_handles[0].lstrip('@')})"
+            if prof.get("is_bot"):
+                author_display += " [BOT]"
 
             iso_time = (
                 datetime.fromtimestamp(msg_ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
@@ -487,6 +594,8 @@ class GTIDDWClient:
 
             orig_text = (attrs.get("content") or "").strip()
             trans_text = (attrs.get("content_translated") or "").strip()
+            if not orig_text and not trans_text:
+                orig_text = "[Media/Attachment — no text caption]"
             display_text = trans_text or orig_text
 
             return {
@@ -540,32 +649,88 @@ class GTIDDWClient:
         target_trans = (target_attrs.get("content_translated") or "").strip()
         target_display = target_trans or target_orig
 
+        service_info = (
+            {
+                "id": service_id,
+                "name": service_metadata.get("name"),
+                "domain": service_metadata.get("domain"),
+                "url": service_metadata.get("url"),
+                "description": service_metadata.get("description"),
+            }
+            if service_id
+            else None
+        )
+
+        target_obj = {
+            "id": communication_id,
+            "type": comm_type,
+            "subject": target_attrs.get("subject"),
+            "text": target_display,
+            "original_text": target_orig,
+            "translated_text": target_trans,
+            "timestamp": target_ts,
+            "timestamp_iso": target_iso_time,
+            "author": target_author_display,
+            "author_profile": target_author_profile,
+            "origin_url": target_attrs.get("origin_url")
+        }
+
+        signals = analyze_context_signals(
+            target_obj=target_obj,
+            prev_msgs=formatted_prev,
+            next_msgs=formatted_next,
+            thread_root=thread_root,
+            author_footprint=author_footprint,
+        )
+
         return {
-            "target": {
-                "id": communication_id,
-                "type": comm_type,
-                "subject": target_attrs.get("subject"),
-                "text": target_display,
-                "original_text": target_orig,
-                "translated_text": target_trans,
-                "timestamp": target_ts,
-                "timestamp_iso": target_iso_time,
-                "author": target_author_display,
-                "author_profile": target_author_profile,
-                "origin_url": target_attrs.get("origin_url")
-            },
+            "target": target_obj,
+            "service": service_info,
             "channel_or_thread": {
                 "channel_id": channel_id,
                 "thread_id": thread_id,
-                "name": channel_metadata.get("name") or thread_metadata.get("subject"),
-                "description": channel_metadata.get("description"),
-                "url": channel_metadata.get("url") or thread_metadata.get("url"),
-                "thread_details": thread_metadata if thread_metadata else None
+                "service_id": service_id,
+                "service_name": service_metadata.get("name"),
+                "service_domain": service_metadata.get("domain"),
+                "service_url": service_metadata.get("url"),
+                "name": channel_metadata.get("name") or service_metadata.get("name"),
+                "channel_type": channel_metadata.get("channel_type"),
+                "path": channel_metadata.get("path"),
+                "description": channel_metadata.get("description") or service_metadata.get("description"),
+                "url": (
+                    channel_metadata.get("url")
+                    or channel_metadata.get("invite_url")
+                    or service_metadata.get("url")
+                    or target_attrs.get("origin_url")
+                ),
+                "thread_root": thread_root
             },
             "author_footprint": author_footprint,
+            "context_insights": signals["insights"],
+            "handle_mentions": signals["handle_mentions"],
             "context": {
                 "previous_messages": formatted_prev,
                 "next_messages": formatted_next
             },
             "retrieval_errors": retrieval_errors
         }
+
+    @staticmethod
+    def compute_context_insights(
+        target_obj: Dict[str, Any],
+        prev_msgs: List[Dict[str, Any]],
+        next_msgs: List[Dict[str, Any]],
+        thread_root: Optional[Dict[str, Any]] = None,
+        author_footprint: Optional[Dict[str, Any]] = None,
+    ) -> List[str]:
+        """
+        Commentary-only view of the deterministic behavioral heuristics.
+        The implementation lives in context_signals.py (no network calls).
+        """
+        return analyze_context_signals(
+            target_obj=target_obj,
+            prev_msgs=prev_msgs,
+            next_msgs=next_msgs,
+            thread_root=thread_root,
+            author_footprint=author_footprint,
+        )["insights"]
