@@ -409,9 +409,9 @@ async def generate_summary(session, api_key, model_name, system_instruction, use
     # Generates the threat intelligence summary using the Gemini API directly.
     print("Generating summary with Gemini API...")
     
-    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
     
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
 
     payload = {
         "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],

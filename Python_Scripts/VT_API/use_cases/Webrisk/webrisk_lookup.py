@@ -9,8 +9,9 @@ check_url = "http://ratenow.site/"
 
 
 def check_uri(url):
-    url = f'https://webrisk.googleapis.com/v1/uris:search?threatTypes=MALWARE&threatTypes=SOCIAL_ENGINEERING&uri={urllib.parse.quote(url)}&key={api_key}'
-    response = requests.get(url)
+    url = f'https://webrisk.googleapis.com/v1/uris:search?threatTypes=MALWARE&threatTypes=SOCIAL_ENGINEERING&uri={urllib.parse.quote(url)}'
+    headers = {"x-goog-api-key": api_key}
+    response = requests.get(url, headers=headers)
     data = response.json()
     print(data)
     #return data

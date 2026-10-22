@@ -246,8 +246,10 @@ def get_user_prompt(collections, output_country, topic=None):
 
 async def generate_summary(session, api_key, model_name, system_instruction, user_prompt):
     """Calls the Gemini API to generate the summary."""
-    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-    headers = {"Content-Type": "application/json"}
+    # Send the key as a header, not a ?key= query param, so it never appears in the
+    # request URL (and therefore not in exception messages shown in the UI or logs).
+    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+    headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
     payload = {
         "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
         "systemInstruction": {"parts": [{"text": system_instruction}]},
