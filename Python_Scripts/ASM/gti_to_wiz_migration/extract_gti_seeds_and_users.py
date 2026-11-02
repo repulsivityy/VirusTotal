@@ -12,8 +12,8 @@ Outputs:
 1. A unified hierarchical CSV (`gti_structure_export.csv`) preserving the
    Project -> Collection -> Users / Seeds relationship both visually (`hierarchy_tree`)
    and relationally (parent project & collection columns on every row).
-2. A nested JSON file (`gti_wiz_import.json`) preserving the complete hierarchy
-   for creating Custom Targets and RBAC in Wiz ASM.
+2. A nested JSON file (`gti_structure_export.json`) preserving the complete
+   GTI ASM hierarchy for downstream reporting or migration tooling.
 
 Requirements:
   - Python 3.8+
@@ -31,7 +31,7 @@ import os
 import sys
 import threading
 from typing import Any, Dict, List, Optional, Set, Tuple
-from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -44,19 +44,24 @@ COLLECTIONS_ENDPOINT = f"{ASM_BASE_URL}/user_collections"
 
 CSV_FIELDNAMES = [
     "hierarchy_tree",
+    "organization_name",
     "project_name",
     "project_id",
     "project_uuid",
     "scope_level",
     "collection_name",
+    "collection_slug",
     "collection_id",
     "collection_uuid",
+    "workflow_name",
+    "workflow_pretty_name",
     "record_type",
     "deleted",
     "error",
     "user_email",
     "user_name",
     "user_role",
+    "user_project_role",
     "user_id",
     "seed_type",
     "seed_value",
@@ -70,23 +75,41 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Thread-local storage for per-thread requests.Session instances
+# Thread-local storage and registry for per-thread requests.Session instances
 _thread_local = threading.local()
+_sessions_lock = threading.Lock()
+_created_sessions: List[requests.Session] = []
 
 
-def create_session(pool_maxsize: int = 20) -> requests.Session:
-    """Creates and returns a new requests.Session with retry and backoff logic."""
-    session = requests.Session()
-    retry_strategy = Retry(
-        total=4,
-        backoff_factor=1.0,
-        status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["HEAD", "GET", "OPTIONS"],
+def _build_retry_strategy() -> Retry:
+    """Builds a urllib3 Retry strategy with backoff jitter when supported (urllib3 >= 2.0)."""
+    retry_kwargs: Dict[str, Any] = {
+        "total": 4,
+        "backoff_factor": 1.0,
+        "status_forcelist": [429, 500, 502, 503, 504],
+        "allowed_methods": ["HEAD", "GET", "OPTIONS"],
         # Return the final response once retries run out, so errors report the real status
-        raise_on_status=False,
-    )
+        "raise_on_status": False,
+    }
+    try:
+        return Retry(**retry_kwargs, backoff_jitter=0.5)
+    except TypeError:
+        # urllib3 < 2.0 does not support `backoff_jitter`
+        return Retry(**retry_kwargs)
+
+
+def create_session(
+    api_key: Optional[str] = None,
+    pool_maxsize: int = 20,
+) -> requests.Session:
+    """Creates and returns a new requests.Session with retry, jitter, and default headers."""
+    session = requests.Session()
+    session.headers.update({"Accept": "application/json"})
+    if api_key:
+        session.headers["x-apikey"] = api_key
+
     adapter = HTTPAdapter(
-        max_retries=retry_strategy,
+        max_retries=_build_retry_strategy(),
         pool_connections=pool_maxsize,
         pool_maxsize=pool_maxsize,
     )
@@ -95,13 +118,34 @@ def create_session(pool_maxsize: int = 20) -> requests.Session:
     return session
 
 
-def get_thread_session(pool_maxsize: int = 20) -> requests.Session:
+def get_thread_session(
+    api_key: Optional[str] = None,
+    pool_maxsize: int = 20,
+) -> requests.Session:
     """Returns a thread-local requests.Session for thread-safe concurrent calls."""
-    session = getattr(_thread_local, "session", None)
+    session: Optional[requests.Session] = getattr(_thread_local, "session", None)
     if session is None:
-        session = create_session(pool_maxsize=pool_maxsize)
+        session = create_session(api_key=api_key, pool_maxsize=pool_maxsize)
         _thread_local.session = session
+        with _sessions_lock:
+            _created_sessions.append(session)
+    elif api_key and session.headers.get("x-apikey") != api_key:
+        session.headers["x-apikey"] = api_key
     return session
+
+
+def close_all_sessions() -> None:
+    """Closes all thread-local requests.Session instances and clears the registry."""
+    global _thread_local
+    with _sessions_lock:
+        sessions = list(_created_sessions)
+        _created_sessions.clear()
+        _thread_local = threading.local()
+    for session in sessions:
+        try:
+            session.close()
+        except Exception:
+            pass
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -137,14 +181,14 @@ def parse_arguments() -> argparse.Namespace:
         "--interactive",
         dest="interactive",
         action="store_true",
-        default=True,
-        help="Interactively select extraction type, projects, and collections (default: True).",
+        default=None,
+        help="Interactively select extraction type, projects, and collections (default when TTY).",
     )
     parser.add_argument(
         "--non-interactive",
         dest="interactive",
         action="store_false",
-        help="Run without interactive prompts (extracts all active projects and collections).",
+        help="Run without interactive prompts (auto-enabled when stdin is not a TTY).",
     )
     parser.add_argument(
         "--project-filter",
@@ -167,14 +211,14 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument(
         "--json-out",
-        default="gti_wiz_import.json",
-        help="Output file path for the Wiz import JSON (default: gti_wiz_import.json).",
+        default="gti_structure_export.json",
+        help="Output file path for the hierarchical GTI JSON (default: gti_structure_export.json).",
     )
     parser.add_argument(
         "--workers",
         type=int,
         default=5,
-        help="Number of concurrent threads for collection user/seed requests (default: 5).",
+        help="Number of concurrent threads for API requests (default: 5, minimum: 1).",
     )
     parser.add_argument(
         "--keep-raw",
@@ -200,7 +244,35 @@ def parse_arguments() -> argparse.Namespace:
         default=False,
         help="Enable verbose debug logging and print raw API response snippets.",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.workers < 1:
+        parser.error("--workers must be >= 1.")
+    return args
+
+
+def _safe_input(prompt: str, default: str = "") -> str:
+    """Reads a line from stdin, returning `default` cleanly if stdin hits EOF."""
+    try:
+        return input(prompt)
+    except EOFError:
+        logger.warning("EOF received on stdin; using default selection ('%s').", default or "default")
+        return default
+
+
+def resolve_interactive_mode(args: argparse.Namespace) -> bool:
+    """
+    Determines whether interactive prompts should run.
+    Defaults to True on an interactive TTY and False when stdin is piped/redirected.
+    """
+    if args.interactive is False:
+        return False
+    if not sys.stdin.isatty():
+        if args.interactive is True:
+            logger.warning("stdin is not a TTY; falling back to non-interactive defaults on EOF.")
+            return True
+        logger.info("Non-TTY stdin detected; running in non-interactive mode.")
+        return False
+    return True
 
 
 def resolve_extract_type(args: argparse.Namespace) -> Tuple[bool, bool, str]:
@@ -216,8 +288,9 @@ def resolve_extract_type(args: argparse.Namespace) -> Tuple[bool, bool, str]:
             print("  2. Users only  (Project -> Project Users & Collection -> Collection Users)")
             print("  3. Both        (Seeds and Users)")
             while True:
-                user_inp = input(
-                    "\nEnter choice (1/2/3 or seeds/users/both) [default: 3 (both)]: "
+                user_inp = _safe_input(
+                    "\nEnter choice (1/2/3 or seeds/users/both) [default: 3 (both)]: ",
+                    default="3",
                 ).strip().lower()
                 if not user_inp or user_inp in ("3", "both"):
                     choice = "both"
@@ -238,7 +311,10 @@ def resolve_extract_type(args: argparse.Namespace) -> Tuple[bool, bool, str]:
     return extract_seeds, extract_users, choice
 
 
-def resolve_include_deleted(args: argparse.Namespace) -> bool:
+def resolve_include_deleted(
+    args: argparse.Namespace,
+    deleted_project_count: Optional[int] = None,
+) -> bool:
     """
     Determines whether to include deleted projects and collections.
     Respects `--include-deleted` if passed; otherwise prompts in interactive mode.
@@ -248,9 +324,15 @@ def resolve_include_deleted(args: argparse.Namespace) -> bool:
         return True
 
     if args.interactive:
+        hint = (
+            f" ({deleted_project_count} deleted project(s) found)"
+            if deleted_project_count is not None
+            else ""
+        )
         while True:
-            ans = input(
-                "\nInclude deleted projects and collections? (y/n) [default: n]: "
+            ans = _safe_input(
+                f"\nInclude deleted projects and collections{hint}? (y/n) [default: n]: ",
+                default="n",
             ).strip().lower()
             if not ans or ans in ("n", "no"):
                 return False
@@ -315,12 +397,120 @@ def validate_output_paths(csv_out: str, json_out: str) -> Tuple[str, str]:
 
 
 def _append_query_param(url: str, key: str, value: str) -> str:
-    """Safely adds or updates a query parameter on a URL."""
+    """Safely adds or updates a query parameter on a URL while preserving other parameters."""
     parsed = urlparse(url)
-    query_params = dict(parse_qsl(parsed.query))
-    query_params[key] = value
-    new_query = urlencode(query_params)
+    query_pairs = [
+        (k, v)
+        for k, v in parse_qsl(parsed.query, keep_blank_values=True)
+        if k != key
+    ]
+    query_pairs.append((key, value))
+    new_query = urlencode(query_pairs)
     return urlunparse(parsed._replace(query=new_query))
+
+
+_CONTAINER_LIST_KEYS = (
+    "hits",
+    "seeds",
+    "user_entities",
+    "entities",
+    "users",
+    "items",
+    "collection_project_users",
+    "projects",
+    "collections",
+    "user_collections",
+    "data",
+)
+
+_PAGINATION_META_KEYS = frozenset(
+    {
+        "total",
+        "count",
+        "total_count",
+        "page",
+        "page_size",
+        "limit",
+        "offset",
+        "next_page_token",
+        "page_token",
+        "cursor",
+        "next_cursor",
+        "meta",
+        "links",
+    }
+)
+
+
+def _validate_same_origin(base_url: str, target_url: str, resource_label: str) -> str:
+    """Ensures a server-supplied pagination URL stays on the same scheme and host."""
+    base_parsed = urlparse(base_url)
+    target_parsed = urlparse(target_url)
+    if (
+        target_parsed.scheme.lower() != base_parsed.scheme.lower()
+        or target_parsed.netloc.lower() != base_parsed.netloc.lower()
+    ):
+        raise ASMRequestError(
+            resource_label,
+            target_url,
+            None,
+            f"Refusing off-origin pagination URL: {target_url}",
+        )
+    return target_url
+
+
+def _resolve_next_page_url(
+    base_url: str,
+    current_url: str,
+    payload: Dict[str, Any],
+    result: Any,
+    resource_label: str,
+) -> Optional[str]:
+    """
+    Determines the next page URL from `links.next`, `next_page_token`, or `cursor`.
+    Prefers `links.next` first so server-supplied parameter names are preserved verbatim.
+    """
+    result_dict = result if isinstance(result, dict) else {}
+    meta_dict = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
+
+    # 1. Prefer `links.next` (present in either `result` or top-level `payload`)
+    for container in (result_dict, payload):
+        links = container.get("links")
+        if isinstance(links, dict) and links.get("next"):
+            next_link = str(links["next"]).strip()
+            if next_link:
+                resolved = urljoin(current_url, next_link)
+                return _validate_same_origin(base_url, resolved, resource_label)
+
+    # 2. Check `next_page_token`
+    for raw_token in (
+        result_dict.get("next_page_token"),
+        payload.get("next_page_token"),
+        meta_dict.get("next_page_token"),
+    ):
+        if raw_token is not None:
+            token_str = str(raw_token).strip()
+            if token_str:
+                if token_str.startswith(("http://", "https://")):
+                    return _validate_same_origin(base_url, token_str, resource_label)
+                return _append_query_param(base_url, "page_token", token_str)
+
+    # 3. Check `next_cursor` / `cursor` (used by VT v3 / GTI cursor-paginated endpoints)
+    for raw_cursor in (
+        result_dict.get("next_cursor"),
+        result_dict.get("cursor"),
+        payload.get("next_cursor"),
+        meta_dict.get("next_cursor"),
+        meta_dict.get("cursor"),
+    ):
+        if raw_cursor is not None:
+            cursor_str = str(raw_cursor).strip()
+            if cursor_str:
+                if cursor_str.startswith(("http://", "https://")):
+                    return _validate_same_origin(base_url, cursor_str, resource_label)
+                return _append_query_param(base_url, "cursor", cursor_str)
+
+    return None
 
 
 class ASMRequestError(Exception):
@@ -386,7 +576,7 @@ def _failure_reason(entity: Dict[str, Any], resource: str) -> str:
 def fetch_paginated_or_list(
     session: requests.Session,
     url: str,
-    headers: Dict[str, str],
+    headers: Optional[Dict[str, str]] = None,
     debug: bool = False,
     resource_label: str = "resource",
 ) -> List[Dict[str, Any]]:
@@ -394,9 +584,8 @@ def fetch_paginated_or_list(
     Fetches an ASM endpoint and returns its items. Handles either:
       - A flat list: `{"result": [...]}` or `{"data": [...]}` (what GTI ASM returns today)
       - A paginated dict: `{"result": {"hits": [...], "next_page_token": "..."}}`
-        or `{"result": {"seeds": [...], "next_page_token": "..."}}`
-    Follows `next_page_token` safely, stopping when a page returns 0 items or
-    if a page token repeats.
+        or cursor/link pagination (`links.next`, `meta.cursor`).
+    Follows pagination safely, stopping when a page returns 0 items or if a URL repeats.
 
     Raises ASMRequestError on any failure (non-2xx status, network error after retries,
     invalid JSON, `success: false`, or an unexpected response shape), so a failed fetch
@@ -404,7 +593,7 @@ def fetch_paginated_or_list(
     """
     items: List[Dict[str, Any]] = []
     current_url: Optional[str] = url
-    seen_tokens: Set[str] = set()
+    seen_urls: Set[str] = {url}
 
     while current_url:
         if debug:
@@ -466,7 +655,6 @@ def fetch_paginated_or_list(
         if result is None and "data" in payload:
             result = payload.get("data")
 
-        next_token: Optional[str] = None
         page_items: List[Dict[str, Any]] = []
 
         if result is None:
@@ -474,37 +662,35 @@ def fetch_paginated_or_list(
             break
         if isinstance(result, list):
             page_items = result
-            next_token = (
-                payload.get("next_page_token")
-                or (payload.get("meta") or {}).get("next_page_token")
-                or (payload.get("links") or {}).get("next")
-            )
         elif isinstance(result, dict):
             # Look for standard list containers inside `result`
-            found_list = False
-            for list_key in (
-                "hits",
-                "seeds",
-                "user_entities",
-                "entities",
-                "users",
-                "items",
-                "collection_project_users",
-                "data",
-            ):
-                if isinstance(result.get(list_key), list):
-                    page_items = result[list_key]
-                    found_list = True
+            found_container = False
+            for list_key in _CONTAINER_LIST_KEYS:
+                if list_key in result:
+                    container_val = result[list_key]
+                    if container_val is None:
+                        page_items = []
+                    elif isinstance(container_val, list):
+                        page_items = container_val
+                    else:
+                        raise ASMRequestError(
+                            resource_label,
+                            current_url,
+                            response.status_code,
+                            f"Unexpected '{list_key}' type: {type(container_val).__name__}",
+                        )
+                    found_container = True
                     break
-            if not found_list and result:
-                # Single resource dict returned
-                page_items = [result]
 
-            next_token = (
-                result.get("next_page_token")
-                or payload.get("next_page_token")
-                or (payload.get("meta") or {}).get("next_page_token")
-            )
+            if not found_container and result:
+                # Ignore pure pagination/count metadata dicts with no items; only treat as a
+                # single resource dict if non-metadata fields are present on the first page.
+                if set(result.keys()).issubset(_PAGINATION_META_KEYS):
+                    page_items = []
+                elif not items:
+                    page_items = [result]
+                else:
+                    break
         else:
             raise ASMRequestError(
                 resource_label, current_url, response.status_code,
@@ -516,18 +702,20 @@ def fetch_paginated_or_list(
 
         items.extend(page_items)
 
-        if next_token:
-            token_str = str(next_token).strip()
-            if not token_str or token_str in seen_tokens:
-                if debug and token_str in seen_tokens:
-                    logger.debug("Stopping pagination on repeated token for %s", resource_label)
+        next_url = _resolve_next_page_url(
+            base_url=url,
+            current_url=current_url,
+            payload=payload,
+            result=result,
+            resource_label=resource_label,
+        )
+        if next_url:
+            if next_url in seen_urls:
+                if debug:
+                    logger.debug("Stopping pagination on repeated URL for %s", resource_label)
                 break
-            seen_tokens.add(token_str)
-
-            if token_str.startswith("http"):
-                current_url = token_str
-            else:
-                current_url = _append_query_param(url, "page_token", token_str)
+            seen_urls.add(next_url)
+            current_url = next_url
         else:
             current_url = None
 
@@ -536,21 +724,15 @@ def fetch_paginated_or_list(
 
 def fetch_all_projects(
     session: requests.Session,
-    api_key: str,
     include_deleted: bool = False,
     keep_raw: bool = False,
     debug: bool = False,
 ) -> List[Dict[str, Any]]:
-    """Retrieves all ASM projects accessible to the API key."""
-    headers = {
-        "x-apikey": api_key,
-        "Accept": "application/json",
-    }
+    """Retrieves all ASM projects accessible to the Session's API key."""
     logger.info("Fetching ASM projects...")
     raw_projects = fetch_paginated_or_list(
         session=session,
         url=PROJECTS_ENDPOINT,
-        headers=headers,
         debug=debug,
         resource_label="projects",
     )
@@ -648,8 +830,9 @@ def filter_or_select_projects(
         print(f"  {idx}. {_display_name(proj)} (ID: {proj['id']}, UUID: {proj['uuid']})")
 
     while True:
-        choice = input(
-            "\nEnter project numbers (e.g., '1,3,5'), a range (e.g., '1-5'), or 'all' [default: all]: "
+        choice = _safe_input(
+            "\nEnter project numbers (e.g., '1,3,5'), a range (e.g., '1-5'), or 'all' [default: all]: ",
+            default="all",
         ).strip().lower()
         if not choice or choice == "all":
             return filtered
@@ -672,8 +855,9 @@ def resolve_collection_selection_mode(interactive: bool) -> bool:
     print("  1. All collections across selected project(s) [default]")
     print("  2. Select specific collections per project")
     while True:
-        ans = input(
-            "\nEnter choice (1/2 or all/select) [default: 1 (all)]: "
+        ans = _safe_input(
+            "\nEnter choice (1/2 or all/select) [default: 1 (all)]: ",
+            default="1",
         ).strip().lower()
         if not ans or ans in ("1", "all"):
             return False
@@ -724,7 +908,6 @@ def _display_name(
 def fetch_project_users(
     session: requests.Session,
     project: Dict[str, Any],
-    api_key: str,
     keep_raw: bool = False,
     debug: bool = False,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Dict[str, Any]]]:
@@ -740,12 +923,7 @@ def fetch_project_users(
     if not project_uuid:
         return [], {}
 
-    headers = {
-        "x-apikey": api_key,
-        "Accept": "application/json",
-    }
-    if project_id is not None:
-        headers["PROJECT-ID"] = str(project_id)
+    headers = {"PROJECT-ID": str(project_id)} if project_id is not None else None
 
     url = f"{PROJECTS_ENDPOINT}/{project_uuid}/users"
     raw_users = fetch_paginated_or_list(
@@ -801,18 +979,13 @@ def fetch_project_users(
 def fetch_project_collections(
     session: requests.Session,
     project: Dict[str, Any],
-    api_key: str,
     include_deleted: bool = False,
     interactive: bool = False,
     debug: bool = False,
 ) -> List[Dict[str, Any]]:
     """Fetches collections for a project using its numeric PROJECT-ID."""
     project_id = project.get("id")
-    headers = {
-        "x-apikey": api_key,
-        "PROJECT-ID": str(project_id),
-        "Accept": "application/json",
-    }
+    headers = {"PROJECT-ID": str(project_id)}
     raw_collections = fetch_paginated_or_list(
         session=session,
         url=COLLECTIONS_ENDPOINT,
@@ -849,27 +1022,39 @@ def fetch_project_collections(
         )
 
     if interactive and collections:
-        print(f"\n--- Collections in Project '{_display_name(project)}' ---")
-        for idx, col in enumerate(collections, start=1):
-            wf = f" [{col['workflow_pretty_name']}]" if col.get("workflow_pretty_name") else ""
-            print(f"  {idx}. {_display_name(col)}{wf} (UUID: {col['uuid']})")
-        while True:
-            sel = input(
-                "Select collection numbers (e.g., '1,2'), a range (e.g., '1-3'), 'all', or 'none' [default: all]: "
-            ).strip().lower()
-            if not sel or sel == "all":
-                return collections
-            if sel == "none":
-                return []
-
-            indices, err = _parse_selection_indices(sel, len(collections))
-            if indices is not None:
-                return [collections[i] for i in indices]
-            print(
-                f"Error: {err} Please enter numbers between 1 and {len(collections)}, 'all', or 'none'."
-            )
+        return prompt_select_collections(project, collections)
 
     return collections
+
+
+def prompt_select_collections(
+    project: Dict[str, Any],
+    collections: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Prompts the user on the main thread to select collections within a project."""
+    if not collections:
+        return collections
+
+    print(f"\n--- Collections in Project '{_display_name(project)}' ---")
+    for idx, col in enumerate(collections, start=1):
+        wf = f" [{col['workflow_pretty_name']}]" if col.get("workflow_pretty_name") else ""
+        print(f"  {idx}. {_display_name(col)}{wf} (UUID: {col['uuid']})")
+    while True:
+        sel = _safe_input(
+            "Select collection numbers (e.g., '1,2'), a range (e.g., '1-3'), 'all', or 'none' [default: all]: ",
+            default="all",
+        ).strip().lower()
+        if not sel or sel == "all":
+            return collections
+        if sel == "none":
+            return []
+
+        indices, err = _parse_selection_indices(sel, len(collections))
+        if indices is not None:
+            return [collections[i] for i in indices]
+        print(
+            f"Error: {err} Please enter numbers between 1 and {len(collections)}, 'all', or 'none'."
+        )
 
 
 def fetch_collection_users(
@@ -877,7 +1062,6 @@ def fetch_collection_users(
     collection: Dict[str, Any],
     project_id: Any,
     project_user_map: Optional[Dict[str, Dict[str, Any]]],
-    api_key: str,
     keep_raw: bool = False,
     debug: bool = False,
 ) -> List[Dict[str, Any]]:
@@ -892,11 +1076,7 @@ def fetch_collection_users(
     if not collection_uuid:
         return []
 
-    headers = {
-        "x-apikey": api_key,
-        "PROJECT-ID": str(project_id),
-        "Accept": "application/json",
-    }
+    headers = {"PROJECT-ID": str(project_id)}
     url = f"{COLLECTIONS_ENDPOINT}/{collection_uuid}/collection_project_users"
     raw_col_users = fetch_paginated_or_list(
         session=session,
@@ -1047,7 +1227,6 @@ def fetch_collection_seeds(
     session: requests.Session,
     collection: Dict[str, Any],
     project_id: Any,
-    api_key: str,
     keep_raw: bool = False,
     debug: bool = False,
 ) -> List[Dict[str, Any]]:
@@ -1061,11 +1240,7 @@ def fetch_collection_seeds(
     if not collection_uuid:
         return []
 
-    headers = {
-        "x-apikey": api_key,
-        "PROJECT-ID": str(project_id),
-        "Accept": "application/json",
-    }
+    headers = {"PROJECT-ID": str(project_id)}
 
     url = f"{COLLECTIONS_ENDPOINT}/{collection_uuid}/user_entities"
     raw_seeds = fetch_paginated_or_list(
@@ -1106,7 +1281,7 @@ def process_single_collection(
     Each fetch fails independently: a failed list is set to None and its error recorded
     under `errors`, while the other list is still extracted.
     """
-    session = get_thread_session(pool_maxsize=pool_maxsize)
+    session = get_thread_session(api_key=api_key, pool_maxsize=pool_maxsize)
     col_entry = _base_collection_entry(collection)
     errors: List[Dict[str, Any]] = []
 
@@ -1117,7 +1292,6 @@ def process_single_collection(
                 collection=collection,
                 project_id=project_id,
                 project_user_map=project_user_map,
-                api_key=api_key,
                 keep_raw=keep_raw,
                 debug=debug,
             )
@@ -1132,7 +1306,6 @@ def process_single_collection(
                 session=session,
                 collection=collection,
                 project_id=project_id,
-                api_key=api_key,
                 keep_raw=keep_raw,
                 debug=debug,
             )
@@ -1181,6 +1354,26 @@ def _failed_collection_entry(
     return col_entry
 
 
+_CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r", "\n")
+
+
+def _sanitize_csv_cell(value: Any) -> Any:
+    """
+    Mitigates CSV/spreadsheet formula injection (OWASP) by prefixing a single quote
+    when a string cell begins with formula trigger characters (`=`, `+`, `-`, `@`,
+    tab, CR, LF), including after leading spaces. Non-string values (bool/int) and
+    normal strings are returned unchanged.
+    """
+    if not isinstance(value, str) or not value:
+        return value
+    stripped = value.lstrip(" ")
+    if value.startswith(_CSV_FORMULA_PREFIXES) or (
+        stripped and stripped.startswith(_CSV_FORMULA_PREFIXES)
+    ):
+        return f"'{value}"
+    return value
+
+
 def build_csv_rows(
     projects_data: List[Dict[str, Any]],
     extract_seeds: bool,
@@ -1188,7 +1381,7 @@ def build_csv_rows(
 ) -> List[Dict[str, Any]]:
     """
     Flattens the hierarchical project data into CSV rows preserving the
-    parent-child tree order without leading formula characters (`--` / `----`).
+    parent-child tree order and sanitizing string cells against formula injection.
     Every child row also carries its parent `project_*` and `collection_*` identifiers.
     `deleted` reflects the row's scope (project or collection), matching the JSON.
     `error` is set on the project/collection row whose users, collections or seeds
@@ -1198,14 +1391,16 @@ def build_csv_rows(
 
     def _csv_row(**fields: Any) -> Dict[str, Any]:
         # Every column starts blank, so each row only sets the fields it needs
-        row = {name: "" for name in CSV_FIELDNAMES}
-        row.update(fields)
+        row: Dict[str, Any] = {name: "" for name in CSV_FIELDNAMES}
+        for key, val in fields.items():
+            row[key] = _sanitize_csv_cell(val)
         return row
 
     for proj in projects_data:
         p_name = proj.get("name", "")
         p_deleted = proj.get("deleted", False)
         project_fields = {
+            "organization_name": proj.get("organization_name", ""),
             "project_name": p_name,
             "project_id": proj.get("id", ""),
             "project_uuid": proj.get("uuid", ""),
@@ -1237,6 +1432,7 @@ def build_csv_rows(
                         user_email=u_email,
                         user_name=p_user.get("name", ""),
                         user_role=u_role,
+                        user_project_role=u_role,
                         user_id=p_user.get("user_id", ""),
                         **project_fields,
                     )
@@ -1248,8 +1444,11 @@ def build_csv_rows(
             c_deleted = col.get("deleted", False)
             collection_fields = {
                 "collection_name": c_name,
+                "collection_slug": col.get("name", ""),
                 "collection_id": col.get("id", ""),
                 "collection_uuid": col.get("uuid") or "",
+                "workflow_name": col.get("workflow_name", ""),
+                "workflow_pretty_name": col.get("workflow_pretty_name", ""),
             }
 
             # Collection Header Row
@@ -1279,6 +1478,7 @@ def build_csv_rows(
                             user_email=cu_email,
                             user_name=c_user.get("name", ""),
                             user_role=cu_role,
+                            user_project_role=c_user.get("project_role", ""),
                             user_id=c_user.get("user_id", ""),
                             **project_fields,
                             **collection_fields,
@@ -1503,7 +1703,7 @@ def write_json_output(
     errors: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     """
-    Writes the nested Wiz import JSON file and returns summary statistics.
+    Writes the nested GTI structure JSON file and returns summary statistics.
     Lists that failed to fetch are `null` (vs `[]` for genuinely empty), and every
     failure is listed in the top-level `errors` array with its project/collection.
     """
@@ -1554,8 +1754,55 @@ def write_json_output(
     with open(output_path, mode="w", encoding="utf-8") as jsonfile:
         json.dump(export_payload, jsonfile, indent=2)
 
-    logger.info("Saved nested Wiz migration payload to JSON: %s", output_path)
+    logger.info("Saved nested GTI structure export to JSON: %s", output_path)
     return summary
+
+
+def _fetch_project_collections_task(
+    project: Dict[str, Any],
+    api_key: str,
+    include_deleted: bool,
+    pool_maxsize: int,
+    debug: bool,
+) -> List[Dict[str, Any]]:
+    """Worker wrapper to fetch a project's collections using a thread-local Session."""
+    session = get_thread_session(api_key=api_key, pool_maxsize=pool_maxsize)
+    return fetch_project_collections(
+        session=session,
+        project=project,
+        include_deleted=include_deleted,
+        interactive=False,
+        debug=debug,
+    )
+
+
+def _fetch_project_users_task(
+    project: Dict[str, Any],
+    api_key: str,
+    pool_maxsize: int,
+    keep_raw: bool,
+    debug: bool,
+) -> Tuple[List[Dict[str, Any]], Dict[str, Dict[str, Any]]]:
+    """Worker wrapper to fetch a project's users using a thread-local Session."""
+    session = get_thread_session(api_key=api_key, pool_maxsize=pool_maxsize)
+    return fetch_project_users(
+        session=session,
+        project=project,
+        keep_raw=keep_raw,
+        debug=debug,
+    )
+
+
+def _shutdown_executor(executor: ThreadPoolExecutor, interrupted: bool = False) -> None:
+    """Shuts down a ThreadPoolExecutor, cancelling queued futures immediately on interrupt."""
+    if not interrupted:
+        executor.shutdown(wait=True)
+        return
+    try:
+        executor.shutdown(wait=False, cancel_futures=True)
+    except TypeError:
+        # Python 3.8 fallback (`cancel_futures` was added in Python 3.9)
+        executor.shutdown(wait=False)
 
 
 def main() -> None:
@@ -1567,217 +1814,316 @@ def main() -> None:
     args.csv_out, args.json_out = validate_output_paths(args.csv_out, args.json_out)
 
     api_key = load_api_key(args)
-    extract_seeds, extract_users, extract_mode = resolve_extract_type(args)
-    include_deleted = resolve_include_deleted(args)
+    args.interactive = resolve_interactive_mode(args)
 
-    pool_maxsize = max(10, args.workers * 2)
-    main_session = get_thread_session(pool_maxsize=pool_maxsize)
+    max_workers = max(1, args.workers)
+    pool_maxsize = max(10, max_workers * 2)
 
-    # Listing projects is the only fatal failure: nothing else can run without it
     try:
-        all_projects = fetch_all_projects(
-            session=main_session,
-            api_key=api_key,
-            include_deleted=include_deleted,
-            keep_raw=args.keep_raw,
-            debug=args.debug,
-        )
-    except ASMRequestError as e:
-        logger.error("Cannot list ASM projects, aborting: %s", e)
-        sys.exit(1)
+        main_session = get_thread_session(api_key=api_key, pool_maxsize=pool_maxsize)
 
-    selected_projects = filter_or_select_projects(
-        projects=all_projects,
-        project_filter=args.project_filter,
-        interactive=args.interactive,
-    )
-
-    if not selected_projects:
-        logger.warning("No projects selected or found. Exiting.")
-        return
-
-    # Ask once upfront whether to extract all collections or select per project.
-    # A failed collection listing is recorded against its project (collections = None).
-    select_collections_per_project = resolve_collection_selection_mode(args.interactive)
-    collections_by_project_idx: Dict[int, Optional[List[Dict[str, Any]]]] = {}
-    project_errors_by_idx: Dict[int, List[Dict[str, Any]]] = {}
-    for idx, project in enumerate(selected_projects):
-        project_errors_by_idx[idx] = []
+        # Fetch projects upfront (including deleted) to validate the API key before prompting
         try:
-            collections_by_project_idx[idx] = fetch_project_collections(
+            fetched_projects = fetch_all_projects(
                 session=main_session,
-                project=project,
-                api_key=api_key,
-                include_deleted=include_deleted,
-                interactive=select_collections_per_project,
+                include_deleted=True,
+                keep_raw=args.keep_raw,
                 debug=args.debug,
             )
         except ASMRequestError as e:
-            logger.error("Project '%s': failed to list collections: %s", _display_name(project), e)
-            collections_by_project_idx[idx] = None
-            project_errors_by_idx[idx].append(_error_record("collections", e))
+            logger.error("Cannot list ASM projects, aborting: %s", e)
+            sys.exit(1)
 
-    projects_export: List[Dict[str, Any]] = []
-
-    for idx, project in enumerate(selected_projects, start=1):
-        p_name = project["name"]
-        p_id = project["id"]
-        p_uuid = project["uuid"]
-        proj_errors = project_errors_by_idx[idx - 1]
-        logger.info(
-            "[%d/%d] Processing project '%s' (ID: %s, UUID: %s)...",
-            idx,
-            len(selected_projects),
-            _display_name(project),
-            p_id,
-            p_uuid,
+        deleted_project_count = sum(1 for p in fetched_projects if p.get("deleted"))
+        extract_seeds, extract_users, extract_mode = resolve_extract_type(args)
+        include_deleted = resolve_include_deleted(
+            args, deleted_project_count=deleted_project_count
+        )
+        all_projects = (
+            fetched_projects
+            if include_deleted
+            else [p for p in fetched_projects if not p.get("deleted")]
         )
 
-        # 1. Fetch Project-level Users (only if extracting users); None = fetch failed
-        project_users: Optional[List[Dict[str, Any]]] = []
-        project_user_map: Optional[Dict[str, Dict[str, Any]]] = {}
-        if extract_users:
-            try:
-                project_users, project_user_map = fetch_project_users(
-                    session=main_session,
-                    project=project,
-                    api_key=api_key,
-                    keep_raw=args.keep_raw,
-                    debug=args.debug,
-                )
-                logger.info("  -> Found %d project-level user(s).", len(project_users))
-            except ASMRequestError as e:
-                logger.error("  ! Failed to fetch project users: %s", e)
-                project_users, project_user_map = None, None
-                proj_errors.append(_error_record("project_users", e))
+        selected_projects = filter_or_select_projects(
+            projects=all_projects,
+            project_filter=args.project_filter,
+            interactive=args.interactive,
+        )
 
-        # 2. Use pre-fetched/selected Collections in Project (None = listing failed)
-        collections = collections_by_project_idx.get(idx - 1)
-        processed_collections: Optional[List[Dict[str, Any]]] = None
-        if collections is not None:
-            logger.info("  -> Processing %d selected collection(s).", len(collections))
-            processed_collections = []
+        if not selected_projects:
+            logger.warning("No projects selected or found. Exiting.")
+            return
 
-        # 3. Fetch Collection Users &/or Seeds concurrently across collections
-        if collections:
-            with ThreadPoolExecutor(max_workers=max(1, args.workers)) as executor:
-                future_to_idx = {
+        # Ask once upfront whether to extract all collections or select per project.
+        select_collections_per_project = resolve_collection_selection_mode(args.interactive)
+
+        collections_by_project_idx: Dict[int, Optional[List[Dict[str, Any]]]] = {}
+        project_users_by_idx: Dict[int, Optional[List[Dict[str, Any]]]] = {
+            idx: [] for idx in range(len(selected_projects))
+        }
+        project_user_map_by_idx: Dict[int, Optional[Dict[str, Dict[str, Any]]]] = {
+            idx: {} for idx in range(len(selected_projects))
+        }
+        collection_err_by_idx: Dict[int, Optional[Dict[str, Any]]] = {}
+        project_user_err_by_idx: Dict[int, Optional[Dict[str, Any]]] = {}
+
+        # Share a single ThreadPoolExecutor across all project- and collection-level calls
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        interrupted = False
+        try:
+            logger.info(
+                "Fetching project metadata across %d selected project(s) (workers=%d)...",
+                len(selected_projects),
+                max_workers,
+            )
+            col_futures = {
+                executor.submit(
+                    _fetch_project_collections_task,
+                    project,
+                    api_key,
+                    include_deleted,
+                    pool_maxsize,
+                    args.debug,
+                ): idx
+                for idx, project in enumerate(selected_projects)
+            }
+            user_futures = (
+                {
                     executor.submit(
+                        _fetch_project_users_task,
+                        project,
+                        api_key,
+                        pool_maxsize,
+                        args.keep_raw,
+                        args.debug,
+                    ): idx
+                    for idx, project in enumerate(selected_projects)
+                }
+                if extract_users
+                else {}
+            )
+
+            for future in as_completed(col_futures):
+                idx = col_futures[future]
+                project = selected_projects[idx]
+                try:
+                    collections_by_project_idx[idx] = future.result()
+                except Exception as e:
+                    logger.error(
+                        "Project '%s': failed to list collections: %s",
+                        _display_name(project),
+                        e,
+                    )
+                    collections_by_project_idx[idx] = None
+                    collection_err_by_idx[idx] = _error_record("collections", e)
+
+            for future in as_completed(user_futures):
+                idx = user_futures[future]
+                project = selected_projects[idx]
+                try:
+                    p_users, p_user_map = future.result()
+                    project_users_by_idx[idx] = p_users
+                    project_user_map_by_idx[idx] = p_user_map
+                except Exception as e:
+                    logger.error(
+                        "Project '%s': failed to fetch project users: %s",
+                        _display_name(project),
+                        e,
+                    )
+                    project_users_by_idx[idx] = None
+                    project_user_map_by_idx[idx] = None
+                    project_user_err_by_idx[idx] = _error_record("project_users", e)
+
+            # Prompt on the main thread if per-project collection selection was requested
+            if select_collections_per_project:
+                for idx, project in enumerate(selected_projects):
+                    cols = collections_by_project_idx.get(idx)
+                    if cols:
+                        collections_by_project_idx[idx] = prompt_select_collections(
+                            project, cols
+                        )
+
+            # Submit all collection-level tasks across all projects into the same pool
+            collection_futures = {}
+            for proj_idx, project in enumerate(selected_projects):
+                cols = collections_by_project_idx.get(proj_idx)
+                p_users = project_users_by_idx.get(proj_idx)
+                logger.info(
+                    "[%d/%d] Project '%s' (ID: %s, UUID: %s): %s%s",
+                    proj_idx + 1,
+                    len(selected_projects),
+                    _display_name(project),
+                    project["id"],
+                    project["uuid"],
+                    (
+                        f"{len(p_users)} project user(s), "
+                        if extract_users and p_users is not None
+                        else ("project users FAILED, " if extract_users else "")
+                    ),
+                    (
+                        "collections FAILED"
+                        if cols is None
+                        else f"{len(cols)} selected collection(s)"
+                    ),
+                )
+                if not cols:
+                    continue
+                for col_idx, col in enumerate(cols):
+                    fut = executor.submit(
                         process_single_collection,
                         col,
-                        p_id,
-                        project_user_map,
+                        project["id"],
+                        project_user_map_by_idx.get(proj_idx),
                         api_key,
                         extract_seeds,
                         extract_users,
                         pool_maxsize,
                         args.keep_raw,
                         args.debug,
-                    ): i
-                    for i, col in enumerate(collections)
-                }
-                results_by_idx: Dict[int, Dict[str, Any]] = {}
-                for future in as_completed(future_to_idx):
-                    col_idx = future_to_idx[future]
-                    col_name = _display_name(collections[col_idx])
-                    try:
-                        col_data = future.result()
-                    except Exception as e:
-                        # Keep the collection in the output, marked as failed, instead of dropping it
-                        logger.error("     ! Error processing collection '%s': %s", col_name, e)
-                        col_data = _failed_collection_entry(
-                            collections[col_idx], e, extract_seeds, extract_users, args.keep_raw
-                        )
-                    results_by_idx[col_idx] = col_data
-                    details = []
-                    if extract_users:
-                        col_users = col_data.get("users")
-                        details.append(
-                            "users FAILED" if col_users is None else f"{len(col_users)} collection user(s)"
-                        )
-                    if extract_seeds:
-                        col_seeds = col_data.get("seeds")
-                        details.append(
-                            "seeds FAILED" if col_seeds is None else f"{len(col_seeds)} seed(s)"
-                        )
-                    logger.info("     - Collection '%s': %s", col_name, ", ".join(details))
+                    )
+                    collection_futures[fut] = (proj_idx, col_idx)
 
+            results_by_proj_col: Dict[Tuple[int, int], Dict[str, Any]] = {}
+            for future in as_completed(collection_futures):
+                proj_idx, col_idx = collection_futures[future]
+                project = selected_projects[proj_idx]
+                cols = collections_by_project_idx[proj_idx] or []
+                col = cols[col_idx]
+                col_name = _display_name(col)
+                proj_label = _display_name(project)
+                try:
+                    col_data = future.result()
+                except Exception as e:
+                    # Keep the collection in the output, marked as failed, instead of dropping it
+                    logger.error(
+                        "  ! [%s] Error processing collection '%s': %s",
+                        proj_label,
+                        col_name,
+                        e,
+                    )
+                    col_data = _failed_collection_entry(
+                        col, e, extract_seeds, extract_users, args.keep_raw
+                    )
+                results_by_proj_col[(proj_idx, col_idx)] = col_data
+
+                details = []
+                if extract_users:
+                    col_users = col_data.get("users")
+                    details.append(
+                        "users FAILED"
+                        if col_users is None
+                        else f"{len(col_users)} collection user(s)"
+                    )
+                if extract_seeds:
+                    col_seeds = col_data.get("seeds")
+                    details.append(
+                        "seeds FAILED" if col_seeds is None else f"{len(col_seeds)} seed(s)"
+                    )
+                logger.info(
+                    "  - [%s] Collection '%s': %s",
+                    proj_label,
+                    col_name,
+                    ", ".join(details),
+                )
+        except KeyboardInterrupt:
+            interrupted = True
+            raise
+        finally:
+            _shutdown_executor(executor, interrupted=interrupted)
+
+        # Assemble deterministic export list preserving original project and collection order
+        projects_export: List[Dict[str, Any]] = []
+        for proj_idx, project in enumerate(selected_projects):
+            proj_errors: List[Dict[str, Any]] = []
+            if proj_idx in collection_err_by_idx and collection_err_by_idx[proj_idx]:
+                proj_errors.append(collection_err_by_idx[proj_idx])  # type: ignore[arg-type]
+            if proj_idx in project_user_err_by_idx and project_user_err_by_idx[proj_idx]:
+                proj_errors.append(project_user_err_by_idx[proj_idx])  # type: ignore[arg-type]
+
+            cols = collections_by_project_idx.get(proj_idx)
+            processed_collections: Optional[List[Dict[str, Any]]] = None
+            if cols is not None:
                 processed_collections = [
-                    results_by_idx[i] for i in sorted(results_by_idx.keys())
+                    results_by_proj_col[(proj_idx, col_idx)]
+                    for col_idx in range(len(cols))
                 ]
 
-        proj_entry: Dict[str, Any] = {
-            "id": p_id,
-            "uuid": p_uuid,
-            "name": p_name,
-            "organization_name": project.get("organization_name", ""),
-            "deleted": project.get("deleted", False),
-        }
+            proj_entry: Dict[str, Any] = {
+                "id": project["id"],
+                "uuid": project["uuid"],
+                "name": project["name"],
+                "organization_name": project.get("organization_name", ""),
+                "deleted": project.get("deleted", False),
+            }
+            if extract_users:
+                proj_entry["users"] = project_users_by_idx.get(proj_idx)
+            proj_entry["collections"] = processed_collections
+            if proj_errors:
+                proj_entry["errors"] = proj_errors
+            if args.keep_raw and project.get("raw"):
+                proj_entry["raw"] = project["raw"]
+
+            projects_export.append(proj_entry)
+
+        # Print the visual hierarchy tree and formatted tables to the terminal
+        if args.print_tree:
+            print_hierarchy_tree(
+                projects_data=projects_export,
+                extract_seeds=extract_seeds,
+                extract_users=extract_users,
+            )
+            print_terminal_tables(
+                projects_data=projects_export,
+                extract_seeds=extract_seeds,
+                extract_users=extract_users,
+            )
+
+        # Generate both CSV and JSON outputs
+        errors = collect_errors(projects_export)
+        csv_rows = build_csv_rows(
+            projects_data=projects_export,
+            extract_seeds=extract_seeds,
+            extract_users=extract_users,
+        )
+        write_csv_output(csv_rows, args.csv_out)
+        summary = write_json_output(
+            projects_data=projects_export,
+            output_path=args.json_out,
+            extract_mode=extract_mode,
+            extract_seeds=extract_seeds,
+            extract_users=extract_users,
+            errors=errors,
+        )
+
+        print("\n" + "=" * 60)
+        print("               GTI ASM Extraction Summary")
+        print("=" * 60)
+        print(f"  Extraction Mode         : {summary['extraction_mode']}")
+        print(f"  Projects Processed      : {summary['total_projects']}")
+        print(f"  Collections Processed   : {summary['total_collections']}")
         if extract_users:
-            proj_entry["users"] = project_users
-        proj_entry["collections"] = processed_collections
-        if proj_errors:
-            proj_entry["errors"] = proj_errors
-        if args.keep_raw and project.get("raw"):
-            proj_entry["raw"] = project["raw"]
+            print(f"  Project-Level Users     : {summary['total_project_users']}")
+            print(f"  Collection-Level Users  : {summary['total_collection_users']}")
+        if extract_seeds:
+            print(f"  Seeds Extracted         : {summary['total_seeds']}")
+        print(f"  Errors                  : {summary['total_errors']}")
+        print("-" * 60)
+        print(f"  Unified GTI CSV Output  : {args.csv_out}")
+        print(f"  Nested GTI JSON Output  : {args.json_out}")
+        print("=" * 60)
 
-        projects_export.append(proj_entry)
-
-    # Print the visual hierarchy tree and formatted tables to the terminal
-    if args.print_tree:
-        print_hierarchy_tree(
-            projects_data=projects_export,
-            extract_seeds=extract_seeds,
-            extract_users=extract_users,
-        )
-        print_terminal_tables(
-            projects_data=projects_export,
-            extract_seeds=extract_seeds,
-            extract_users=extract_users,
-        )
-
-    # Generate both CSV and JSON outputs
-    errors = collect_errors(projects_export)
-    csv_rows = build_csv_rows(
-        projects_data=projects_export,
-        extract_seeds=extract_seeds,
-        extract_users=extract_users,
-    )
-    write_csv_output(csv_rows, args.csv_out)
-    summary = write_json_output(
-        projects_data=projects_export,
-        output_path=args.json_out,
-        extract_mode=extract_mode,
-        extract_seeds=extract_seeds,
-        extract_users=extract_users,
-        errors=errors,
-    )
-
-    print("\n" + "=" * 60)
-    print("               GTI ASM Extraction Summary")
-    print("=" * 60)
-    print(f"  Extraction Mode         : {summary['extraction_mode']}")
-    print(f"  Projects Processed      : {summary['total_projects']}")
-    print(f"  Collections Processed   : {summary['total_collections']}")
-    if extract_users:
-        print(f"  Project-Level Users     : {summary['total_project_users']}")
-        print(f"  Collection-Level Users  : {summary['total_collection_users']}")
-    if extract_seeds:
-        print(f"  Seeds Extracted         : {summary['total_seeds']}")
-    print(f"  Errors                  : {summary['total_errors']}")
-    print("-" * 60)
-    print(f"  Unified GTI CSV Output  : {os.path.abspath(args.csv_out)}")
-    print(f"  Wiz Import JSON Output  : {os.path.abspath(args.json_out)}")
-    print("=" * 60)
-
-    if errors:
-        print_error_report(errors)
-        sys.exit(1)
+        if errors:
+            print_error_report(errors)
+            sys.exit(1)
+    finally:
+        close_all_sessions()
 
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\nInterrupted by user. Exiting.")
-        sys.exit(0)
+        print("\nInterrupted by user. Exiting.", flush=True)
+        sys.stderr.flush()
+        os._exit(130)
